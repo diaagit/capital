@@ -1,14 +1,19 @@
 import express, { Express, Request, Response } from "express";
 import morgan from "morgan";
 import dotenv from "dotenv";
+import cors from "cors"
+import router from "./routes";
 
 dotenv.config();
 
 export const app: Express = express();
 export const port = process.env.PORT || 3001;
 
+app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
+
+app.use("/api/v1",router);
 
 app.get("/", async (req: Request, res: Response) => {
   res.status(200).send("<h1>Hello World!</h1>");
