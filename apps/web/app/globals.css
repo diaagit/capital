@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@import "swiper/css";
+@import "swiper/css/grid";
+@import "swiper/css/navigation";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
