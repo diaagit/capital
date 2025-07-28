@@ -5,7 +5,7 @@ services:
     image: postgres
     restart: always
     environment:
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: mysecretpassword
     ports:
       - "5432:5432"
     volumes:
@@ -26,7 +26,7 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      - DATABASE_URL=postgresql://postgres:mysecretpassword@postgres:5432/postgres
       - REDIS_URL=redis://redis:6379
     depends_on:
       - postgres
@@ -37,11 +37,11 @@ services:
       context: .
       dockerfile: docker/Dockerfile.web
       args:
-        DB_URL: postgresql://postgres:postgres@postgres:5432/postgres
+        DB_URL: postgresql://postgres:mysecretpassword@postgres:5432/postgres
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      - DATABASE_URL=postgresql://postgres:mysecretpassword@postgres:5432/postgres
     depends_on:
       - postgres
       - redis

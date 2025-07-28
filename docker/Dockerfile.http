@@ -8,9 +8,13 @@ COPY ./packages ./packages
 COPY ./apps/http ./apps/http
 
 RUN npm install 
+
+# COPY docker/entrypoint.sh /usr/src/app/entrypoint.sh
+# RUN chmod +x /usr/src/app/entrypoint.sh
+
 RUN npm run generate:db
 RUN npx turbo build --filter=http...
 
 EXPOSE 3001
-
+# ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
 CMD [ "npm","run","start:backend"]
