@@ -11,6 +11,9 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@repo/cache":"*",
+    "@repo/types":"*",
+    "@repo/db":"*",
     "@repo/ui": "*",
     "next": "^15.4.2",
     "react": "^19.1.0",

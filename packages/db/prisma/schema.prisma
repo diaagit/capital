@@ -1,0 +1,64 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  //output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  user
+  verifier
+  organiser
+  admin
+}
+
+enum OTPPurpose {
+  signup
+  forgot_password
+}
+
+enum EventStatus {
+  draft
+  published
+  cancelled
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  PURCHASE
+  REFUND
+}
+
+model User {
+  id                    String          @id @default(uuid())
+  first_name            String?
+  last_name             String?
+  email                 String          @unique
+  password              String
+  role                  Role
+  is_verified           Boolean         @default(false)
+  profile_image_url     String?
+
+  public_key            String
+  encrypted_private_key String?
+  created_at            DateTime        @default(now())
+
+  // otps                  Otp[]
+  // passwordResets        PasswordResetToken[]
+  // jwtTokens             JwtToken[]
+  // organisedEvents       Event[]         @relation("OrganiserEvents")
+  // tickets               Ticket[]
+  // verifications         TicketVerification[] @relation("VerifierVerifications")
+  // cards                 Card[]
+  // transactions          Transaction[]
+}
