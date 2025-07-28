@@ -1,6 +1,10 @@
 {
   "extends": "@repo/typescript-config/nextjs.json",
   "compilerOptions": {
+    "baseUrl": ".", // Required for alias
+    "paths": {
+      "@/*": ["*"] // Adjust if your code isn’t in `src`
+    },
     "plugins": [
       {
         "name": "next"
