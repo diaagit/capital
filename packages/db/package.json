@@ -2,15 +2,16 @@
   "name": "@repo/db",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
   },
   "scripts": {
+    "build": "tsc -b",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "exports":{
-    "./db":"./dist/index.js"
+  "exports": {
+    "./db": "./dist/index.js"
   },
   "keywords": [],
   "author": "",
