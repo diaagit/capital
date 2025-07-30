@@ -4,6 +4,8 @@ import "./globals.css";
 import Navbar from "@/components/custom/Navbar";
 import Footer from "@/components/custom/Footer";
 import React from "react";
+import { type Metadata } from "next";
+import { capitalConfig } from "@/lib/capitalConfig";
 
 
 const geistSans = Geist({
@@ -22,9 +24,34 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-export const metadata = {
-  title: "Eventique - Blockchain Ticketing",
-  description: "Next-gen ticketing powered by blockchain and AI",
+export const metadata: Metadata = {
+  metadataBase: new URL(capitalConfig.seo.url),
+  title: {
+    default: capitalConfig.name,
+    template: `%s - ${capitalConfig.title}`,
+  },
+  description: capitalConfig.description,
+  keywords: capitalConfig.seo.keywords,
+  authors: capitalConfig.seo.authors,
+  creator: "Ronak Maheshwari", //Let me be the creator for next optimization process 
+
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: capitalConfig.seo.url,
+    title: capitalConfig.name,
+    description: capitalConfig.description,
+    images: [`${capitalConfig.seo.url}/Eventique3.png`],
+    siteName: capitalConfig.name,
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: capitalConfig.name,
+    description: capitalConfig.description,
+    images: [`${capitalConfig.seo.url}/Eventique3.png`],
+    creator: capitalConfig.seo.twitterHandle,
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
