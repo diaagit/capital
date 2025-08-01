@@ -10,7 +10,9 @@
     "start:db":"cd packages/db/prisma && npx prisma studio",
     "generate:db":"cd packages/db && npx prisma generate && cd ../..",
     "start:frontend":"cd apps/web && npm run start",
-    "start:backend":"cd apps/http && npm run dev"
+    "start:backend":"cd apps/http && npm run dev",
+    "migrate:db":"cd packages/db/prisma && npx prisma migrate dev",
+    "seed:db":"cd packages/db/prisma && npx prisma db seed"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
