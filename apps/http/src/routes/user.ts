@@ -1,9 +1,9 @@
-import { SigninType, SignupType } from "@repo/types/types";
 import express, { Request, Response, Router } from "express";
-import db from "../../../../packages/db/dist";
+import db from "@repo/db"
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
+import { SigninType, SignupType } from "@repo/types";
 
 // have to Add public private key logic Cards logic OTP logic
 
@@ -40,6 +40,10 @@ userRouter.post("/signup", async (req: Request, res: Response) => {
 
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+    if (!firstName || !lastName) {
+      throw new Error("First name and last name are required");
+    }
+    
     const newUser = await db.user.create({
       data: {
         first_name: firstName,

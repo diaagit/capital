@@ -1,90 +1,99 @@
 # Capital Installation Guide
 
-This guide provides three ways to run the project:
+This guide explains how to set up and run the **Capital** project. There are **three ways** to get started:
 
-1. **Manual setup** (Node.js + local Postgres)
+1. **Manual Setup** (Node.js + local Postgres)
 2. **Using Docker**
-3. **Using Docker Compose (recommended)**
+3. **Using Docker Compose** (**recommended**)
 
 ---
 
-Want to see data in database:
-
-In root folder just run:
-
-1. npm run start:db
-
-## **1. Manual Installation**
-
-### Prerequisites
-
-* Node.js >= 18 (install from [Node.js official site](https://nodejs.org/))
-* Postgres installed locally or hosted (e.g., [neon.tech](https://neon.tech))
-
-### Steps
+## ✅ Quick Start: View Database in Browser
+To open Prisma Studio and inspect your database, run:
 
 ```bash
-# Clone the repository
+npm run start:db
+````
+
+---
+
+## 1. Manual Installation
+
+### **Prerequisites**
+
+* **Node.js** ≥ 18 ([Download here](https://nodejs.org/))
+* **Postgres** installed locally OR a hosted Postgres instance (e.g., [Neon.tech](https://neon.tech))
+* **Docker** (optional, for running Postgres locally without installing)
+
+---
+
+### **Steps**
+
+```bash
+# 1. Clone the repository
 git clone https://github.com/ronakmaheshwari/capital
 cd capital
 
-# Install dependencies
+# 2. Install dependencies
 npm install
 
-# Start a local Postgres container (if Postgres is not already running)
-docker run --name postgres -e POSTGRES_PASSWORD=mysecretpassword -d -p 5432:5432 postgres
+# 3. Start a local Postgres container (optional, if Postgres is not installed locally)
+docker run --name postgres \
+  -e POSTGRES_PASSWORD=mysecretpassword \
+  -d -p 5432:5432 postgres
 
-# OR use a Neon.tech DB and grab your connection string
+# (Alternatively, use a Neon.tech DB and copy the connection string)
 
-# Configure environment
+# 4. Configure environment variables
 cp .env.example .env
-# Edit .env and set DATABASE_URL, for example:
+# Open .env and set DATABASE_URL, for example:
 # DATABASE_URL=postgresql://postgres:mysecretpassword@localhost:5432/postgres
 
-# Apply database migrations
-cd packages/db/prisma
-npx prisma migrate dev
+# 5. Apply database migrations
+npm run migrate:db
 
-# Generate Prisma Client
-cd ../..
-npx prisma generate
+# 6. Generate Prisma Client
+npm run generate:db
 
-# Build and start the app
+# 7. Build and start the app
 npm run build
 npm run start
 ```
 
-The backend will be available at **[http://localhost:3001](http://localhost:3001)** (or as set by `PORT`).
+Your backend will be available at:
+**[http://localhost:3001](http://localhost:3001)** (or as defined by `PORT` in `.env`).
 
 ---
 
-## **2. Docker Installation**
+## 2. Docker Installation
 
-### Steps
+Use this if you want to run the app in containers without Compose.
+
+### **Steps**
 
 ```bash
-# Create a dedicated network and volumes
+# 1. Create a dedicated Docker network and volumes
 docker network create capital_network
 docker volume create pg_data
 docker volume create redis_data
 
-# Start Postgres
+# 2. Start Postgres
 docker run --network capital_network \
   --name postgres \
   -v pg_data:/var/lib/postgresql/data \
   -e POSTGRES_PASSWORD=mysecretpassword \
   -d -p 5432:5432 postgres
 
-# Start Redis
+# 3. Start Redis
 docker run --network capital_network \
   --name redis \
   -v redis_data:/data \
   -d -p 6379:6379 redis
 
-# Build backend image
+# 4. Build backend image
 docker build --network=host -f docker/Dockerfile.http -t capital-backend .
 
-# Run the backend container
+# 5. Run the backend container
 docker run --network capital_network \
   -e DATABASE_URL=postgresql://postgres:mysecretpassword@postgres:5432/postgres \
   -e REDIS_URL=redis://redis:6379 \
@@ -94,25 +103,27 @@ docker run --network capital_network \
 
 ---
 
-## **3. Docker Compose Installation (Recommended)**
+## 3. Docker Compose Installation (Recommended)
 
-### Steps
+This method is the easiest way to run **Postgres**, **Redis**, **Backend**, and **Frontend** together.
+
+### **Steps**
 
 ```bash
-# Start everything (Postgres, Redis, Backend, Frontend)
-docker-compose up 
+# Start all services (Postgres, Redis, Backend, Frontend)
+docker-compose up
 ```
 
 This will start:
 
-* **Postgres** (port 5432)
-* **Redis** (port 6379)
+* **Postgres** (port **5432**)
+* **Redis** (port **6379**)
 * **Backend** at [http://localhost:3001](http://localhost:3001)
 * **Frontend** at [http://localhost:3000](http://localhost:3000)
 
 ---
 
-### Example `.env`
+### **Example `.env` File**
 
 Create a `.env` file in the project root:
 
@@ -126,7 +137,7 @@ PORT=3001
 
 ---
 
-### Stop and Clean Up
+### **Stop and Clean Up**
 
 ```bash
 # Stop all services
@@ -135,5 +146,30 @@ docker-compose down
 # Remove volumes (reset Postgres & Redis data)
 docker-compose down -v
 ```
+
+---
+
+## **Available NPM Scripts**
+
+| Command                  | Description                             |
+| ------------------------ | --------------------------------------- |
+| `npm run start:db`       | Open Prisma Studio for DB visualization |
+| `npm run generate:db`    | Generate Prisma client                  |
+| `npm run start:frontend` | Start the frontend app                  |
+| `npm run start:backend`  | Start the backend app in dev mode       |
+| `npm run migrate:db`     | Apply Prisma migrations                 |
+| `npm run seed:db`        | Seed the database                       |
+
+---
+
+### ✅ **Recommended Workflow**
+
+1. Run `npm install`
+2. Copy `.env.example` → `.env` and update values
+3. Start DB (via Postgres or Docker)
+4. Run `npm run migrate:db` → `npm run generate:db`
+5. Start backend: `npm run start:backend`
+6. Start frontend: `npm run start:frontend`
+
 ---
 

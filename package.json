@@ -1,5 +1,5 @@
 {
-  "name": "eventq",
+  "name": "capital",
   "private": true,
   "scripts": {
     "build": "turbo run build",
