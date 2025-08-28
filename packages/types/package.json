@@ -1,20 +1,20 @@
 {
-  "name": "@repo/types",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build":"tsc -b"
-  },
-  "exports":{
-    ".":"./dist/index.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "zod": "^4.0.10"
-  }
+    "author": "",
+    "dependencies": {
+        "zod": "^4.0.10"
+    },
+    "description": "",
+    "exports": {
+        ".": "./dist/index.js"
+    },
+    "keywords": [],
+    "license": "ISC",
+    "main": "index.js",
+    "name": "@repo/types",
+    "scripts": {
+        "build": "tsc -b",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "type": "commonjs",
+    "version": "1.0.0"
 }

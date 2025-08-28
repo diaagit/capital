@@ -1,7 +1,7 @@
-import express, { Express, Request, Response } from "express";
-import morgan from "morgan";
+import cors from "cors";
 import dotenv from "dotenv";
-import cors from "cors"
+import express, { type Express, type Request, type Response } from "express";
+import morgan from "morgan";
 import router from "./routes";
 
 dotenv.config();
@@ -13,13 +13,12 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
 
-app.use("/api/v1",router);
+app.use("/api/v1", router);
 
-app.get("/", async (req: Request, res: Response) => {
-  
-  res.status(200).send("<h1>Hello World!</h1>");
+app.get("/", async (_req: Request, res: Response) => {
+    res.status(200).send("<h1>Hello World!</h1>");
 });
 
-app.get("/pid", (req: Request, res: Response) => {
-  res.send(`The process id is ${process.pid}!`);
+app.get("/pid", (_req: Request, res: Response) => {
+    res.send(`The process id is ${process.pid}!`);
 });

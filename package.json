@@ -1,30 +1,37 @@
 {
-  "name": "capital",
-  "private": true,
-  "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
-    "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run check-types",
-    "start:db":"cd packages/db/prisma && npx prisma studio",
-    "generate:db":"cd packages/db && npx prisma generate && cd ../..",
-    "start:frontend":"cd apps/web && npm run start",
-    "start:backend":"cd apps/http && npm run dev",
-    "migrate:db":"cd packages/db/prisma && npx prisma migrate dev",
-    "seed:db":"cd packages/db/prisma && npx prisma db seed"
-  },
-  "devDependencies": {
-    "prettier": "^3.6.2",
-    "turbo": "^2.5.5",
-    "typescript": "5.8.3"
-  },
-  "engines": {
-    "node": ">=18"
-  },
-  "packageManager": "npm@11.4.1",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ]
+    "devDependencies": {
+        "@biomejs/biome": "^2.2.2",
+        "prettier": "^3.6.2",
+        "turbo": "^2.5.5",
+        "typescript": "5.8.3"
+    },
+    "engines": {
+        "node": ">=18"
+    },
+    "name": "capital",
+    "packageManager": "npm@11.4.1",
+    "private": true,
+    "scripts": {
+        "biome:all": "npm run biome:format && npm run biome:fix",
+        "biome:fix": "npx @biomejs/biome check --write",
+        "biome:format": "npx @biomejs/biome format --write .",
+        "biome:lint": "npx @biomejs/biome check",
+        "biome:unsafe": "npx @biomejs/biome check --write --unsafe",
+        "biome:validate": "npx @biomejs/biome validate",
+        "build": "turbo run build",
+        "check-types": "turbo run check-types",
+        "dev": "turbo run dev",
+        "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+        "generate:db": "cd packages/db && npx prisma generate && cd ../..",
+        "lint": "turbo run lint",
+        "migrate:db": "cd packages/db/prisma && npx prisma migrate dev",
+        "seed:db": "cd packages/db/prisma && npx prisma db seed",
+        "start:backend": "cd apps/http && npm run dev",
+        "start:db": "cd packages/db/prisma && npx prisma studio",
+        "start:frontend": "cd apps/web && npm run start"
+    },
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ]
 }

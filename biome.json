@@ -1,0 +1,108 @@
+{
+    "$schema": "https://biomejs.dev/schemas/2.2.2/schema.json",
+    "assist": {
+        "actions": {
+            "recommended": true,
+            "source": {
+                "organizeImports": {
+                    "level": "on",
+                    "options": {
+                        "groups": [
+                            ":URL:",
+                            ":NODE:",
+                            ":PACKAGE:",
+                            [
+                                "packages/**",
+                                "apps/**",
+                                "@your-org/**"
+                            ],
+                            ":ALIAS:",
+                            ":PATH:",
+                            "**"
+                        ]
+                    }
+                },
+                "useSortedAttributes": "on",
+                "useSortedKeys": "on"
+            }
+        },
+        "enabled": true
+    },
+    "files": {
+        "ignoreUnknown": true,
+        "includes": [
+            "**",
+            "!packages/db",
+            "!**/node_modules",
+            "!**/.next",
+            "!**/dist",
+            "!**/build",
+            "!**/.vercel",
+            "!**/.turbo",
+            "!**/coverage",
+            "!**/dist",
+            "!**/ui",
+            "!apps/web",
+            "src/**",
+            "tests/**",
+            "apps/http/**",
+            "!packages/db",
+            "packages/notifications/**",
+            "packages/types/**",
+            "packages/cache/**",
+            "packages/notification/**"
+        ]
+    },
+    "formatter": {
+        "bracketSpacing": true,
+        "enabled": true,
+        "expand": "always",
+        "indentStyle": "space",
+        "indentWidth": 4,
+        "lineWidth": 100,
+        "useEditorconfig": true
+    },
+    "javascript": {
+        "formatter": {
+            "arrowParentheses": "always",
+            "bracketSameLine": false,
+            "quoteStyle": "double",
+            "semicolons": "always",
+            "trailingCommas": "all"
+        }
+    },
+    "linter": {
+        "enabled": true,
+        "rules": {
+            "complexity": {
+                "noCommaOperator": "off",
+                "noUselessCatch": "error"
+            },
+            "correctness": {
+                "noSelfAssign": "error",
+                "noUnusedImports": "error",
+                "noUnusedLabels": "error",
+                "noUnusedVariables": "error"
+            },
+            "performance": {
+                "noDelete": "error"
+            },
+            "recommended": true,
+            "security": {
+                "noDangerouslySetInnerHtml": "warn"
+            },
+            "style": {
+                "useConst": "error"
+            },
+            "suspicious": {
+                "noConsole": "warn",
+                "noDebugger": "error",
+                "noExplicitAny": "off",
+                "noVar": "error"
+            }
+        }
+    },
+    "vcs": {
+        "useIgnoreFile": true
+    }
+}

@@ -1,26 +1,25 @@
-import { Resend } from "resend";
 import dotenv from "dotenv";
+import { Resend } from "resend";
 import OTPEmailTemplate from "../templates/emailTemplate";
 
 dotenv.config();
 
 if (!process.env.RESEND_API_KEY) {
-  throw new Error("Missing RESEND_API_KEY in environment");
+    throw new Error("Missing RESEND_API_KEY in environment");
 }
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendEmailOtp(email: string, otp: number | string): Promise<void> {
-  try {
-    const html = OTPEmailTemplate(email, otp);
-    await resend.emails.send({
-      from: "onboarding@hire.10xdevs.me",
-      to: email,
-      subject: "Your OTP Code",
-      html
-    });
-    console.log("Email sent successfully");
-  } catch (error) {
-    throw new Error("Couldn't send an email");
-  }
+    try {
+        const html = OTPEmailTemplate(email, otp);
+        await resend.emails.send({
+            from: "onboarding@hire.10xdevs.me",
+            html,
+            subject: "Your OTP Code",
+            to: email,
+        });
+    } catch (_error) {
+        throw new Error("Couldn't send an email");
+    }
 }
