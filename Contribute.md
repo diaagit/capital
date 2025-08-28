@@ -150,16 +150,25 @@ docker-compose down -v
 ---
 
 ## **Available NPM Scripts**
-
-| Command                  | Description                             |
-| ------------------------ | --------------------------------------- |
-| `npm run start:db`       | Open Prisma Studio for DB visualization |
-| `npm run generate:db`    | Generate Prisma client                  |
-| `npm run start:frontend` | Start the frontend app                  |
-| `npm run start:backend`  | Start the backend app in dev mode       |
-| `npm run migrate:db`     | Apply Prisma migrations                 |
-| `npm run seed:db`        | Seed the database                       |
-
+| Command                  | Description                                                      |
+| ------------------------ | ---------------------------------------------------------------- |
+| `npm run start:db`       | Open Prisma Studio to inspect your database                      |
+| `npm run generate:db`    | Generate Prisma client                                           |
+| `npm run start:frontend` | Start the frontend app                                           |
+| `npm run start:backend`  | Start the backend app in dev mode                                |
+| `npm run migrate:db`     | Apply Prisma migrations                                          |
+| `npm run seed:db`        | Seed the database                                                |
+| `npm run build`          | Build all projects using Turbo                                   |
+| `npm run dev`            | Start all apps in dev mode using Turbo                           |
+| `npm run lint`           | Run linter on all packages using Turbo                           |
+| `npm run check-types`    | Run TypeScript type checks using Turbo                           |
+| `npm run format`         | Format code with Prettier                                        |
+| `npm run biome:all`      | Run Biome formatter and fix checks                               |
+| `npm run biome:format`   | Format code using Biome                                          |
+| `npm run biome:fix`      | Run Biome checks and auto-fix issues                             |
+| `npm run biome:lint`     | Run Biome lint checks                                            |
+| `npm run biome:unsafe`   | Run Biome checks with `--unsafe` auto-fix                        |
+| `npm run biome:validate` | Validate Biome configuration  
 ---
 
 ### ✅ **Recommended Workflow**
