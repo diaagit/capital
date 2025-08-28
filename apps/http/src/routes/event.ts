@@ -7,28 +7,36 @@
 | `/events/:id` | `PUT` | Update event (organiser only) |
 | `/events/:id` | `DELETE` | Delete event |*/
 
-import express, { type Request, type Response, type Router } from "express";
 import db from "@repo/db";
-//import {Prisma} from "@repo/db"; 
+import express, { type Request, type Response, type Router } from "express";
+//import {Prisma} from "@repo/db";
 import { z } from "zod";
 
 const eventRouter: Router = express.Router();
-const allowedStatuses = ["draft", "published", "cancelled"] as const;
+const allowedStatuses = [
+    "draft",
+    "published",
+    "cancelled",
+] as const;
 
 const EventType = z.object({
-    organiserId: z.string(),
-    title: z.string().min(3),
-    description: z.string().min(5),
     banner_url: z.string().url().optional(),
-    status: z.enum(["draft", "published", "cancelled"] as const),
+    description: z.string().min(5),
     location_name: z.string().min(3),
     location_url: z.string().url(),
+    organiserId: z.string(),
+    status: z.enum([
+        "draft",
+        "published",
+        "cancelled",
+    ] as const),
+    title: z.string().min(3),
 });
 
 const EventSlotType = z.object({
-    start_time: z.string().datetime(),
-    end_time: z.string().datetime(),
     capacity: z.number().positive(),
+    end_time: z.string().datetime(),
+    start_time: z.string().datetime(),
 });
 
 // Create a new event
@@ -42,18 +50,13 @@ eventRouter.post("/", async (req: Request, res: Response) => {
             });
         }
 
-        const {
-            organiserId,
-            title,
-            description,
-            banner_url,
-            status,
-            location_name,
-            location_url,
-        } = parsed.data;
+        const { organiserId, title, description, banner_url, status, location_name, location_url } =
+            parsed.data;
 
         const organiser = await db.user.findUnique({
-            where: { id: organiserId },
+            where: {
+                id: organiserId,
+            },
         });
 
         if (!organiser) {
@@ -64,19 +67,19 @@ eventRouter.post("/", async (req: Request, res: Response) => {
 
         const newEvent = await db.event.create({
             data: {
-                organiserId,
-                title,
-                description,
                 banner_url,
-                status,
+                description,
                 location_name,
                 location_url,
+                organiserId,
+                status,
+                title,
             },
         });
 
         return res.status(201).json({
-            message: "Event successfully created",
             event: newEvent,
+            message: "Event successfully created",
         });
     } catch (_error) {
         return res.status(500).json({
@@ -97,8 +100,16 @@ eventRouter.get("/", async (req: Request, res: Response) => {
 
         const events = await db.event.findMany({
             where: {
-                ...(safeStatus ? { status: safeStatus } : {}),
-                ...(organiserId ? { organiserId: String(organiserId) } : {}),
+                ...(safeStatus
+                    ? {
+                          status: safeStatus,
+                      }
+                    : {}),
+                ...(organiserId
+                    ? {
+                          organiserId: String(organiserId),
+                      }
+                    : {}),
             },
         });
 
@@ -109,15 +120,16 @@ eventRouter.get("/", async (req: Request, res: Response) => {
         }
 
         return res.status(200).json(events);
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: "Internal server error" });
+    } catch (_error) {
+        return res.status(500).json({
+            message: "Internal server error",
+        });
     }
 });
 
 // Delete an event
 // Deletes event with its slots if no tickets sold
-// Refund handling to be added later if we want 
+// Refund handling to be added later if we want
 // If so we need to delete tickets first then slots then event
 
 eventRouter.delete("/:id", async (req: Request, res: Response) => {
@@ -125,12 +137,14 @@ eventRouter.delete("/:id", async (req: Request, res: Response) => {
         const { id } = req.params;
 
         const event = await db.event.findUnique({
-            where: { id }
-        })
+            where: {
+                id,
+            },
+        });
 
         if (!event) {
             return res.status(404).json({
-                message: "Event not found"
+                message: "Event not found",
             });
         }
 
@@ -143,26 +157,27 @@ eventRouter.delete("/:id", async (req: Request, res: Response) => {
         // },
         // });
 
-
         await db.eventSlot.deleteMany({
-            where: { eventId: id },
+            where: {
+                eventId: id,
+            },
         });
 
-
         await db.event.delete({
-            where: { id }
+            where: {
+                id,
+            },
         });
 
         return res.status(200).json({
-            message: "Event deleted successfully"
+            message: "Event deleted successfully",
         });
-
     } catch (_error) {
         return res.status(500).json({
             message: "Internal server error",
         });
     }
-})
+});
 
 // Create a slot for a partucular event
 eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
@@ -180,7 +195,9 @@ eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
         const { start_time, end_time, capacity } = parsed.data;
 
         const event = await db.event.findUnique({
-            where: { id: eventId },
+            where: {
+                id: eventId,
+            },
         });
 
         if (!event) {
@@ -191,10 +208,10 @@ eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
 
         const slot = await db.eventSlot.create({
             data: {
+                capacity,
+                end_time: new Date(end_time),
                 eventId: event.id,
                 start_time: new Date(start_time),
-                end_time: new Date(end_time),
-                capacity,
             },
         });
 
@@ -202,8 +219,7 @@ eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
             message: "Event slot created successfully",
             slot,
         });
-    } catch (error) {
-        console.error(error);
+    } catch (_error) {
         return res.status(500).json({
             message: "Internal server error",
         });
@@ -212,31 +228,45 @@ eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
 
 // Get all slots for a particular event
 eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
-  try {
-    const { eventId } = req.params;
+    try {
+        const { eventId } = req.params;
 
-    const event = await db.event.findUnique({
-      where: { id: eventId },
-    });
+        const event = await db.event.findUnique({
+            where: {
+                id: eventId,
+            },
+        });
 
-    if (!event) {
-      return res.status(404).json({ message: "Event not found" });
+        if (!event) {
+            return res.status(404).json({
+                message: "Event not found",
+            });
+        }
+
+        const slots = await db.eventSlot.findMany({
+            orderBy: {
+                start_time: "asc",
+            },
+            where: {
+                eventId,
+            },
+        });
+
+        if (slots.length === 0) {
+            return res.status(200).json({
+                message: "No slots found for this event",
+                slots: [],
+            });
+        }
+
+        return res.status(200).json({
+            slots,
+        });
+    } catch (_error) {
+        return res.status(500).json({
+            message: "Internal server error",
+        });
     }
-
-    const slots = await db.eventSlot.findMany({
-      where: { eventId },
-      orderBy: { start_time: "asc" },
-    });
-
-    if (slots.length === 0) {
-      return res.status(200).json({ message: "No slots found for this event", slots: [] });
-    }
-
-    return res.status(200).json({ slots });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
 });
 
 // Delete a specific slot of an event
@@ -246,8 +276,8 @@ eventRouter.delete("/:eventId/slots/:slotId", async (req: Request, res: Response
 
         const slot = await db.eventSlot.findFirst({
             where: {
-                id: slotId,
                 eventId: eventId,
+                id: slotId,
             },
         });
 
@@ -263,22 +293,20 @@ eventRouter.delete("/:eventId/slots/:slotId", async (req: Request, res: Response
         // });
 
         await db.eventSlot.delete({
-            where: { id: slotId },
+            where: {
+                id: slotId,
+            },
         });
 
         return res.status(200).json({
             message: "Slot deleted successfully",
             slotId,
         });
-
-    } catch (error) {
-        console.error("Error deleting slot:", error);
+    } catch (_error) {
         return res.status(500).json({
             message: "Internal server error",
         });
     }
 });
-
-
 
 export default eventRouter;
