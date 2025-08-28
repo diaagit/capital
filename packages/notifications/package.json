@@ -1,0 +1,23 @@
+{
+  "name": "@repo/notifications",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc -b",
+    "dev":"npm run build && node dist/index.js"
+  },
+  "exports":{
+    ".":"./dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/node": "^24.3.0",
+    "dotenv": "^17.2.1",
+    "resend": "^6.0.1",
+    "typescript": "^5.9.2"
+  }
+}

@@ -15,6 +15,7 @@
   "dependencies": {
     "@repo/cache": "*",
     "@repo/db": "*",
+    "@repo/notifications":"*",
     "@repo/types": "*",
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",

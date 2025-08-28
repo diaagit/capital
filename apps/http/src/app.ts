@@ -16,6 +16,7 @@ app.use(morgan("dev"));
 app.use("/api/v1",router);
 
 app.get("/", async (req: Request, res: Response) => {
+  
   res.status(200).send("<h1>Hello World!</h1>");
 });
 
