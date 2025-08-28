@@ -13,6 +13,8 @@ const userRouter: Router = express.Router();
 const jwtSecret = process.env.JWT_SECRET as string;
 const saltRounds = parseInt(process.env.SALT_ROUNDS || "10", 10);
 
+const _a = 500;
+
 if (!jwtSecret) {
     throw new Error("JWT_SECRET is not defined in environment variables");
 }
