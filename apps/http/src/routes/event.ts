@@ -9,10 +9,10 @@
 
 import db from "@repo/db";
 import express, { type Request, type Response, type Router } from "express";
-//import {Prisma} from "@repo/db";
 import { z } from "zod";
 
 const eventRouter: Router = express.Router();
+const _a = 700;
 const allowedStatuses = [
     "draft",
     "published",

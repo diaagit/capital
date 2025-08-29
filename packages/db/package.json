@@ -1,26 +1,28 @@
 {
-  "name": "@repo/db",
-  "version": "1.0.0",
-  "description": "",
-  "main": "dist/index.js",
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
-  },
-  "scripts": {
-    "build": "tsc -b",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "db:reset": "ts-node prisma/resetdb.ts"
-  },
-  "exports": {
-    ".": "./dist/index.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "@prisma/client": "^6.12.0",
-    "prisma": "^6.12.0",
-    "ts-node": "^10.9.2"
-  }
+    "author": "",
+    "dependencies": {
+        "@prisma/client": "^6.15.0",
+        "ts-node": "^10.9.2"
+    },
+    "description": "",
+    "devDependencies": {
+        "prisma": "^6.15.0"
+    },
+    "exports": {
+        ".": "./dist/index.js"
+    },
+    "keywords": [],
+    "license": "ISC",
+    "main": "dist/index.js",
+    "name": "@repo/db",
+    "prisma": {
+        "seed": "ts-node prisma/seed.ts"
+    },
+    "scripts": {
+        "build": "tsc -b",
+        "db:reset": "ts-node prisma/resetdb.ts",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "type": "commonjs",
+    "version": "1.0.0"
 }
