@@ -1,4 +1,4 @@
-import db from "@repo/db";
+import db, { type Prisma } from "@repo/db";
 import { generateKeyPair } from "@repo/keygen";
 import { AlphabeticOTP, sendEmailOtp } from "@repo/notifications";
 import { SigninType, type SignupResponse, SignupType, VerificationType } from "@repo/types";
@@ -178,13 +178,13 @@ userRouter.post(
                 });
             }
             const token = generateToken(existingUser.id, "1d");
-            await db.$transaction(async (t) => {
-                await t.jwtToken.deleteMany({
+            await db.$transaction(async (tx: Prisma.TransactionClient) => {
+                await tx.jwtToken.deleteMany({
                     where: {
                         userId: existingUser.id,
                     },
                 });
-                await t.jwtToken.create({
+                await tx.jwtToken.create({
                     data: {
                         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
                         issued_at: new Date(),
@@ -244,7 +244,7 @@ userRouter.post("/verify", userMiddleware, async (req: Request, res: Response) =
                 message: "Invalid or expired OTP",
             });
         }
-        await db.$transaction(async (tx) => {
+        await db.$transaction(async (tx: Prisma.TransactionClient) => {
             await tx.otp.update({
                 data: {
                     is_used: true,
