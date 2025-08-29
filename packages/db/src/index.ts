@@ -3,16 +3,23 @@ import { type Prisma, PrismaClient } from "@prisma/client";
 const db = new PrismaClient();
 export default db;
 
+// Export Prisma types
 export type { Prisma };
 
-export type { BankName, EventStatus, OTPPurpose, Role, TransactionType } from "@prisma/client";
-
+// Runtime enums
 export const BankNames = {
     bob: "bob",
     hdfc: "hdfc",
     icic: "icic",
     kotak: "kotak",
     yesbank: "yesbank",
+} as const;
+
+export const TransactionTypes = {
+    DEPOSIT: "DEPOSIT",
+    PURCHASE: "PURCHASE",
+    REFUND: "REFUND",
+    WITHDRAWAL: "WITHDRAWAL",
 } as const;
 
 export const Roles = {
@@ -33,9 +40,9 @@ export const EventStatuses = {
     published: "published",
 } as const;
 
-export const TransactionTypes = {
-    DEPOSIT: "DEPOSIT",
-    PURCHASE: "PURCHASE",
-    REFUND: "REFUND",
-    WITHDRAWAL: "WITHDRAWAL",
-} as const;
+// Types
+export type BankName = (typeof BankNames)[keyof typeof BankNames];
+export type TransactionType = (typeof TransactionTypes)[keyof typeof TransactionTypes];
+export type Role = (typeof Roles)[keyof typeof Roles];
+export type OTPPurpose = (typeof OTPPurposes)[keyof typeof OTPPurposes];
+export type EventStatus = (typeof EventStatuses)[keyof typeof EventStatuses];

@@ -39,6 +39,5 @@ export async function createCardsForUser(userId: string) {
     await db.card.createMany({
         data: cards,
     });
-
     return cards;
 }
