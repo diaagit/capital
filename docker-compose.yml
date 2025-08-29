@@ -24,6 +24,8 @@ services:
       dockerfile: docker/Dockerfile.http
     ports:
       - "3001:3001"
+    env_file:
+      - ./apps/http/.env
     environment:
       - DATABASE_URL=postgresql://postgres:mysecretpassword@postgres:5432/postgres
       - REDIS_URL=redis://redis:6379
