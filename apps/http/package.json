@@ -3,6 +3,7 @@
     "dependencies": {
         "@repo/cache": "*",
         "@repo/db": "*",
+        "@repo/keygen": "*",
         "@repo/notifications": "*",
         "@repo/types": "*",
         "@types/bcrypt": "^6.0.0",

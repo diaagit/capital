@@ -1,28 +1,23 @@
 {
     "author": "",
     "dependencies": {
-        "@prisma/client": "^6.15.0",
-        "ts-node": "^10.9.2"
+        "libsodium-wrappers": "^0.7.15"
     },
     "description": "",
     "devDependencies": {
-        "prisma": "^6.15.0"
+        "@types/libsodium-wrappers": "^0.7.14"
     },
     "exports": {
         ".": "./dist/index.js"
     },
     "keywords": [],
     "license": "ISC",
-    "main": "dist/index.js",
-    "name": "@repo/db",
-    "prisma": {
-        "seed": "ts-node prisma/seed.ts"
-    },
+    "main": "index.js",
+    "name": "@repo/keygen",
     "scripts": {
         "build": "tsc -b",
-        "db:reset": "ts-node prisma/resetdb.ts",
+        "dev": "npm run build && node dist/index.js",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
-    "type": "commonjs",
     "version": "1.0.0"
 }

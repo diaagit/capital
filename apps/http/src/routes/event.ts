@@ -8,36 +8,10 @@
 | `/events/:id` | `DELETE` | Delete event |*/
 
 import db from "@repo/db";
+import { allowedStatuses, EventSlotType, EventType } from "@repo/types";
 import express, { type Request, type Response, type Router } from "express";
-//import {Prisma} from "@repo/db";
-import { z } from "zod";
 
 const eventRouter: Router = express.Router();
-const allowedStatuses = [
-    "draft",
-    "published",
-    "cancelled",
-] as const;
-
-const EventType = z.object({
-    banner_url: z.string().url().optional(),
-    description: z.string().min(5),
-    location_name: z.string().min(3),
-    location_url: z.string().url(),
-    organiserId: z.string(),
-    status: z.enum([
-        "draft",
-        "published",
-        "cancelled",
-    ] as const),
-    title: z.string().min(3),
-});
-
-const EventSlotType = z.object({
-    capacity: z.number().positive(),
-    end_time: z.string().datetime(),
-    start_time: z.string().datetime(),
-});
 
 // Create a new event
 eventRouter.post("/", async (req: Request, res: Response) => {
