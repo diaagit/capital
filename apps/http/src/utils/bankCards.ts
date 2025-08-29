@@ -1,4 +1,4 @@
-import db, { BankName } from "@repo/db";
+import db, { type BankName, BankNames } from "@repo/db";
 
 function generateRandomCardNumber(): string {
     const prefix = "4321";
@@ -15,7 +15,7 @@ function generateRandomCardNumber(): string {
 }
 
 function getRandomBank(): BankName {
-    const banks = Object.values(BankName);
+    const banks = Object.values(BankNames);
     return banks[Math.floor(Math.random() * banks.length)] as BankName;
 }
 
