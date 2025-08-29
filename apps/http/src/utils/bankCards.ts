@@ -1,5 +1,4 @@
-import { BankName } from "@prisma/client";
-import db from "@repo/db";
+import db, { BankName } from "@repo/db";
 
 function generateRandomCardNumber(): string {
     const prefix = "4321";
