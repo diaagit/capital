@@ -1,15 +1,15 @@
 import { createClient } from "redis";
 
-const redis = createClient();
+const redisCache = createClient();
 
-redis.on("error", (_err) => {});
+redisCache.on("error", (_err) => {});
 
 const startServer = async () => {
     try {
-        await redis.connect();
+        await redisCache.connect();
     } catch (_error) {}
 };
 
 startServer();
 
-export default redis;
+export default redisCache;
