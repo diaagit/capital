@@ -1,5 +1,5 @@
-import { Prisma, TransactionType } from "@prisma/client";
 import db from "@repo/db";
+import Decimal from "decimal.js";
 import express, { type Request, type Response, type Router } from "express";
 
 const transactionRouter: Router = express.Router();
@@ -14,14 +14,14 @@ transactionRouter.post("/transactions/deposit", async (req: Request, res: Respon
             });
         }
 
-        const depositAmount = new Prisma.Decimal(amount);
+        const depositAmount = new Decimal(amount);
 
         const result = await db.$transaction(async (tx) => {
             if (depositAmount.lessThanOrEqualTo(0)) {
                 throw new Error("Deposit amount must be greater than zero");
             }
 
-            const updatedCard = await tx.card.update({
+            const _updatedCard = await tx.card.update({
                 data: {
                     balance: {
                         increment: depositAmount,
@@ -36,14 +36,14 @@ transactionRouter.post("/transactions/deposit", async (req: Request, res: Respon
                 data: {
                     amount: depositAmount,
                     cardId,
-                    type: TransactionType.DEPOSIT,
+                    type: "DEPOSIT",
                     userId,
                 },
             });
 
             return {
+                message: "Deposit successful",
                 transaction,
-                updatedCard,
             };
         });
 
@@ -65,7 +65,7 @@ transactionRouter.post("/transactions/withdraw", async (req: Request, res: Respo
             });
         }
 
-        const withdrawAmount = new Prisma.Decimal(amount);
+        const withdrawAmount = new Decimal(amount);
 
         const result = await db.$transaction(async (tx) => {
             const card = await tx.card.findUnique({
@@ -80,7 +80,7 @@ transactionRouter.post("/transactions/withdraw", async (req: Request, res: Respo
                 throw new Error("Insufficient balance");
             }
 
-            const updatedCard = await tx.card.update({
+            const _updatedCard = await tx.card.update({
                 data: {
                     balance: {
                         decrement: withdrawAmount,
@@ -95,14 +95,14 @@ transactionRouter.post("/transactions/withdraw", async (req: Request, res: Respo
                 data: {
                     amount: withdrawAmount,
                     cardId,
-                    type: TransactionType.WITHDRAWAL,
+                    type: "WITHDRAWAL",
                     userId,
                 },
             });
 
             return {
+                message: "Withdrawal successful",
                 transaction,
-                updatedCard,
             };
         });
 
