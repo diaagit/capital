@@ -70,7 +70,7 @@ eventRouter.post("/", async (req: Request, res: Response) => {
                 title,
             },
         });
-        deleteCache();
+        await deleteCache();
         return res.status(201).json({
             event: newEvent,
             message: "Event successfully created",
@@ -92,7 +92,10 @@ eventRouter.get("/", async (req: Request, res: Response) => {
 
         const cached = await redisCache.get(cacheKey);
         if (cached) {
-            return res.status(200).json(JSON.parse(cached.toString()));
+            return res.status(200).json({
+                events: JSON.parse(cached.toString()),
+                message: "Got from cache",
+            });
         }
 
         const allEventsCache = await redisCache.get("events:all");
@@ -198,7 +201,7 @@ eventRouter.delete("/:id", async (req: Request, res: Response) => {
                 id,
             },
         });
-        deleteCache();
+        await deleteCache();
         return res.status(200).json({
             message: "Event deleted successfully",
         });
@@ -244,7 +247,7 @@ eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
                 start_time: new Date(start_time),
             },
         });
-        deleteCache();
+        await deleteCache();
         return res.status(201).json({
             message: "Event slot created successfully",
             slot,
@@ -325,7 +328,7 @@ eventRouter.delete("/:eventId/slots/:slotId", async (req: Request, res: Response
                 id: slotId,
             },
         });
-        deleteCache();
+        await deleteCache();
 
         return res.status(200).json({
             message: "Slot deleted successfully",
