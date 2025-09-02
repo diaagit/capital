@@ -1,3 +1,4 @@
+import { initRedis } from "@repo/cache";
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { type Express, type Request, type Response } from "express";
@@ -8,7 +9,10 @@ dotenv.config();
 
 export const app: Express = express();
 export const port = process.env.PORT || 3001;
-
+async function RedisStarter() {
+    await initRedis();
+}
+RedisStarter();
 app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
