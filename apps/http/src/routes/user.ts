@@ -22,7 +22,7 @@ if (!jwtSecret) {
     throw new Error("JWT_SECRET is not defined in environment variables");
 }
 
-interface SignupErrorResponse {
+export interface SignupErrorResponse {
     message: string;
     errors?: unknown;
 }
@@ -254,10 +254,7 @@ userRouter.post("/verify", userMiddleware, async (req: Request, res: Response) =
                 },
             });
 
-            const cards = await createCardsForUser(userId);
-            await tx.card.createMany({
-                data: cards,
-            });
+            const _cards = await createCardsForUser(userId);
             const { publicKey, privateKey } = await generateKeyPair();
             const encrypted_privateKey = encrypt(privateKey);
 

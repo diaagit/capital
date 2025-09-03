@@ -27,6 +27,7 @@ enum EventStatus {
 }
 
 enum TransactionType {
+  Initiate
   DEPOSIT
   WITHDRAWAL
   PURCHASE
@@ -169,5 +170,6 @@ model Transaction {
   amount       Decimal
   type         TransactionType
   description  String?
+  token        String?            @unique
   created_at   DateTime           @default(now())
 }
