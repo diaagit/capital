@@ -17,7 +17,9 @@ cron.schedule("*/30 * * * * *", async () => {
         await redisCache.set("events:all", JSON.stringify(events), {
             EX: 60,
         });
-    } catch (_error) {}
+    } catch (_error) {
+        console.error("Error at Redis Schedule", _error);
+    }
 });
 
 cron.schedule("*/30 * * * * *", async () => {
@@ -40,5 +42,7 @@ export async function deleteCache() {
         if (keys.length > 0) {
             await redisCache.del(keys);
         }
-    } catch (_error) {}
+    } catch (_error) {
+        console.error("Error at Redis Schedule", _error);
+    }
 }

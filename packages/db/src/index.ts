@@ -16,6 +16,7 @@ export const BankNames = {
 } as const;
 
 export const TransactionTypes = {
+    CANCEL: "CANCEL",
     DEPOSIT: "DEPOSIT",
     PURCHASE: "PURCHASE",
     REFUND: "REFUND",

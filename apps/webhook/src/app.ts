@@ -1,27 +1,20 @@
-import { initRedis } from "@repo/cache";
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { type Express, type Request, type Response } from "express";
 import morgan from "morgan";
-import router from "./routes";
+import transactionRouter from "./transaction";
 
 dotenv.config();
-
 export const app: Express = express();
-export const port = process.env.PORT || 3001;
-
-async function RedisStarter() {
-    await initRedis();
-}
-RedisStarter();
+export const port = process.env.PORT || 3002;
 
 app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
-app.use("/api/v1", router);
+app.use("/api/v1/webhook", transactionRouter);
 
 app.get("/", async (_req: Request, res: Response) => {
-    res.status(200).send("<h1>Hello HTTP!</h1>");
+    res.status(200).send("<h1>Hello Webhook!</h1>");
 });
 
 app.get("/pid", (_req: Request, res: Response) => {

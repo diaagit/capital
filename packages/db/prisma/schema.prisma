@@ -32,6 +32,7 @@ enum TransactionType {
   WITHDRAWAL
   PURCHASE
   REFUND
+  CANCEL
 }
 
 enum BankName {
@@ -172,4 +173,5 @@ model Transaction {
   description  String?
   token        String?            @unique
   created_at   DateTime           @default(now())
+  canceled_at  DateTime? 
 }
