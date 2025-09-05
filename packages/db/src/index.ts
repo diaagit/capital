@@ -3,10 +3,8 @@ import { type Prisma, PrismaClient } from "@prisma/client";
 const db = new PrismaClient();
 export default db;
 
-// Export Prisma types
 export type { Prisma };
 
-// Runtime enums
 export const BankNames = {
     bob: "bob",
     hdfc: "hdfc",
@@ -16,6 +14,7 @@ export const BankNames = {
 } as const;
 
 export const TransactionTypes = {
+    CANCEL: "CANCEL",
     DEPOSIT: "DEPOSIT",
     PURCHASE: "PURCHASE",
     REFUND: "REFUND",
