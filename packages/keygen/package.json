@@ -1,0 +1,23 @@
+{
+    "author": "",
+    "dependencies": {
+        "libsodium-wrappers": "^0.7.15"
+    },
+    "description": "",
+    "devDependencies": {
+        "@types/libsodium-wrappers": "^0.7.14"
+    },
+    "exports": {
+        ".": "./dist/index.js"
+    },
+    "keywords": [],
+    "license": "ISC",
+    "main": "index.js",
+    "name": "@repo/keygen",
+    "scripts": {
+        "build": "tsc -b",
+        "dev": "npm run build && node dist/index.js",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "version": "1.0.0"
+}

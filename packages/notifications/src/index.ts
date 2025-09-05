@@ -1,6 +1,7 @@
-import { sendEmailOtp } from "./services/emailService";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export * from "./services/emailService";
 export * from "./templates/emailTemplate";
-
-sendEmailOtp("ronakmaheshwari077@gmail.com", "ABCDEF");
+export * from "./utils/otpGenerator";

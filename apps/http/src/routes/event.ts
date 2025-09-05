@@ -1,45 +1,47 @@
-// Events Management Routes
-/*
-| **Module** | **API Endpoint** | **Method** | **Role** | **Description** |
-| `/events` | `POST` | Create new event (organiser only) |
-| `/events` | `GET` | List all events (filter by status, organiser, etc.) |
-| `/events/:id` | `GET` | Get event details |
-| `/events/:id` | `PUT` | Update event (organiser only) |
-| `/events/:id` | `DELETE` | Delete event |*/
-
+import redisCache from "@repo/cache";
 import db from "@repo/db";
+import { allowedStatuses, EventSlotType, EventType } from "@repo/types";
 import express, { type Request, type Response, type Router } from "express";
-import { z } from "zod";
 
 const eventRouter: Router = express.Router();
 const _a = 700;
-const allowedStatuses = [
+const _localAllowedStatuses = [
     "draft",
     "published",
     "cancelled",
 ] as const;
 
-const EventType = z.object({
-    banner_url: z.string().url().optional(),
-    description: z.string().min(5),
-    location_name: z.string().min(3),
-    location_url: z.string().url(),
-    organiserId: z.string(),
-    status: z.enum([
-        "draft",
-        "published",
-        "cancelled",
-    ] as const),
-    title: z.string().min(3),
-});
+import { deleteCache } from "../schedule/eventCache";
 
-const EventSlotType = z.object({
-    capacity: z.number().positive(),
-    end_time: z.string().datetime(),
-    start_time: z.string().datetime(),
-});
+/**
+ * Helper: Apply Filters from Query Params
+ */
+function filterEvents(
+    events: any[],
+    filters: {
+        status?: string;
+        organiser?: string;
+        title?: string;
+        location?: string;
+    },
+) {
+    return events.filter((event) => {
+        return (
+            (!filters.status || event.status === filters.status) &&
+            (!filters.organiser ||
+                event.organiser?.first_name
+                    ?.toLowerCase()
+                    .includes(filters.organiser.toLowerCase())) &&
+            (!filters.title || event.title?.toLowerCase().includes(filters.title.toLowerCase())) &&
+            (!filters.location ||
+                event.location_name?.toLowerCase().includes(filters.location.toLowerCase()))
+        );
+    });
+}
 
-// Create a new event
+/**
+ * Create a new event
+ */
 eventRouter.post("/", async (req: Request, res: Response) => {
     try {
         const parsed = EventType.safeParse(req.body);
@@ -58,7 +60,6 @@ eventRouter.post("/", async (req: Request, res: Response) => {
                 id: organiserId,
             },
         });
-
         if (!organiser) {
             return res.status(400).json({
                 message: "Organiser not found",
@@ -76,7 +77,7 @@ eventRouter.post("/", async (req: Request, res: Response) => {
                 title,
             },
         });
-
+        await deleteCache();
         return res.status(201).json({
             event: newEvent,
             message: "Event successfully created",
@@ -88,37 +89,89 @@ eventRouter.post("/", async (req: Request, res: Response) => {
     }
 });
 
-// Get events List with optional filters (Status of an event, organiserId)
+/**
+ * Get events with optional filters (status, organiser name, title, location)
+ */
 eventRouter.get("/", async (req: Request, res: Response) => {
     try {
-        const { status, organiserId } = req.query;
+        const { status, organiser, title, location } = req.query;
+        const cacheKey = `events:${status || "all"}:${organiser || "all"}:${title || "all"}:${location || "all"}`;
 
-        const safeStatus =
-            status && allowedStatuses.includes(status as any)
-                ? (status as (typeof allowedStatuses)[number])
-                : undefined;
+        const cached = await redisCache.get(cacheKey);
+        if (cached) {
+            return res.status(200).json({
+                events: JSON.parse(cached.toString()),
+                message: "Got from cache",
+            });
+        }
 
-        const events = await db.event.findMany({
-            where: {
-                ...(safeStatus
-                    ? {
-                          status: safeStatus,
-                      }
-                    : {}),
-                ...(organiserId
-                    ? {
-                          organiserId: String(organiserId),
-                      }
-                    : {}),
-            },
-        });
+        const allEventsCache = await redisCache.get("events:all");
+        let events: any[] = [];
+        if (allEventsCache) {
+            const allEvents = JSON.parse(allEventsCache.toString());
+            events = filterEvents(allEvents, {
+                location: location as string,
+                organiser: organiser as string,
+                status: status as string,
+                title: title as string,
+            });
+        } else {
+            events = await db.event.findMany({
+                include: {
+                    organiser: {
+                        select: {
+                            first_name: true,
+                            id: true,
+                        },
+                    },
+                },
+                where: {
+                    ...(status &&
+                    typeof status === "string" &&
+                    allowedStatuses.includes(status as any)
+                        ? {
+                              status: status as any,
+                          }
+                        : {}),
+                    ...(title
+                        ? {
+                              title: {
+                                  contains: title as string,
+                                  mode: "insensitive",
+                              },
+                          }
+                        : {}),
+                    ...(location
+                        ? {
+                              location_name: {
+                                  contains: location as string,
+                                  mode: "insensitive",
+                              },
+                          }
+                        : {}),
+                    ...(organiser
+                        ? {
+                              organiser: {
+                                  first_name: {
+                                      contains: organiser as string,
+                                      mode: "insensitive",
+                                  },
+                              },
+                          }
+                        : {}),
+                },
+            });
+        }
 
-        if (events.length === 0) {
+        if (!events || events.length === 0) {
             return res.status(404).json({
                 message: "No events found for the given filters",
             });
         }
 
+        await redisCache.set(cacheKey, JSON.stringify(events), {
+            EX: 30,
+        });
         return res.status(200).json(events);
     } catch (_error) {
         return res.status(500).json({
@@ -127,11 +180,9 @@ eventRouter.get("/", async (req: Request, res: Response) => {
     }
 });
 
-// Delete an event
-// Deletes event with its slots if no tickets sold
-// Refund handling to be added later if we want
-// If so we need to delete tickets first then slots then event
-
+/**
+ * Delete an event and its slots
+ */
 eventRouter.delete("/:id", async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
@@ -141,34 +192,23 @@ eventRouter.delete("/:id", async (req: Request, res: Response) => {
                 id,
             },
         });
-
         if (!event) {
             return res.status(404).json({
                 message: "Event not found",
             });
         }
 
-        // // Deleting tickets as well (If we want to handle refunds later)
-        // await db.ticket.deleteMany({
-        // where: {
-        //     eventSlot: {
-        //     eventId: id,
-        //     },
-        // },
-        // });
-
         await db.eventSlot.deleteMany({
             where: {
                 eventId: id,
             },
         });
-
         await db.event.delete({
             where: {
                 id,
             },
         });
-
+        await deleteCache();
         return res.status(200).json({
             message: "Event deleted successfully",
         });
@@ -179,7 +219,9 @@ eventRouter.delete("/:id", async (req: Request, res: Response) => {
     }
 });
 
-// Create a slot for a partucular event
+/**
+ * Create a slot for an event
+ */
 eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
     try {
         const { eventId } = req.params;
@@ -193,13 +235,11 @@ eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
         }
 
         const { start_time, end_time, capacity } = parsed.data;
-
         const event = await db.event.findUnique({
             where: {
                 id: eventId,
             },
         });
-
         if (!event) {
             return res.status(404).json({
                 message: "Event not found",
@@ -214,7 +254,7 @@ eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
                 start_time: new Date(start_time),
             },
         });
-
+        await deleteCache();
         return res.status(201).json({
             message: "Event slot created successfully",
             slot,
@@ -226,17 +266,23 @@ eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
     }
 });
 
-// Get all slots for a particular event
+/**
+ * Get all slots for an event
+ */
 eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
     try {
         const { eventId } = req.params;
+        const cachedKey = `eventSlots:${eventId}`;
+        const cached = await redisCache.get(cachedKey);
+        if (cached) {
+            return res.status(200).json(JSON.parse(cached.toString()));
+        }
 
         const event = await db.event.findUnique({
             where: {
                 id: eventId,
             },
         });
-
         if (!event) {
             return res.status(404).json({
                 message: "Event not found",
@@ -252,13 +298,9 @@ eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
             },
         });
 
-        if (slots.length === 0) {
-            return res.status(200).json({
-                message: "No slots found for this event",
-                slots: [],
-            });
-        }
-
+        await redisCache.set(cachedKey, JSON.stringify(slots), {
+            EX: 30,
+        });
         return res.status(200).json({
             slots,
         });
@@ -269,34 +311,31 @@ eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
     }
 });
 
-// Delete a specific slot of an event
+/**
+ * Delete a specific slot
+ */
 eventRouter.delete("/:eventId/slots/:slotId", async (req: Request, res: Response) => {
     try {
         const { eventId, slotId } = req.params;
 
         const slot = await db.eventSlot.findFirst({
             where: {
-                eventId: eventId,
+                eventId,
                 id: slotId,
             },
         });
-
         if (!slot) {
             return res.status(404).json({
                 message: "Slot not found for this event",
             });
         }
 
-        // // Deleting tickets as well (If we want to handle refunds later)
-        // await db.ticket.deleteMany({
-        //     where: { eventSlotId: slotId },
-        // });
-
         await db.eventSlot.delete({
             where: {
                 id: slotId,
             },
         });
+        await deleteCache();
 
         return res.status(200).json({
             message: "Slot deleted successfully",

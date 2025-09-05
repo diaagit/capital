@@ -34,10 +34,12 @@
         "lint": "turbo run lint",
         "migrate:db": "cd packages/db/prisma && npx prisma migrate dev",
         "prepare": "husky",
+        "reset:db": "cd packages/db/prisma && npm run db:reset",
         "seed:db": "cd packages/db/prisma && npx prisma db seed",
         "start:backend": "cd apps/http && npm run dev",
         "start:db": "cd packages/db/prisma && npx prisma studio",
-        "start:frontend": "cd apps/web && npm run start"
+        "start:frontend": "cd apps/web && npm run start",
+        "start:webhook": "cd apps/webhook && npm run dev"
     },
     "workspaces": [
         "apps/*",

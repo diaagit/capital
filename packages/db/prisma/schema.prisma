@@ -27,10 +27,12 @@ enum EventStatus {
 }
 
 enum TransactionType {
+  Initiate
   DEPOSIT
   WITHDRAWAL
   PURCHASE
   REFUND
+  CANCEL
 }
 
 enum BankName {
@@ -39,6 +41,18 @@ enum BankName {
   hdfc
   icic
   kotak
+}
+
+enum Currency {
+  USD
+  EUR
+  INR
+}
+
+enum WalletStatus {
+  active
+  suspended
+  closed
 }
 
 model User {
@@ -50,7 +64,7 @@ model User {
   role                  Role
   is_verified           Boolean         @default(false)
   profile_image_url     String?
-  public_key            String
+  public_key            String?
   encrypted_private_key String?
   created_at            DateTime        @default(now())
   otps                  Otp[]
@@ -62,6 +76,7 @@ model User {
   scannedTickets        Ticket[]        @relation("VerifierVerifications")
   cards                 Card[]
   transactions          Transaction[]
+  wallet                Wallet?
 }
 
 model Otp {
@@ -134,6 +149,7 @@ model Ticket {
   verifications  TicketVerification[]
   transactions   Transaction[]
 }
+
 model TicketVerification {
   id                String   @id @default(uuid())
   ticket            Ticket   @relation(fields: [ticketId], references: [id])
@@ -144,7 +160,6 @@ model TicketVerification {
   is_successful     Boolean
   remarks           String?
 }
-
 
 model Card {
   id           String         @id @default(uuid())
@@ -169,5 +184,23 @@ model Transaction {
   amount       Decimal
   type         TransactionType
   description  String?
+  ticket_count Int?
+  token        String?            @unique
   created_at   DateTime           @default(now())
+  canceled_at  DateTime? 
+  wallet       Wallet?          @relation(fields: [walletId], references: [id])
+  walletId     String?
+}
+
+model Wallet {
+  id           String    @id @default(uuid())
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id])
+  balance      Decimal   @default(0)
+  currency     Currency  @default(INR)
+  status       WalletStatus @default(active)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  transactions Transaction[]
+  lastPayoutAt DateTime?
 }

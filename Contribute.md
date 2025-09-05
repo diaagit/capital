@@ -168,7 +168,7 @@ docker-compose down -v
 | `npm run biome:fix`      | Run Biome checks and auto-fix issues                             |
 | `npm run biome:lint`     | Run Biome lint checks                                            |
 | `npm run biome:unsafe`   | Run Biome checks with `--unsafe` auto-fix                        |
-| `npm run biome:validate` | Validate Biome configuration  
+| `npm run biome:validate` | Validate Biome configuration                                     |
 ---
 
 ### ✅ **Recommended Workflow**

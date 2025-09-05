@@ -1,15 +1,17 @@
 import { createClient } from "redis";
 
-const redis = createClient();
+const redisCache = createClient({
+    url: process.env.REDIS_URL || "redis://localhost:6379",
+});
 
-redis.on("error", (_err) => {});
+redisCache.on("error", (_err) => {});
 
-const startServer = async () => {
+export async function initRedis() {
     try {
-        await redis.connect();
+        if (!redisCache.isOpen) {
+            await redisCache.connect();
+        }
     } catch (_error) {}
-};
+}
 
-startServer();
-
-export default redis;
+export default redisCache;
