@@ -43,6 +43,18 @@ enum BankName {
   kotak
 }
 
+enum Currency {
+  USD
+  EUR
+  INR
+}
+
+enum WalletStatus {
+  active
+  suspended
+  closed
+}
+
 model User {
   id                    String          @id @default(uuid())
   first_name            String
@@ -64,6 +76,7 @@ model User {
   scannedTickets        Ticket[]        @relation("VerifierVerifications")
   cards                 Card[]
   transactions          Transaction[]
+  wallet                Wallet?
 }
 
 model Otp {
@@ -136,6 +149,7 @@ model Ticket {
   verifications  TicketVerification[]
   transactions   Transaction[]
 }
+
 model TicketVerification {
   id                String   @id @default(uuid())
   ticket            Ticket   @relation(fields: [ticketId], references: [id])
@@ -146,7 +160,6 @@ model TicketVerification {
   is_successful     Boolean
   remarks           String?
 }
-
 
 model Card {
   id           String         @id @default(uuid())
@@ -171,7 +184,23 @@ model Transaction {
   amount       Decimal
   type         TransactionType
   description  String?
+  ticket_count Int?
   token        String?            @unique
   created_at   DateTime           @default(now())
   canceled_at  DateTime? 
+  wallet       Wallet?          @relation(fields: [walletId], references: [id])
+  walletId     String?
+}
+
+model Wallet {
+  id           String    @id @default(uuid())
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id])
+  balance      Decimal   @default(0)
+  currency     Currency  @default(INR)
+  status       WalletStatus @default(active)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  transactions Transaction[]
+  lastPayoutAt DateTime?
 }
