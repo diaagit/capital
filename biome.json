@@ -96,7 +96,17 @@
                 "useConst": "error"
             },
             "suspicious": {
-                "noConsole": "warn",
+                "noConsole": {
+                    "level": "warn",
+                    "options": {
+                        "allow": [
+                            "assert",
+                            "error",
+                            "info",
+                            "warn"
+                        ]
+                    }
+                },
                 "noDebugger": "error",
                 "noExplicitAny": "off",
                 "noVar": "error"

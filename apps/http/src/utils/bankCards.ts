@@ -99,7 +99,7 @@ async function generateUniqueCardNumber(bankName: BankName): Promise<string> {
         }
     }
 
-    return cardNumber!;
+    return cardNumber;
 }
 
 function getRandomBalance(): number {

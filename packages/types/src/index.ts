@@ -72,3 +72,55 @@ export const EventSlotType = z.object({
     end_time: z.string().datetime(),
     start_time: z.string().datetime(),
 });
+
+const BaseTransactionSchema = z.object({
+    amount: z
+        .string()
+        .regex(/^\d{2,4}$/, "Amount must be 2 to 4 digits")
+        .optional(),
+    cardNumber: z
+        .string()
+        .regex(/^\d{4}-\d{4}-\d{4}-\d{4}$/, "Card number must be in the format 1234-5678-9012-1234")
+        .optional(),
+    token: z.string(),
+    userId: z.string().optional(),
+});
+
+export const WithdrawSchema = BaseTransactionSchema;
+export type WithdrawType = z.infer<typeof WithdrawSchema>;
+
+export const DepositSchema = BaseTransactionSchema;
+export type DepositType = z.infer<typeof DepositSchema>;
+
+export type TransactionType = {
+    id: string;
+    amount: string;
+    cardId: string;
+    type: "WITHDRAWAL" | "DEPOSIT";
+    userId: string;
+    createdAt: Date;
+};
+
+export type WithdrawResponse = {
+    message: string;
+    transaction?: TransactionType;
+};
+
+export type DepositResponse = {
+    message: string;
+    transaction?: TransactionType;
+};
+
+export const InitiateSchema = z.object({
+    amount: z.string().regex(/^\d{2,4}$/, "Amount must be 2 to 4 digits"),
+    bankName: z.string().optional(),
+    cardNumber: z
+        .string()
+        .regex(
+            /^\d{4}-\d{4}-\d{4}-\d{4}$/,
+            "Card number must be in the format 1234-5678-9012-1234",
+        ),
+    token: z.string(),
+});
+
+export type InitiateType = z.infer<typeof InitiateSchema>;

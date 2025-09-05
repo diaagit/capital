@@ -1,33 +1,14 @@
-import crypto from "node:crypto";
+import { AlphanumericOTP } from "@repo/notifications";
 
-const algorithm = "aes-256-cbc";
-const secret = process.env.ENCRYPTION_SECRET as string;
-
-if (!secret) {
-    throw new Error("ENCRYPTION_SECRET is not defined in env");
+export function encrypt(text: string) {
+    const randomBytes = AlphanumericOTP(10);
+    const encrypted = randomBytes + text;
+    return encrypted;
 }
 
-// Derive a fixed 32-byte key from secret
-const key = crypto.createHash("sha256").update(secret).digest();
-
-export function encrypt(text: string): string {
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv(algorithm, key, iv);
-    let encrypted = cipher.update(text, "utf8", "hex");
-    encrypted += cipher.final("hex");
-    return `${iv.toString("hex")}:${encrypted}`;
-}
-
-export function decrypt(encryptedString: string): string {
-    const [ivHex, encryptedData] = encryptedString.split(":");
-    if (!ivHex || !encryptedData) {
-        throw new Error("Invalid encrypted string format");
-    }
-    const iv = Buffer.from(ivHex, "hex");
-    const decipher = crypto.createDecipheriv(algorithm, key, iv);
-    let decrypted = decipher.update(encryptedData, "hex", "utf8");
-    decrypted += decipher.final("utf8");
-    return decrypted;
+export function decrypt(encryptedString: string) {
+    const removeBytes = encryptedString.slice(10);
+    return removeBytes;
 }
 
 // import crypto from "node:crypto";
