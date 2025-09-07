@@ -67,6 +67,26 @@ export async function createCardsForUser(userId: string) {
     return cards;
 }
 
+export async function createCardForOrganiser(userId: string): Promise<boolean> {
+    try {
+        const banks = Object.keys(BankPrefixes) as BankName[];
+        const selectedBank = banks[Math.floor(Math.random() * banks.length)];
+        const cardNumber = await generateUniqueCardNumber(selectedBank);
+        await db.card.create({
+            data: {
+                balance: getRandomBalance(),
+                bank_name: selectedBank,
+                card_number: cardNumber,
+                userId,
+            },
+        });
+        return true;
+    } catch (error) {
+        console.error(error);
+        return false;
+    }
+}
+
 // async function runTest() {
 //     const userId = "4a8f79b0-d016-4f6a-bc34-763c9e8c9139";
 
