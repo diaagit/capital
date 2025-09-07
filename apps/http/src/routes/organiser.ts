@@ -422,13 +422,7 @@ organiserRouter.get("/events/summary", organiserMiddleware, async (req: Request,
                 message: "Unauthenticated",
             });
 
- const eventSummary = await db.$queryRaw<{
-  eventId: string;
-  eventName: string;
-  ticketsSold: number;
-  totalRevenue: number;
-  attendees: number;
-}>`
+const eventSummary = (await db.$queryRawUnsafe(`
   SELECT 
     e.id AS "eventId",
     e.title AS "eventName",
@@ -439,11 +433,17 @@ organiserRouter.get("/events/summary", organiserMiddleware, async (req: Request,
   INNER JOIN "Ticket" tk ON t."ticketId" = tk.id
   INNER JOIN "EventSlot" es ON tk."eventSlotId" = es.id
   INNER JOIN "Event" e ON es."eventId" = e.id
-  WHERE e."organiserId" = ${organiserId}
+  WHERE e."organiserId" = $1
     AND t.type = 'PURCHASE'
   GROUP BY e.id, e.title
   ORDER BY e.title ASC;
-`;
+`) as unknown) as {
+  eventId: string;
+  eventName: string;
+  ticketsSold: number;
+  totalRevenue: number;
+  attendees: number;
+}[];
 
         return res.status(200).json({
             data: eventSummary,
