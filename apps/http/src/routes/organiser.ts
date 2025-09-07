@@ -1,4 +1,4 @@
-import db, { Prisma } from "@repo/db";
+import db, { type Prisma } from "@repo/db";
 import { AlphanumericOTP, sendEmailOtp } from "@repo/notifications";
 import {
     allowedStatuses,
@@ -422,7 +422,7 @@ organiserRouter.get("/events/summary", organiserMiddleware, async (req: Request,
                 message: "Unauthenticated",
             });
 
-const eventSummary = (await db.$queryRawUnsafe(`
+        const eventSummary = (await db.$queryRawUnsafe(`
   SELECT 
     e.id AS "eventId",
     e.title AS "eventName",
@@ -437,13 +437,13 @@ const eventSummary = (await db.$queryRawUnsafe(`
     AND t.type = 'PURCHASE'
   GROUP BY e.id, e.title
   ORDER BY e.title ASC;
-`) as unknown) as {
-  eventId: string;
-  eventName: string;
-  ticketsSold: number;
-  totalRevenue: number;
-  attendees: number;
-}[];
+`)) as unknown as {
+            eventId: string;
+            eventName: string;
+            ticketsSold: number;
+            totalRevenue: number;
+            attendees: number;
+        }[];
 
         return res.status(200).json({
             data: eventSummary,
@@ -541,7 +541,7 @@ organiserRouter.get("/events/top", organiserMiddleware, async (req: Request, res
         const sortBy = (req.query.sortBy as string) || "revenue";
         const orderByCol = sortBy === "tickets" ? "ticketsSold" : "totalRevenue";
 
-       const topEvents = await db.$queryRawUnsafe(
+        const topEvents = (await db.$queryRawUnsafe(
             `
             SELECT 
                 e.id AS "eventId",
@@ -560,13 +560,13 @@ organiserRouter.get("/events/top", organiserMiddleware, async (req: Request, res
             `,
             organiserId,
             limit,
-        ) as {
+        )) as {
             eventId: string;
             eventName: string;
             ticketsSold: number;
             totalRevenue: number;
         }[];
-        
+
         return res.status(200).json({
             data: topEvents,
             message: "Top performing events fetched successfully",
