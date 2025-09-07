@@ -1,4 +1,4 @@
-import db, { type Prisma } from "@repo/db";
+import db, { Prisma } from "@repo/db";
 import { AlphanumericOTP, sendEmailOtp } from "@repo/notifications";
 import {
     allowedStatuses,
@@ -422,28 +422,28 @@ organiserRouter.get("/events/summary", organiserMiddleware, async (req: Request,
                 message: "Unauthenticated",
             });
 
-        const eventSummary = (await db.$queryRawUnsafe(`
-    SELECT 
-        e.id AS "eventId",
-        e.title AS "eventName",
-        COALESCE(SUM(t."ticket_count"), 0) AS "ticketsSold",
-        COALESCE(SUM(t.amount), 0) AS "totalRevenue",
-        COUNT(DISTINCT t."userId") AS "attendees"
-    FROM "Transaction" t
-    INNER JOIN "Ticket" tk ON t."ticketId" = tk.id
-    INNER JOIN "EventSlot" es ON tk."eventSlotId" = es.id
-    INNER JOIN "Event" e ON es."eventId" = e.id
-    WHERE e."organiserId" = $1
-        AND t.type = 'PURCHASE'
-    GROUP BY e.id, e.title
-    ORDER BY e.title ASC;
-`)) as {
-            eventId: string;
-            eventName: string;
-            ticketsSold: number;
-            totalRevenue: number;
-            attendees: number;
-        }[];
+ const eventSummary = await db.$queryRaw<{
+  eventId: string;
+  eventName: string;
+  ticketsSold: number;
+  totalRevenue: number;
+  attendees: number;
+}>`
+  SELECT 
+    e.id AS "eventId",
+    e.title AS "eventName",
+    COALESCE(SUM(t."ticket_count"), 0) AS "ticketsSold",
+    COALESCE(SUM(t.amount), 0) AS "totalRevenue",
+    COUNT(DISTINCT t."userId") AS "attendees"
+  FROM "Transaction" t
+  INNER JOIN "Ticket" tk ON t."ticketId" = tk.id
+  INNER JOIN "EventSlot" es ON tk."eventSlotId" = es.id
+  INNER JOIN "Event" e ON es."eventId" = e.id
+  WHERE e."organiserId" = ${organiserId}
+    AND t.type = 'PURCHASE'
+  GROUP BY e.id, e.title
+  ORDER BY e.title ASC;
+`;
 
         return res.status(200).json({
             data: eventSummary,

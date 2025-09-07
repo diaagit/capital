@@ -1,7 +1,8 @@
 import express, { type Router } from "express";
 import eventRouter from "./event";
-import organiserRouter from "./organiser";
+
 import userRouter from "./user";
+import organiserRouter from "./organiser";
 
 const router: Router = express.Router();
 
