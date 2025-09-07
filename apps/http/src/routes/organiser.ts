@@ -524,8 +524,8 @@ organiserRouter.get(
 );
 
 /**
- * @route GET /events/top
- * @desc Top performing events by revenue or tickets sold
+ * @route GET /events/
+ * @desc  performing events by revenue or tickets sold
  * @query limit (number) default 5
  * @query sortBy 'revenue' | 'tickets'
  */
@@ -541,32 +541,32 @@ organiserRouter.get("/events/top", organiserMiddleware, async (req: Request, res
         const sortBy = (req.query.sortBy as string) || "revenue";
         const orderByCol = sortBy === "tickets" ? "ticketsSold" : "totalRevenue";
 
-        const topEvents = await db.$queryRawUnsafe<{
+       const topEvents = await db.$queryRawUnsafe(
+            `
+            SELECT 
+                e.id AS "eventId",
+                e.title AS "eventName",
+                COALESCE(SUM(t."ticket_count"), 0) AS "ticketsSold",
+                COALESCE(SUM(t.amount), 0) AS "totalRevenue"
+            FROM "Transaction" t
+            INNER JOIN "Ticket" tk ON t."ticketId" = tk.id
+            INNER JOIN "EventSlot" es ON tk."eventSlotId" = es.id
+            INNER JOIN "Event" e ON es."eventId" = e.id
+            WHERE e."organiserId" = $1
+                AND t.type = 'PURCHASE'
+            GROUP BY e.id, e.title
+            ORDER BY ${orderByCol} DESC
+            LIMIT $2;
+            `,
+            organiserId,
+            limit,
+        ) as {
             eventId: string;
             eventName: string;
             ticketsSold: number;
             totalRevenue: number;
-        }>(
-            `
-        SELECT 
-            e.id AS "eventId",
-            e.title AS "eventName",
-            COALESCE(SUM(t."ticket_count"), 0) AS "ticketsSold",
-            COALESCE(SUM(t.amount), 0) AS "totalRevenue"
-        FROM "Transaction" t
-        INNER JOIN "Ticket" tk ON t."ticketId" = tk.id
-        INNER JOIN "EventSlot" es ON tk."eventSlotId" = es.id
-        INNER JOIN "Event" e ON es."eventId" = e.id
-        WHERE e."organiserId" = $1
-            AND t.type = 'PURCHASE'
-        GROUP BY e.id, e.title
-        ORDER BY ${orderByCol} DESC
-        LIMIT $2;
-        `,
-            organiserId,
-            limit,
-        );
-
+        }[];
+        
         return res.status(200).json({
             data: topEvents,
             message: "Top performing events fetched successfully",
