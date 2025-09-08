@@ -7,6 +7,6 @@ const router: Router = express.Router();
 
 router.use("/user", userRouter);
 router.use("/events", eventRouter);
-router.use("organiser", organiserRouter);
+router.use("/organiser", organiserRouter);
 
 export default router;
