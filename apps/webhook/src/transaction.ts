@@ -222,4 +222,66 @@ transactionRouter.post("/withdraw", async (req: Request, res: Response) => {
     }
 });
 
+transactionRouter.post("/payout", async (req: Request, res: Response) => {
+    try {
+        const parsedData = DepositSchema.safeParse(req.body);
+        if (!parsedData.success) {
+            return res.status(400).json({
+                errors: parsedData.error.flatten(),
+                message: "Invalid data was provided",
+            });
+        }
+        const { token } = parsedData.data;
+
+        const findDetails = await db.transaction.findUnique({
+            where: {
+                token,
+            },
+        });
+        if (!findDetails) {
+            return res.status(400).json({
+                message: "Invalid token was provided",
+            });
+        }
+
+        await db.$transaction(async (_tx: Prisma.TransactionClient) => {
+            await db.wallet.update({
+                data: {
+                    balance: {
+                        decrement: findDetails.amount,
+                    },
+                    lastPayoutAt: new Date(Date.now()),
+                },
+                where: {
+                    userId: findDetails.userId,
+                },
+            }),
+                await db.card.update({
+                    data: {
+                        balance: {
+                            increment: findDetails.amount,
+                        },
+                    },
+                    where: {
+                        id: findDetails.cardId,
+                        userId: findDetails.userId,
+                    },
+                });
+            await db.transaction.update({
+                data: {
+                    type: "DEPOSIT",
+                },
+                where: {
+                    token,
+                },
+            });
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            error: "Internal server error",
+        });
+    }
+});
+
 export default transactionRouter;

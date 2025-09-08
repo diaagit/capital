@@ -123,7 +123,8 @@ userRouter.post(
                     lastName: newUser.last_name,
                 },
             });
-        } catch (_error) {
+        } catch (error) {
+            console.error(error);
             return res.status(500).json({
                 message: "Internal server error",
             });
