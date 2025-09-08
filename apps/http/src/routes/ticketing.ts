@@ -194,4 +194,87 @@ ticketRouter.post(
     },
 );
 
+ticketRouter.get("/tickets/my", userMiddleware, async (req: Request, res: Response) => {
+    try {
+        const userId = req.userId;
+        const ticketRecords = await db.ticket.findMany({
+            where: {
+                userId: userId,
+            },
+        });
+        if (ticketRecords.length === 0) {
+            return res.status(200).json({
+                message: "You dont have any tickets",
+            });
+        }
+        return res.status(200).json({
+            message: "Successfully retrieved the ticket-records",
+            ticketRecords: ticketRecords,
+        });
+    } catch (error) {
+        console.error("Internal error record", error);
+        return res.status(500).json({
+            error: "Internal error occured",
+            message: "Internal error occured",
+        });
+    }
+});
+
+ticketRouter.get("/tickets/:ticketId", userMiddleware, async (req: Request, res: Response) => {
+    try {
+        const userId = req.userId;
+        const ticketId = req.params.ticketId;
+        const getRecord = await db.ticket.findFirst({
+            select: {
+                eventSlot: {
+                    select: {
+                        event: {
+                            select: {
+                                location_name: true,
+                                location_url: true,
+                                organiser: {
+                                    select: {
+                                        email: true,
+                                    },
+                                },
+                                status: true,
+                                title: true,
+                            },
+                        },
+                    },
+                },
+                eventSlotId: true,
+                is_valid: true,
+                signature: true,
+                user: {
+                    select: {
+                        email: true,
+                        first_name: true,
+                        last_name: true,
+                    },
+                },
+            },
+            where: {
+                id: ticketId,
+                userId,
+            },
+        });
+        if (!getRecord) {
+            return res.status(404).json({
+                message: "Invalid ticket id was provided or Ticket doesnt belong to you",
+            });
+        }
+        return res.status(200).json({
+            message: "Successfully retrieved the ticketDetail",
+            ticketDetail: getRecord,
+        });
+    } catch (error) {
+        console.error("Internal error record", error);
+        return res.status(500).json({
+            error: "Internal error occured",
+            message: "Internal error occured",
+        });
+    }
+});
+
 export default ticketRouter;
