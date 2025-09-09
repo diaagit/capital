@@ -115,14 +115,15 @@ ticketRouter.post(
                 totalAmount: totalAmount.toNumber(),
                 transactionToken: token,
             };
-            const decryptedPrivateKey = decrypt(user.encrypted_private_key);
-            const signedTicketPayload = createSignedTicket(ticketPayload, decryptedPrivateKey);
 
-            const qrBuffer = await QRCode.toBuffer(
-                JSON.stringify({
-                    signedTicketPayload,
-                }),
+            const decryptedPrivateKey = decrypt(user.encrypted_private_key);
+            const signedTicketPayload = await createSignedTicket(
+                ticketPayload,
+                decryptedPrivateKey,
             );
+
+            const qrBuffer = await QRCode.toBuffer(JSON.stringify(signedTicketPayload));
+
             const fileName = `tickets/${userId}-${Date.now()}.png`;
             const { error: uploadError } = await supabase.storage
                 .from("tickets")
@@ -159,7 +160,8 @@ ticketRouter.post(
                 });
             });
 
-            //add ticketId of purchased in email as TXN<ticketId> or const purchasedTicketId = "TXN"+token;
+            // added ticketId of purchased in email as purchasedTicketId = "TXN"+token;
+            // During Purchase of ticket if passing token as : TXN<ticketId> then keep just token insteal of "TXN"+token in email else it gets repeated
             await sendTicketEmail({
                 attendeeName: `${user.first_name?.trim()} ${user.last_name?.trim()}`,
                 baseAmount: totalAmount.toNumber(),
@@ -178,6 +180,7 @@ ticketRouter.post(
                 quantity,
                 seats: `General Admission x${quantity}`,
                 totalPaid: totalAmount.toNumber(),
+                transactionId: `TXN${token}`,
             });
 
             res.status(200).json({
@@ -194,7 +197,7 @@ ticketRouter.post(
     },
 );
 
-ticketRouter.get("/tickets/my", userMiddleware, async (req: Request, res: Response) => {
+ticketRouter.get("/my", userMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
         const ticketRecords = await db.ticket.findMany({
@@ -220,7 +223,7 @@ ticketRouter.get("/tickets/my", userMiddleware, async (req: Request, res: Respon
     }
 });
 
-ticketRouter.get("/tickets/:ticketId", userMiddleware, async (req: Request, res: Response) => {
+ticketRouter.get("/:ticketId", userMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
         const ticketId = req.params.ticketId;

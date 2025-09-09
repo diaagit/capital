@@ -23,7 +23,9 @@
         "node-cron": "^4.2.1",
         "node-fetch": "^3.3.2",
         "pdfkit": "^0.17.2",
+        "puppeteer": "^24.19.0",
         "qrcode": "^1.5.4",
+        "resend": "^6.0.3",
         "ts-node": "^10.9.2"
     },
     "description": "",
