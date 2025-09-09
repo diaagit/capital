@@ -123,7 +123,8 @@ userRouter.post(
                     lastName: newUser.last_name,
                 },
             });
-        } catch (_error) {
+        } catch (error) {
+            console.error(error);
             return res.status(500).json({
                 message: "Internal server error",
             });
@@ -514,5 +515,54 @@ userRouter.delete(
         }
     },
 );
+
+/**
+ * GET /my/cards
+ * Get all cards of the logged-in user
+ */
+userRouter.get("/my/cards", userMiddleware, async (req: Request, res: Response) => {
+    try {
+        const userId = req.userId;
+
+        if (!userId) {
+            return res.status(403).json({
+                message: "User not authenticated",
+            });
+        }
+
+        const cards = await db.card.findMany({
+            orderBy: {
+                created_at: "desc",
+            },
+            select: {
+                balance: true,
+                bank_name: true,
+                card_number: true,
+                created_at: true,
+                id: true,
+            },
+            where: {
+                userId,
+            },
+        });
+
+        if (!cards.length) {
+            return res.status(200).json({
+                cards: [],
+                message: "No cards found for this user",
+            });
+        }
+
+        return res.status(200).json({
+            cards,
+            message: "Cards retrieved successfully",
+        });
+    } catch (error) {
+        console.error("Error fetching user cards:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+});
 
 export default userRouter;

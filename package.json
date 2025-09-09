@@ -1,8 +1,9 @@
 {
+    "dependencies": {},
     "devDependencies": {
         "@biomejs/biome": "^2.2.2",
         "husky": "^9.1.7",
-        "lint-staged": "^16.1.5",
+        "lint-staged": "^16.1.6",
         "prettier": "^3.6.2",
         "turbo": "^2.5.5",
         "typescript": "5.8.3"
@@ -39,6 +40,7 @@
         "start:backend": "cd apps/http && npm run dev",
         "start:db": "cd packages/db/prisma && npx prisma studio",
         "start:frontend": "cd apps/web && npm run start",
+        "start:validator": "cd apps/validator && npm run dev",
         "start:webhook": "cd apps/webhook && npm run dev"
     },
     "workspaces": [

@@ -1,3 +1,66 @@
+// import db, { type BankName } from "@repo/db";
+
+// const BankPrefixes: Record<BankName, string> = {
+//     bob: "7890",
+//     hdfc: "5210",
+//     icic: "6543",
+//     kotak: "4321",
+//     yesbank: "3456",
+// };
+
+// async function generateUniqueCardNumber(bankName: BankName): Promise<string> {
+//     let cardNumber: string;
+
+//     while (true) {
+//         const prefix = BankPrefixes[bankName];
+//         const segments = Array.from(
+//             { length: 3 },
+//             () => Math.floor(1000 + Math.random() * 9000),
+//         );
+
+//         cardNumber = [prefix, ...segments].join("-");
+
+//         const existingCard = await db.card.findUnique({
+//             where: { card_number: cardNumber },
+//         });
+
+//         if (!existingCard) break; // found unique card
+//     }
+
+//     return cardNumber;
+// }
+
+// function getRandomBalance(): number {
+//     return parseFloat((1000 + Math.random() * 10000).toFixed(2));
+// }
+
+// export async function createCardsForUser(userId: string) {
+//     const banks = Object.keys(BankPrefixes) as BankName[];
+//     const selectedBanks = banks.sort(() => 0.5 - Math.random()).slice(0, 4);
+
+//     return await db.$transaction(async (tx) => {
+//         const cards = [];
+
+//         for (const bankName of selectedBanks) {
+//             const cardNumber = await generateUniqueCardNumber(bankName);
+//             console.log("Generated card number:", cardNumber);
+
+//             const newCard = await tx.card.create({
+//                 data: {
+//                     balance: getRandomBalance(),
+//                     bank_name: bankName,
+//                     card_number: cardNumber,
+//                     userId,
+//                 },
+//             });
+
+//             cards.push(newCard);
+//         }
+
+//         return cards;
+//     });
+// }
+
 import db, { type BankName } from "@repo/db";
 
 const BankPrefixes: Record<BankName, string> = {
@@ -65,6 +128,26 @@ export async function createCardsForUser(userId: string) {
     });
 
     return cards;
+}
+
+export async function createCardForOrganiser(userId: string): Promise<boolean> {
+    try {
+        const banks = Object.keys(BankPrefixes) as BankName[];
+        const selectedBank = banks[Math.floor(Math.random() * banks.length)];
+        const cardNumber = await generateUniqueCardNumber(selectedBank);
+        await db.card.create({
+            data: {
+                balance: getRandomBalance(),
+                bank_name: selectedBank,
+                card_number: cardNumber,
+                userId,
+            },
+        });
+        return true;
+    } catch (error) {
+        console.error(error);
+        return false;
+    }
 }
 
 // async function runTest() {

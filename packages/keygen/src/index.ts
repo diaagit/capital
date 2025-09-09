@@ -1,6 +1,22 @@
 import sodium from "libsodium-wrappers";
 
 /**
+ * Helper: Canonical JSON stringify (keys sorted)
+ */
+function canonicalStringify(obj: Record<string, any>): string {
+    if (obj === null || typeof obj !== "object") {
+        return JSON.stringify(obj);
+    }
+
+    if (Array.isArray(obj)) {
+        return `[${obj.map(canonicalStringify).join(",")}]`;
+    }
+
+    const keys = Object.keys(obj).sort();
+    return `{${keys.map((key) => `"${key}":${canonicalStringify(obj[key])}`).join(",")}}`;
+}
+
+/**
  * Generate Ed25519 key pair for signing
  */
 export async function generateKeyPair() {
@@ -39,15 +55,72 @@ export async function verifySignature(
 /**
  * Create signed ticket payload for QR
  */
-export async function createSignedTicketPayload(
-    ticketId: string,
-    eventId: string,
+export async function createSignedTicket(
+    ticketPayload: {
+        eventId: string;
+        eventLocation: string;
+        eventSlotId: string;
+        eventStartTime: string;
+        eventEndTime: string;
+        eventTitle: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        issuedAt: string;
+        quantity: number;
+        ticketId: string;
+        totalAmount: number;
+        transactionToken: string;
+    },
     privateKeyBase64: string,
 ) {
-    const message = `${ticketId}:${eventId}:${Date.now()}`;
+    const issuedAt = new Date().toISOString();
+    const expiresAt = new Date(
+        new Date(ticketPayload.eventEndTime).getTime() + 30 * 60_000,
+    ).toISOString();
+    const payloadWithTimestamps = {
+        ...ticketPayload,
+        expiresAt,
+        issuedAt,
+    };
+    const message = canonicalStringify(payloadWithTimestamps);
     const signature = await signMessage(message, privateKeyBase64);
+
     return {
-        message,
         signature,
+        ticketPayload: payloadWithTimestamps,
+    };
+}
+
+/**
+ * Verify signed ticket payload for QR
+ */
+export async function verifySignedTicket(
+    data: {
+        ticketPayload: Record<string, any>;
+        signature: string;
+    },
+    publicKeyBase64: string,
+) {
+    const message = canonicalStringify(data.ticketPayload);
+    const isValidSignature = await verifySignature(message, data.signature, publicKeyBase64);
+
+    if (!isValidSignature)
+        return {
+            reason: "Invalid signature",
+            valid: false,
+        };
+
+    const now = new Date();
+    const expiresAt = new Date(data.ticketPayload.expiresAt);
+    if (now > expiresAt) {
+        return {
+            reason: "Ticket expired",
+            valid: false,
+        };
+    }
+
+    return {
+        valid: true,
     };
 }

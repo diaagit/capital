@@ -130,6 +130,7 @@ model EventSlot {
   start_time DateTime
   end_time   DateTime
   capacity   Int
+  price      Decimal    @default(0.00) 
   tickets    Ticket[]
 }
 
