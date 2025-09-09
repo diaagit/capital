@@ -246,7 +246,7 @@ eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
                 capacity,
                 end_time: new Date(end_time),
                 eventId: event.id,
-                price, // ✅ included
+                price,
                 start_time: new Date(start_time),
             },
         });
