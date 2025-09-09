@@ -1,5 +1,4 @@
 import db, { type Prisma } from "@repo/db";
-import { generateKeyPair } from "@repo/keygen";
 import { AlphabeticOTP, sendEmailOtp } from "@repo/notifications";
 import { SigninType, type SignupResponse, SignupType, VerificationType } from "@repo/types";
 import bcrypt from "bcrypt";
@@ -8,9 +7,8 @@ import express, { type Request, type Response, type Router } from "express";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import validatorMiddleware from "./middleware";
 
-
 dotenv.config();
-const validatorRouter:Router = express.Router();
+const validatorRouter: Router = express.Router();
 
 const jwtSecret = process.env.JWT_SECRET as string;
 const saltRounds = parseInt(process.env.SALT_ROUNDS || "10", 10);
@@ -222,31 +220,55 @@ validatorRouter.post("/verify", validatorMiddleware, async (req: Request, res: R
         const userId = req.userId;
         const parsed = VerificationType.safeParse(req.body);
         if (!userId || !parsed.success) {
-            return res.status(400).json({ message: "Invalid request" });
+            return res.status(400).json({
+                message: "Invalid request",
+            });
         }
 
         const { otp } = parsed.data;
         const otpRecord = await db.otp.findFirst({
             where: {
-                userId,
-                otp_code: otp,
+                expires_at: {
+                    gt: new Date(),
+                },
                 is_used: false,
-                expires_at: { gt: new Date() },
+                otp_code: otp,
+                userId,
             },
         });
 
         if (!otpRecord) {
-            return res.status(400).json({ message: "Invalid or expired OTP" });
+            return res.status(400).json({
+                message: "Invalid or expired OTP",
+            });
         }
 
         await db.$transaction(async (tx: Prisma.TransactionClient) => {
-            await tx.otp.update({ where: { id: otpRecord.id }, data: { is_used: true } });
-            await tx.user.update({ where: { id: userId }, data: { is_verified: true } });
+            await tx.otp.update({
+                data: {
+                    is_used: true,
+                },
+                where: {
+                    id: otpRecord.id,
+                },
+            });
+            await tx.user.update({
+                data: {
+                    is_verified: true,
+                },
+                where: {
+                    id: userId,
+                },
+            });
         });
 
-        return res.status(200).json({ message: "User verified successfully" });
-    } catch (err) {
-        return res.status(500).json({ message: "Internal server error" });
+        return res.status(200).json({
+            message: "User verified successfully",
+        });
+    } catch (_err) {
+        return res.status(500).json({
+            message: "Internal server error",
+        });
     }
 });
 
@@ -256,7 +278,7 @@ validatorRouter.post("/verify", validatorMiddleware, async (req: Request, res: R
  * @param {Express.Response} res - The HTTP response object used to return data.
  * @returns {message: string} - Responds with a messaging.
  */
-validatorRouter.post("/logout",validatorMiddleware, async (req: Request, res: Response) => {
+validatorRouter.post("/logout", validatorMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
         await db.jwtToken.updateMany({
@@ -343,64 +365,86 @@ validatorRouter.post(
  */
 
 validatorRouter.post("/validate", async (req, res) => {
-  try {
-    const { ticketId, verifierId } = req.body;
+    try {
+        const { ticketId, verifierId } = req.body;
 
-    const ticket = await db.ticket.findUnique({
-      where: { id: ticketId },
-      include: { eventSlot: { include: { event: true } } },
-    });
+        const ticket = await db.ticket.findUnique({
+            include: {
+                eventSlot: {
+                    include: {
+                        event: true,
+                    },
+                },
+            },
+            where: {
+                id: ticketId,
+            },
+        });
 
-    if (!ticket) {
-      await db.ticketVerification.create({
-        data: {
-          ticketId,
-          verifierId,
-          verification_time: new Date(),
-          is_successful: false,
-          remarks: "Ticket not found",
-        },
-      });
-      return res.status(404).json({ success: false, error: "Ticket not found" });
+        if (!ticket) {
+            await db.ticketVerification.create({
+                data: {
+                    is_successful: false,
+                    remarks: "Ticket not found",
+                    ticketId,
+                    verification_time: new Date(),
+                    verifierId,
+                },
+            });
+            return res.status(404).json({
+                error: "Ticket not found",
+                success: false,
+            });
+        }
+
+        if (!ticket.is_valid) {
+            await db.ticketVerification.create({
+                data: {
+                    is_successful: false,
+                    remarks: "Ticket already used/invalid",
+                    ticketId,
+                    verification_time: new Date(),
+                    verifierId,
+                },
+            });
+            return res.status(400).json({
+                error: "Ticket already used/invalid",
+                success: false,
+            });
+        }
+
+        const updatedTicket = await db.ticket.update({
+            data: {
+                is_valid: false,
+                scanned_at: new Date(),
+                scanned_by: verifierId,
+            },
+            where: {
+                id: ticketId,
+            },
+        });
+
+        await db.ticketVerification.create({
+            data: {
+                is_successful: true,
+                remarks: "Ticket validated successfully",
+                ticketId,
+                verification_time: new Date(),
+                verifierId,
+            },
+        });
+
+        return res.json({
+            success: true,
+            ticket: updatedTicket,
+        });
+    } catch (err) {
+        console.error("Validation error:", err);
+        res.status(500).json({
+            error: "Internal server error",
+            success: false,
+        });
     }
-
-    if (!ticket.is_valid) {
-      await db.ticketVerification.create({
-        data: {
-          ticketId,
-          verifierId,
-          verification_time: new Date(),
-          is_successful: false,
-          remarks: "Ticket already used/invalid",
-        },
-      });
-      return res.status(400).json({ success: false, error: "Ticket already used/invalid" });
-    }
-
-    const updatedTicket = await db.ticket.update({
-      where: { id: ticketId },
-      data: {
-        is_valid: false,
-        scanned_at: new Date(),
-        scanned_by: verifierId,
-      },
-    });
-
-    await db.ticketVerification.create({
-      data: {
-        ticketId,
-        verifierId,
-        verification_time: new Date(),
-        is_successful: true,
-        remarks: "Ticket validated successfully",
-      },
-    });
-
-    return res.json({ success: true, ticket: updatedTicket });
-  } catch (err) {
-    console.error("Validation error:", err);
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
 });
 
 /**
@@ -412,28 +456,54 @@ validatorRouter.post("/validate", async (req, res) => {
  */
 
 validatorRouter.get("/tickets/:ticketId", async (req, res) => {
-  try {
-    const { ticketId } = req.params;
+    try {
+        const { ticketId } = req.params;
 
-    const ticket = await db.ticket.findUnique({
-      where: { id: ticketId },
-      include: {
-        user: { select: { id: true, first_name: true, last_name:true, email: true } },
-        eventSlot: {
-          include: { event: { select: { id: true, title: true, location_name: true } } },
-        },
-      },
-    });
+        const ticket = await db.ticket.findUnique({
+            include: {
+                eventSlot: {
+                    include: {
+                        event: {
+                            select: {
+                                id: true,
+                                location_name: true,
+                                title: true,
+                            },
+                        },
+                    },
+                },
+                user: {
+                    select: {
+                        email: true,
+                        first_name: true,
+                        id: true,
+                        last_name: true,
+                    },
+                },
+            },
+            where: {
+                id: ticketId,
+            },
+        });
 
-    if (!ticket) {
-      return res.status(404).json({ success: false, error: "Ticket not found" });
+        if (!ticket) {
+            return res.status(404).json({
+                error: "Ticket not found",
+                success: false,
+            });
+        }
+
+        return res.json({
+            success: true,
+            ticket,
+        });
+    } catch (err) {
+        console.error("Get ticket error:", err);
+        res.status(500).json({
+            error: "Internal server error",
+            success: false,
+        });
     }
-
-    return res.json({ success: true, ticket });
-  } catch (err) {
-    console.error("Get ticket error:", err);
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
 });
 
 /**
@@ -445,26 +515,44 @@ validatorRouter.get("/tickets/:ticketId", async (req, res) => {
  */
 
 validatorRouter.get("/slots/:slotId/validated", async (req, res) => {
-  try {
-    const { slotId } = req.params;
+    try {
+        const { slotId } = req.params;
 
-    const tickets = await db.ticket.findMany({
-      where: {
-        eventSlotId: slotId,
-        is_valid: false, 
-      },
-      include: {
-        user: { select: { id: true, first_name: true, last_name:true, email: true } },
-        scanned_by: { select: { id: true, first_name: true, last_name:true } }, 
-      },
-    });
+        const tickets = await db.ticket.findMany({
+            include: {
+                scanned_by: {
+                    select: {
+                        first_name: true,
+                        id: true,
+                        last_name: true,
+                    },
+                },
+                user: {
+                    select: {
+                        email: true,
+                        first_name: true,
+                        id: true,
+                        last_name: true,
+                    },
+                },
+            },
+            where: {
+                eventSlotId: slotId,
+                is_valid: false,
+            },
+        });
 
-    return res.json({ success: true, tickets });
-  } catch (err) {
-    console.error("List validated tickets error:", err);
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
+        return res.json({
+            success: true,
+            tickets,
+        });
+    } catch (err) {
+        console.error("List validated tickets error:", err);
+        res.status(500).json({
+            error: "Internal server error",
+            success: false,
+        });
+    }
 });
-
 
 export default validatorRouter;
