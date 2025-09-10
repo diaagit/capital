@@ -1,5 +1,4 @@
 import express, { type Router } from "express";
-import compressRouter from "./compress";
 import eventRouter from "./event";
 import organiserRouter from "./organiser";
 import ticketRouter from "./ticketing";
@@ -13,6 +12,5 @@ router.use("/events", eventRouter);
 router.use("/organiser", organiserRouter);
 router.use("/tickets", ticketRouter);
 router.use("/transactions", transactionRouter);
-router.use("/compression", compressRouter);
 
 export default router;

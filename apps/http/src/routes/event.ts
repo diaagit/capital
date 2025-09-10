@@ -2,17 +2,9 @@ import redisCache from "@repo/cache";
 import db from "@repo/db";
 import { allowedStatuses, EventSlotType, EventType } from "@repo/types";
 import express, { type Request, type Response, type Router } from "express";
-
-const eventRouter: Router = express.Router();
-const _a = 700;
-const _localAllowedStatuses = [
-    "draft",
-    "published",
-    "cancelled",
-] as const;
-
 import { deleteCache } from "../schedule/eventCache";
 
+const eventRouter: Router = express.Router();
 /**
  * Helper: Apply Filters from Query Params
  */
