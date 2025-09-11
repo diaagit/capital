@@ -5,7 +5,6 @@ import express, { type Request, type Response, type Router } from "express";
 import { deleteCache } from "../schedule/eventCache";
 
 const eventRouter: Router = express.Router();
-
 /**
  * Helper: Apply Filters from Query Params
  */
