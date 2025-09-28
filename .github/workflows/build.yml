@@ -23,9 +23,14 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+
+      - name: Enable Corepack for Yarn (if needed)
+        run: |
+          corepack enable
+          corepack prepare yarn@npm@1.4.1 --activate
+
       - name: Clean and install dependencies (with optional binaries)
         run: |
-          rm -rf node_modules 
           npm ci --include=optional
 
       - name: Install Biome binary manually
