@@ -28,6 +28,9 @@ jobs:
           rm -rf node_modules 
           npm ci --include=optional
 
+      - name: Install Biome binary manually
+        run: npm install @biomejs/cli-linux-x64 --no-save
+
       - name: Verify Biome install (debug step)
         run: npx @biomejs/biome --version
 
