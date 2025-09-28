@@ -33,14 +33,12 @@ jobs:
 
       # 4. Clean install dependencies
       - name: Clean install dependencies
-        run: |
-          rm -rf node_modules 
-          npm install --include=optional
+        run: npm install
 
       # 5. Rebuild all native modules (important for lightningcss + SWC)
       - name: Rebuild native modules
         run: npm rebuild
-        
+
       - name: Force install lightningcss for Linux
         run: npm install lightningcss --build-from-source
 
@@ -58,6 +56,4 @@ jobs:
 
       # 9. Build Turborepo packages
       - name: Build Capital
-        run: |
-          npx next telemetry disable
-          npm run build
+        run: npm run build
