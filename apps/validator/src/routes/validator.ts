@@ -5,7 +5,7 @@ import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import express, { type Request, type Response, type Router } from "express";
 import jwt, { type SignOptions } from "jsonwebtoken";
-import validatorMiddleware from "./middleware";
+import validatorMiddleware from "../middleware";
 
 dotenv.config();
 const validatorRouter: Router = express.Router();
@@ -77,7 +77,7 @@ validatorRouter.post(
                     is_verified: false,
                     last_name: lastName,
                     password: hashedPassword,
-                    role: "user",
+                    role: "verifier",
                 },
             });
 
