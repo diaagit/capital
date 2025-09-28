@@ -24,10 +24,10 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Enable Corepack for Yarn (if needed)
+      - name: Enable Corepack for npm
         run: |
           corepack enable
-          corepack prepare yarn@npm@1.4.1 --activate
+          corepack prepare npm@11.4.1 --activate
 
       - name: Clean and install dependencies (with optional binaries)
         run: |
