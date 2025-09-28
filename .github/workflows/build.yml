@@ -28,32 +28,47 @@ jobs:
 
       # 3. Enable Corepack
       - name: Enable Corepack
+        run: corepack enable
+
+      # 4. Cache node_modules + SWC + lightningcss builds
+      - uses: actions/cache@v3
+        with:
+          path: |
+            node_modules
+            .next/cache
+            ~/.cache/next-swc
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      # 5. Clean install dependencies (honor package-lock.json)
+      - name: Install dependencies
         run: |
-          corepack enable
+          rm -rf node_modules
+          npm ci --include=optional
 
-      # 4. Clean install dependencies
-      - name: Clean install dependencies
-        run: npm install
-
-      # 5. Rebuild all native modules (important for lightningcss + SWC)
+      # 6. Force rebuild of native binaries
       - name: Rebuild native modules
-        run: npm rebuild
+        run: |
+          npm rebuild
+          npm install lightningcss @tailwindcss/oxide --build-from-source
 
-      - name: Force install lightningcss for Linux
-        run: npm install lightningcss --build-from-source
-
-      # 6. Install Biome CLI manually
+      # 7. Install Biome CLI manually (if using Biome)
       - name: Install Biome CLI
         run: npm install @biomejs/cli-linux-x64 --no-save
 
-      # 7. Verify Biome
+      # 8. Verify Biome installation
       - name: Verify Biome
         run: npx @biomejs/biome --version
 
-      # 8. Run lint
+      # 9. Run lint checks
       - name: Lint code
         run: npm run biome:lint
 
-      # 9. Build Turborepo packages
+      # 10. Disable Next.js telemetry
+      - name: Disable Next.js telemetry
+        run: npx next telemetry disable
+
+      # 11. Build Turborepo + Next.js app
       - name: Build Capital
         run: npm run build
