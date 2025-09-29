@@ -46,6 +46,11 @@ jobs:
         run: |
           rm -rf node_modules
           npm ci --include=optional
+
+      # 6. Install exact Next.js version (SWC included automatically)
+      - name: Install exact Next.js version
+        run: |
+          npm install next@15.5.4 --save-exact
       
       # 6. Force rebuild of native binaries
       - name: Rebuild native modules
