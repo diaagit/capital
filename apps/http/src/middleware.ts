@@ -2,6 +2,7 @@ import db from "@repo/db";
 import dotenv from "dotenv";
 import type { NextFunction, Request, Response } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken";
+import { activeRequestsGauge, httpRequestDurationMs, requestCount } from "./metrics/requestCount";
 
 dotenv.config();
 
@@ -132,3 +133,47 @@ export async function organiserMiddleware(req: Request, res: Response, next: Nex
         });
     }
 }
+
+export const metricsMiddleware = (req: Request, res: Response, next: NextFunction) => {
+    if (req.route.path === "/metrics") {
+        next();
+    }
+    const startTime = Date.now();
+    activeRequestsGauge.inc();
+
+    const endRequest = () => {
+        const duration = Date.now() - startTime;
+
+        const params =
+            req.params && Object.keys(req.params).length ? JSON.stringify(req.params) : "{}";
+        const query = req.query && Object.keys(req.query).length ? JSON.stringify(req.query) : "{}";
+
+        const routeLabel = req.route?.path || req.path;
+
+        requestCount.inc({
+            method: req.method,
+            params,
+            query,
+            route: routeLabel,
+            status_code: res.statusCode,
+        });
+
+        httpRequestDurationMs.observe(
+            {
+                method: req.method,
+                params,
+                query,
+                route: routeLabel,
+                status_code: res.statusCode,
+            },
+            duration,
+        );
+
+        activeRequestsGauge.dec();
+    };
+
+    res.on("finish", endRequest);
+    res.on("close", endRequest);
+
+    next();
+};
