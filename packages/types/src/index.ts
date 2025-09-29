@@ -151,6 +151,10 @@ export const TicketPurchaseResponse = z.object({
 
 export type TicketPurchaseResponseType = z.infer<typeof TicketPurchaseResponse>;
 
+export const ResetPasswordSchema = z.object({
+    password: z.string(),
+});
+
 //New Schema (NO NEED TO MIGRATE to v4 OR WILL MAKE OUR LIFE BAD)
 
 // // Email Schema

@@ -2,11 +2,17 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express, { type Express, type Request, type Response } from "express";
 import morgan from "morgan";
+import { initRedis } from "../../../packages/cache/dist";
 import router from "./routes";
 
 dotenv.config();
 export const app: Express = express();
 export const port = process.env.PORT || 3003;
+
+async function RedisStarter() {
+    await initRedis();
+}
+RedisStarter();
 
 app.use(cors());
 app.use(express.json());

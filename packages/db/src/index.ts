@@ -1,6 +1,17 @@
 import { type Prisma, PrismaClient } from "@prisma/client";
 
-const db = new PrismaClient();
+declare global {
+  var prisma: PrismaClient | undefined;
+}
+
+export const db =
+  global.prisma ??
+  new PrismaClient({
+    log: ["query", "warn", "error"],
+  });
+
+if (process.env.NODE_ENV !== "production") global.prisma = db;
+
 export default db;
 
 export type { Prisma };

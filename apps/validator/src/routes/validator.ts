@@ -1,6 +1,13 @@
+import redisCache from "@repo/cache";
 import db, { type Prisma } from "@repo/db";
 import { AlphabeticOTP, sendEmailOtp } from "@repo/notifications";
-import { SigninType, type SignupResponse, SignupType, VerificationType } from "@repo/types";
+import {
+    ResetPasswordSchema,
+    SigninType,
+    type SignupResponse,
+    SignupType,
+    VerificationType,
+} from "@repo/types";
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import express, { type Request, type Response, type Router } from "express";
@@ -58,17 +65,14 @@ validatorRouter.post(
                     email,
                 },
             });
+
             if (existingUser) {
                 return res.status(400).json({
-                    message: "User already registered",
+                    message: "Validator already registered",
                 });
             }
 
             const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-            if (!firstName || !lastName) {
-                throw new Error("First name and last name are required");
-            }
 
             const newUser = await db.user.create({
                 data: {
@@ -80,12 +84,6 @@ validatorRouter.post(
                     role: "verifier",
                 },
             });
-
-            if (typeof newUser.id !== "string") {
-                return res.status(500).json({
-                    message: "User ID is invalid",
-                });
-            }
 
             const otp = AlphabeticOTP(6);
             await db.otp.create({
@@ -109,7 +107,7 @@ validatorRouter.post(
             });
 
             return res.status(201).json({
-                message: "User successfully registered",
+                message: "Verifier successfully registered",
                 token: token,
                 user: {
                     email: newUser.email,
@@ -158,21 +156,14 @@ validatorRouter.post(
                 });
             }
 
-            const isPasswordCorrect = await bcrypt.compare(
-                password,
-                existingUser.password as string,
-            );
+            const isPasswordCorrect = await bcrypt.compare(password, existingUser.password);
+
             if (!isPasswordCorrect) {
                 return res.status(401).json({
                     message: "Invalid email or password",
                 });
             }
 
-            if (typeof existingUser.id !== "string") {
-                return res.status(500).json({
-                    message: "User ID is invalid",
-                });
-            }
             const token = generateToken(existingUser.id, "1d");
             await db.$transaction(async (tx: Prisma.TransactionClient) => {
                 await tx.jwtToken.deleteMany({
@@ -214,7 +205,6 @@ validatorRouter.post(
  * @param {Express.Response} res - The HTTP response object used to return data.
  * @returns {Promise<void>} - Responds with a JSON object containing user info and JWT token.
  */
-
 validatorRouter.post("/verify", validatorMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
@@ -308,6 +298,7 @@ validatorRouter.post("/logout", validatorMiddleware, async (req: Request, res: R
  */
 validatorRouter.post(
     "/reset-password",
+    validatorMiddleware,
     async (
         req: Request,
         res: Response<
@@ -318,17 +309,17 @@ validatorRouter.post(
         >,
     ) => {
         try {
-            const parsedData = SigninType.safeParse(req.body);
+            const userId = req.userId;
+            const parsedData = ResetPasswordSchema.safeParse(req.body);
             if (!parsedData.success) {
                 return res.status(400).json({
-                    errors: parsedData.error.format(),
-                    message: "Invalid data was provided",
+                    message: "Invalid password was provided",
                 });
             }
-            const { email, password } = parsedData.data;
+            const { password } = parsedData.data;
             const userExist = await db.user.findUnique({
                 where: {
-                    email,
+                    id: userId,
                 },
             });
             if (!userExist) {
@@ -342,7 +333,7 @@ validatorRouter.post(
                     password: hashedPassword,
                 },
                 where: {
-                    email,
+                    id: userExist.id,
                 },
             });
             return res.status(200).json({
@@ -363,89 +354,88 @@ validatorRouter.post(
  * @param {Express.Response} res - The HTTP response object used to return validation result.
  * @returns {success: boolean, ticket?: object, error?: string} - Returns updated ticket details if validation is successful, otherwise an error message.
  */
+// validatorRouter.post("/validate", async (req, res) => {
+//     try {
+//         const { ticketId, verifierId } = req.body;
 
-validatorRouter.post("/validate", async (req, res) => {
-    try {
-        const { ticketId, verifierId } = req.body;
+//         const ticket = await db.ticket.findUnique({
+//             include: {
+//                 eventSlot: {
+//                     include: {
+//                         event: true,
+//                     },
+//                 },
+//             },
+//             where: {
+//                 id: ticketId,
+//             },
+//         });
 
-        const ticket = await db.ticket.findUnique({
-            include: {
-                eventSlot: {
-                    include: {
-                        event: true,
-                    },
-                },
-            },
-            where: {
-                id: ticketId,
-            },
-        });
+//         if (!ticket) {
+//             await db.ticketVerification.create({
+//                 data: {
+//                     is_successful: false,
+//                     remarks: "Ticket not found",
+//                     ticketId,
+//                     verification_time: new Date(),
+//                     verifierId,
+//                 },
+//             });
+//             return res.status(404).json({
+//                 error: "Ticket not found",
+//                 success: false,
+//             });
+//         }
 
-        if (!ticket) {
-            await db.ticketVerification.create({
-                data: {
-                    is_successful: false,
-                    remarks: "Ticket not found",
-                    ticketId,
-                    verification_time: new Date(),
-                    verifierId,
-                },
-            });
-            return res.status(404).json({
-                error: "Ticket not found",
-                success: false,
-            });
-        }
+//         if (!ticket.is_valid) {
+//             await db.ticketVerification.create({
+//                 data: {
+//                     is_successful: false,
+//                     remarks: "Ticket already used/invalid",
+//                     ticketId,
+//                     verification_time: new Date(),
+//                     verifierId,
+//                 },
+//             });
+//             return res.status(400).json({
+//                 error: "Ticket already used/invalid",
+//                 success: false,
+//             });
+//         }
 
-        if (!ticket.is_valid) {
-            await db.ticketVerification.create({
-                data: {
-                    is_successful: false,
-                    remarks: "Ticket already used/invalid",
-                    ticketId,
-                    verification_time: new Date(),
-                    verifierId,
-                },
-            });
-            return res.status(400).json({
-                error: "Ticket already used/invalid",
-                success: false,
-            });
-        }
+//         const updatedTicket = await db.ticket.update({
+//             data: {
+//                 is_valid: false,
+//                 scanned_at: new Date(),
+//                 scanned_by: verifierId,
+//             },
+//             where: {
+//                 id: ticketId,
+//             },
+//         });
 
-        const updatedTicket = await db.ticket.update({
-            data: {
-                is_valid: false,
-                scanned_at: new Date(),
-                scanned_by: verifierId,
-            },
-            where: {
-                id: ticketId,
-            },
-        });
+//         await db.ticketVerification.create({
+//             data: {
+//                 is_successful: true,
+//                 remarks: "Ticket validated successfully",
+//                 ticketId,
+//                 verification_time: new Date(),
+//                 verifierId,
+//             },
+//         });
 
-        await db.ticketVerification.create({
-            data: {
-                is_successful: true,
-                remarks: "Ticket validated successfully",
-                ticketId,
-                verification_time: new Date(),
-                verifierId,
-            },
-        });
-
-        return res.json({
-            success: true,
-            ticket: updatedTicket,
-        });
-    } catch (err) {
-        console.error("Validation error:", err);
-        res.status(500).json({
-            error: "Internal server error",
-            success: false,
-        });
-    }
-});
+//         return res.json({
+//             success: true,
+//             ticket: updatedTicket,
+//         });
+//     } catch (err) {
+//         console.error("Validation error:", err);
+//         res.status(500).json({
+//             error: "Internal server error",
+//             success: false,
+//         });
+//     }
+// });
 
 /**
  * GET /validator/tickets/:ticketId
@@ -454,22 +444,32 @@ validatorRouter.post("/validate", async (req, res) => {
  * @param {Express.Response} res - The HTTP response object used to return the ticket data.
  * @returns {success: boolean, ticket?: object, error?: string} - Returns ticket details if found, otherwise an error message.
  */
-
 validatorRouter.get("/tickets/:ticketId", async (req, res) => {
     try {
         const { ticketId } = req.params;
+        const cacheKey = `ticket:${ticketId}`;
+        const cached = await redisCache.get(cacheKey);
+        if (cached) {
+            return res.status(200).json({
+                ticket: JSON.parse(cached.toString()),
+            });
+        }
 
-        const ticket = await db.ticket.findUnique({
+        const ticket = await db.ticket.findFirst({
             include: {
                 eventSlot: {
-                    include: {
+                    select: {
+                        end_time: true,
                         event: {
                             select: {
-                                id: true,
                                 location_name: true,
+                                location_url: true,
+                                status: true,
                                 title: true,
                             },
                         },
+                        price: true,
+                        start_time: true,
                     },
                 },
                 user: {
@@ -480,6 +480,11 @@ validatorRouter.get("/tickets/:ticketId", async (req, res) => {
                         last_name: true,
                     },
                 },
+                verifications: {
+                    select: {
+                        is_successful: true,
+                    },
+                },
             },
             where: {
                 id: ticketId,
@@ -488,14 +493,16 @@ validatorRouter.get("/tickets/:ticketId", async (req, res) => {
 
         if (!ticket) {
             return res.status(404).json({
-                error: "Ticket not found",
+                error: "Invalid ticket Id was provided",
                 success: false,
             });
         }
-
+        await redisCache.set(cacheKey, JSON.stringify(ticket), {
+            EX: 60,
+        });
         return res.json({
             success: true,
-            ticket,
+            ticket: ticket,
         });
     } catch (err) {
         console.error("Get ticket error:", err);
@@ -513,10 +520,17 @@ validatorRouter.get("/tickets/:ticketId", async (req, res) => {
  * @param {Express.Response} res - The HTTP response object used to return a list of validated tickets.
  * @returns {success: boolean, tickets?: Array<object>, error?: string} - Returns an array of validated tickets, or an error message if none found or an error occurs.
  */
-
-validatorRouter.get("/slots/:slotId/validated", async (req, res) => {
+validatorRouter.get("/slots/:slotId", async (req, res) => {
     try {
         const { slotId } = req.params;
+        const cache = `tickets:${slotId}`;
+        const cached = await redisCache.get(cache);
+        if (cached) {
+            return res.status(200).json({
+                store: "cache",
+                tickets: JSON.parse(cached.toString()),
+            });
+        }
 
         const tickets = await db.ticket.findMany({
             include: {
@@ -542,9 +556,13 @@ validatorRouter.get("/slots/:slotId/validated", async (req, res) => {
             },
         });
 
+        await redisCache.set(cache, JSON.stringify(tickets), {
+            EX: 60,
+        });
+
         return res.json({
-            success: true,
-            tickets,
+            store: "Database",
+            tickets: tickets,
         });
     } catch (err) {
         console.error("List validated tickets error:", err);
@@ -554,5 +572,4 @@ validatorRouter.get("/slots/:slotId/validated", async (req, res) => {
         });
     }
 });
-
 export default validatorRouter;
