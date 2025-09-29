@@ -46,16 +46,16 @@ jobs:
         run: |
           rm -rf node_modules
           npm ci --include=optional
-      
-      - name: Install exact Next.js and SWC versions
-        run: |
-          npm install next@15.5.4 @next/swc@15.5.4 --save-exact
 
       # 6. Force rebuild of native binaries
       - name: Rebuild native modules
         run: |
           npm rebuild
           npm install lightningcss @tailwindcss/oxide --build-from-source
+    
+      - name: Verify Next.js and SWC versions
+        run: npm ls next @next/swc-linux-x64-gnu
+
 
       # 7. Install Biome CLI manually (if using Biome)
       - name: Install Biome CLI
@@ -76,3 +76,7 @@ jobs:
       # 11. Build Turborepo + Next.js app
       - name: Build Capital
         run: npm run build
+
+npm ls next @next/swc-linux-x64-gnu
+next@15.5.4
+@next/swc-linux-x64-gnu@15.5.4
