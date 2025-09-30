@@ -30,6 +30,7 @@ export const TransactionTypes = {
     PURCHASE: "PURCHASE",
     REFUND: "REFUND",
     WITHDRAWAL: "WITHDRAWAL",
+    PAYOUT:"PAYOUT"
 } as const;
 
 export const Roles = {
