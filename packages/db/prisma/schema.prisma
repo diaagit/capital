@@ -18,6 +18,7 @@ enum Role {
 enum OTPPurpose {
   signup
   forgot_password
+  ticket_validation
 }
 
 enum EventStatus {
@@ -83,12 +84,17 @@ model Otp {
   id         String       @id @default(uuid())
   user       User         @relation(fields: [userId], references: [id])
   userId     String
+  ticketId   String?
+  ticket     Ticket?      @relation(fields: [ticketId], references: [id])
+  ticketVerificationId String?
+  ticketVerification TicketVerification? @relation(fields: [ticketVerificationId], references: [id])
   otp_code   String
   purpose    OTPPurpose
   is_used    Boolean      @default(false)
   expires_at DateTime
   created_at DateTime     @default(now())
 }
+
 
 model PasswordResetToken {
   id         String       @id @default(uuid())
@@ -144,9 +150,11 @@ model Ticket {
   signature      String
   issued_at      DateTime   @default(now())
   is_valid       Boolean    @default(true)
+  is_verified    Boolean    @default(false)
   scanned_at     DateTime?
   scanned_by     User?      @relation("VerifierVerifications", fields: [scannedById], references: [id])
   scannedById    String?
+  otp            Otp[]
   verifications  TicketVerification[]
   transactions   Transaction[]
 }
@@ -160,6 +168,7 @@ model TicketVerification {
   verification_time DateTime
   is_successful     Boolean
   remarks           String?
+  otp               Otp[]   
 }
 
 model Card {

@@ -42,6 +42,7 @@ export const Roles = {
 export const OTPPurposes = {
     forgot_password: "forgot_password",
     signup: "signup",
+    ticket_validation:"ticket_validation"
 } as const;
 
 export const EventStatuses = {

@@ -1,6 +1,7 @@
 import redisCache from "@repo/cache";
 import db, { type Prisma } from "@repo/db";
-import { AlphabeticOTP, sendEmailOtp } from "@repo/notifications";
+import { decryptPayload, verifySignedTicket } from "@repo/keygen";
+import { AlphabeticOTP, NumericOTP, sendEmailOtp } from "@repo/notifications";
 import {
     ResetPasswordSchema,
     SigninType,
@@ -354,88 +355,288 @@ validatorRouter.post(
  * @param {Express.Response} res - The HTTP response object used to return validation result.
  * @returns {success: boolean, ticket?: object, error?: string} - Returns updated ticket details if validation is successful, otherwise an error message.
  */
-// validatorRouter.post("/validate", async (req, res) => {
-//     try {
-//         const { ticketId, verifierId } = req.body;
+validatorRouter.post("/validate", validatorMiddleware, async (req: Request, res: Response) => {
+    try {
+        const _verifierId = req.userId;
 
-//         const ticket = await db.ticket.findUnique({
-//             include: {
-//                 eventSlot: {
-//                     include: {
-//                         event: true,
-//                     },
-//                 },
-//             },
-//             where: {
-//                 id: ticketId,
-//             },
-//         });
+        const { nonce, ciphertext } = req.body;
 
-//         if (!ticket) {
-//             await db.ticketVerification.create({
-//                 data: {
-//                     is_successful: false,
-//                     remarks: "Ticket not found",
-//                     ticketId,
-//                     verification_time: new Date(),
-//                     verifierId,
-//                 },
-//             });
-//             return res.status(404).json({
-//                 error: "Ticket not found",
-//                 success: false,
-//             });
-//         }
+        if (!nonce || !ciphertext) {
+            return res.status(400).json({
+                message: "Missing nonce or ciphertext",
+            });
+        }
 
-//         if (!ticket.is_valid) {
-//             await db.ticketVerification.create({
-//                 data: {
-//                     is_successful: false,
-//                     remarks: "Ticket already used/invalid",
-//                     ticketId,
-//                     verification_time: new Date(),
-//                     verifierId,
-//                 },
-//             });
-//             return res.status(400).json({
-//                 error: "Ticket already used/invalid",
-//                 success: false,
-//             });
-//         }
+        const decryptedTicket = await decryptPayload(ciphertext, nonce);
+        const ticketId = decryptedTicket.ticketId;
 
-//         const updatedTicket = await db.ticket.update({
-//             data: {
-//                 is_valid: false,
-//                 scanned_at: new Date(),
-//                 scanned_by: verifierId,
-//             },
-//             where: {
-//                 id: ticketId,
-//             },
-//         });
+        const checkId = await db.ticket.findUnique({
+            where: {
+                id: ticketId,
+            },
+        });
+        if (!checkId) {
+            return res.status(400).json({
+                message: "Invalid Ticket was provided",
+            });
+        }
+        const publicKeyObj = await db.user.findUnique({
+            where: {
+                id: checkId.userId,
+            },
+        });
+        if (!publicKeyObj || !publicKeyObj.public_key) {
+            return res.status(400).json({
+                message: "User public key not found",
+            });
+        }
 
-//         await db.ticketVerification.create({
-//             data: {
-//                 is_successful: true,
-//                 remarks: "Ticket validated successfully",
-//                 ticketId,
-//                 verification_time: new Date(),
-//                 verifierId,
-//             },
-//         });
+        const validateTicket = await verifySignedTicket(
+            {
+                ciphertext,
+                nonce,
+            },
+            publicKeyObj.public_key,
+        );
 
-//         return res.json({
-//             success: true,
-//             ticket: updatedTicket,
-//         });
-//     } catch (err) {
-//         console.error("Validation error:", err);
-//         res.status(500).json({
-//             error: "Internal server error",
-//             success: false,
-//         });
-//     }
-// });
+        if (!validateTicket.valid) {
+            return res.status(400).json({
+                message: "Invalid ticket was submitted",
+            });
+        }
+
+        const otp = NumericOTP(4).toString();
+        const otpRecord = await db.otp.create({
+            data: {
+                expires_at: new Date(Date.now() + 5 * 60 * 1000),
+                otp_code: otp,
+                purpose: "ticket_validation",
+                ticketId: checkId.id,
+                userId: publicKeyObj.id,
+            },
+        });
+        await sendEmailOtp(publicKeyObj.email, otpRecord.otp_code);
+        return res.status(200).json({
+            message: "OTP for person validation",
+            ticketId: checkId.id,
+        });
+    } catch (err) {
+        console.error("Validation error:", err);
+        res.status(500).json({
+            error: "Internal server error",
+            success: false,
+        });
+    }
+});
+
+validatorRouter.post("/otp", validatorMiddleware, async (req: Request, res: Response) => {
+    try {
+        const verifierId = req.userId;
+        const { otp_code, ticketId } = req.body;
+
+        if (!otp_code || !ticketId) {
+            return res.status(400).json({
+                message: "OTP code and ticketId are required",
+            });
+        }
+
+        const otpCheck = await db.otp.findFirst({
+            where: {
+                expires_at: {
+                    gt: new Date(),
+                },
+                is_used: false,
+                otp_code: otp_code.toString(),
+                purpose: "ticket_validation",
+                ticketId,
+            },
+        });
+
+        if (!otpCheck) {
+            return res.status(400).json({
+                message: "Invalid or expired OTP",
+            });
+        }
+
+        await db.$transaction(async (tx: Prisma.TransactionClient) => {
+            await tx.otp.update({
+                data: {
+                    is_used: true,
+                },
+                where: {
+                    id: otpCheck.id,
+                },
+            });
+
+            await tx.ticketVerification.create({
+                data: {
+                    is_successful: true,
+                    remarks: "OTP verified successfully",
+                    ticketId: ticketId,
+                    verification_time: new Date(),
+                    verifierId: verifierId,
+                },
+            });
+
+            await tx.ticket.update({
+                data: {
+                    is_valid: true,
+                    is_verified: true,
+                    scanned_at: new Date(),
+                    scannedById: verifierId,
+                },
+                where: {
+                    id: ticketId,
+                },
+            });
+        });
+
+        const ticket = await db.ticket.findUnique({
+            where: {
+                id: ticketId,
+            },
+        });
+        if (ticket?.eventSlotId) {
+            await redisCache.del(`pendingTickets:${ticket.eventSlotId}`);
+            await redisCache.del(`validatedTickets:${ticket.eventSlotId}`);
+        }
+
+        return res.status(200).json({
+            message: "Ticket successfully validated",
+            success: true,
+        });
+    } catch (error) {
+        console.error("OTP validation error:", error);
+        return res.status(500).json({
+            error: "Internal server error",
+            success: false,
+        });
+    }
+});
+
+/**
+ * LIST — Pending Tickets (not validated yet)
+ */
+validatorRouter.get(
+    "/slots/:slotId/pending",
+    validatorMiddleware,
+    async (req: Request, res: Response) => {
+        try {
+            const { slotId } = req.params;
+            const cacheKey = `pendingTickets:${slotId}`;
+
+            const cached = await redisCache.get(cacheKey);
+            if (cached) {
+                return res.status(200).json({
+                    source: "cache",
+                    tickets: JSON.parse(cached.toString()),
+                });
+            }
+
+            const tickets = await db.ticket.findMany({
+                include: {
+                    scanned_by: {
+                        select: {
+                            first_name: true,
+                            id: true,
+                            last_name: true,
+                        },
+                    },
+                    user: {
+                        select: {
+                            email: true,
+                            first_name: true,
+                            id: true,
+                            last_name: true,
+                        },
+                    },
+                },
+                where: {
+                    eventSlotId: slotId,
+                    is_valid: true,
+                    is_verified: false,
+                },
+            });
+
+            await redisCache.set(cacheKey, JSON.stringify(tickets), {
+                EX: 60,
+            });
+
+            return res.status(200).json({
+                source: "database",
+                tickets,
+            });
+        } catch (err) {
+            console.error("List pending tickets error:", err);
+            return res.status(500).json({
+                error: "Internal server error",
+                success: false,
+            });
+        }
+    },
+);
+
+/**
+ * LIST — Validated Tickets
+ */
+validatorRouter.get(
+    "/slots/:slotId/validated",
+    validatorMiddleware,
+    async (req: Request, res: Response) => {
+        try {
+            const { slotId } = req.params;
+            const cacheKey = `validatedTickets:${slotId}`;
+
+            const cached = await redisCache.get(cacheKey);
+            if (cached) {
+                return res.status(200).json({
+                    source: "cache",
+                    tickets: JSON.parse(cached.toString()),
+                });
+            }
+
+            const tickets = await db.ticket.findMany({
+                include: {
+                    scanned_by: {
+                        select: {
+                            first_name: true,
+                            id: true,
+                            last_name: true,
+                        },
+                    },
+                    user: {
+                        select: {
+                            email: true,
+                            first_name: true,
+                            id: true,
+                            last_name: true,
+                        },
+                    },
+                },
+                where: {
+                    eventSlotId: slotId,
+                    is_valid: true,
+                    is_verified: false,
+                },
+            });
+
+            await redisCache.set(cacheKey, JSON.stringify(tickets), {
+                EX: 60,
+            });
+
+            return res.status(200).json({
+                source: "database",
+                tickets,
+            });
+        } catch (err) {
+            console.error("List validated tickets error:", err);
+            return res.status(500).json({
+                error: "Internal server error",
+                success: false,
+            });
+        }
+    },
+);
 
 /**
  * GET /validator/tickets/:ticketId
@@ -444,7 +645,7 @@ validatorRouter.post(
  * @param {Express.Response} res - The HTTP response object used to return the ticket data.
  * @returns {success: boolean, ticket?: object, error?: string} - Returns ticket details if found, otherwise an error message.
  */
-validatorRouter.get("/tickets/:ticketId", async (req, res) => {
+validatorRouter.get("/tickets/:ticketId", validatorMiddleware, async (req, res) => {
     try {
         const { ticketId } = req.params;
         const cacheKey = `ticket:${ticketId}`;
@@ -520,7 +721,7 @@ validatorRouter.get("/tickets/:ticketId", async (req, res) => {
  * @param {Express.Response} res - The HTTP response object used to return a list of validated tickets.
  * @returns {success: boolean, tickets?: Array<object>, error?: string} - Returns an array of validated tickets, or an error message if none found or an error occurs.
  */
-validatorRouter.get("/slots/:slotId", async (req, res) => {
+validatorRouter.get("/slots/:slotId", validatorMiddleware, async (req, res) => {
     try {
         const { slotId } = req.params;
         const cache = `tickets:${slotId}`;
@@ -552,7 +753,7 @@ validatorRouter.get("/slots/:slotId", async (req, res) => {
             },
             where: {
                 eventSlotId: slotId,
-                is_valid: false,
+                is_verified: false,
             },
         });
 
@@ -572,4 +773,50 @@ validatorRouter.get("/slots/:slotId", async (req, res) => {
         });
     }
 });
+
+validatorRouter.get(
+    "/ticketcount/pending",
+    validatorMiddleware,
+    async (_req: Request, res: Response) => {
+        try {
+            const total_pending = await db.ticket.findMany({
+                where: {
+                    is_verified: false,
+                },
+            });
+            return res.status(200).json({
+                total: total_pending,
+            });
+        } catch (error) {
+            console.error("List validated tickets error:", error);
+            res.status(500).json({
+                error: "Internal server error",
+                success: false,
+            });
+        }
+    },
+);
+
+validatorRouter.get(
+    "/ticketcount/validated",
+    validatorMiddleware,
+    async (_req: Request, res: Response) => {
+        try {
+            const total_pending = await db.ticket.findMany({
+                where: {
+                    is_verified: true,
+                },
+            });
+            return res.status(200).json({
+                total: total_pending,
+            });
+        } catch (error) {
+            console.error("List validated tickets error:", error);
+            res.status(500).json({
+                error: "Internal server error",
+                success: false,
+            });
+        }
+    },
+);
 export default validatorRouter;

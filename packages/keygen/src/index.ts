@@ -1,4 +1,34 @@
+import dotenv from "dotenv";
 import sodium from "libsodium-wrappers";
+
+dotenv.config();
+const TICKET_KEY = process.env.TICKET_SECRET_KEY;
+
+interface PayloadInterface {
+    eventId: string;
+    eventLocation: string;
+    eventSlotId: string;
+    eventStartTime: string;
+    eventEndTime: string;
+    eventTitle: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    issuedAt: string;
+    quantity: number;
+    ticketId: string;
+    totalAmount: number;
+    transactionToken: string;
+    expiresAt: string;
+    signature?: string;
+}
+
+type PayloadType =
+    | PayloadInterface
+    | (PayloadInterface & {
+          signature: string;
+      })
+    | string;
 
 /**
  * Helper: Canonical JSON stringify (keys sorted)
@@ -34,7 +64,7 @@ export async function generateKeyPair() {
 export async function signMessage(message: string, privateKeyBase64: string) {
     await sodium.ready;
     const privateKey = sodium.from_base64(privateKeyBase64);
-    const signature = sodium.crypto_sign_detached(message, privateKey);
+    const signature = sodium.crypto_sign_detached(sodium.from_string(message), privateKey);
     return sodium.to_base64(signature);
 }
 
@@ -49,7 +79,46 @@ export async function verifySignature(
     await sodium.ready;
     const signature = sodium.from_base64(signatureBase64);
     const publicKey = sodium.from_base64(publicKeyBase64);
-    return sodium.crypto_sign_verify_detached(signature, message, publicKey);
+    return sodium.crypto_sign_verify_detached(signature, sodium.from_string(message), publicKey);
+}
+
+/**
+ * Encrypt data using a shared secret key (Base64)
+ */
+export async function encryptPayload(ticketPayload: PayloadType) {
+    await sodium.ready;
+    const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+    const key = sodium.from_base64(TICKET_KEY);
+    const payloadString = JSON.stringify(ticketPayload);
+    const payloadBytes = sodium.from_string(payloadString);
+    const cipherText = sodium.crypto_secretbox_easy(payloadBytes, nonce, key);
+    return {
+        cipherText: sodium.to_base64(cipherText),
+        nonce: sodium.to_base64(nonce),
+    };
+}
+
+/**
+ * Decrypt data using a shared secret key (Base64)
+ */
+export async function decryptPayload(ciphertextBase64: string, nonceBase64: string) {
+    await sodium.ready;
+    const cipherText = sodium.from_base64(ciphertextBase64);
+    const nonce = sodium.from_base64(nonceBase64);
+    const key = sodium.from_base64(TICKET_KEY);
+    const decrypted = sodium.crypto_secretbox_open_easy(cipherText, nonce, key);
+    if (!decrypted) {
+        throw new Error("Failed to decrypt payload");
+    }
+    return JSON.parse(sodium.to_string(decrypted));
+}
+
+/**
+ * Generate Secret Key for encryption signature
+ */
+export async function generateSecretKey() {
+    await sodium.ready;
+    return sodium.to_base64(sodium.randombytes_buf(sodium.crypto_secretbox_KEYBYTES));
 }
 
 /**
@@ -86,9 +155,14 @@ export async function createSignedTicket(
     const message = canonicalStringify(payloadWithTimestamps);
     const signature = await signMessage(message, privateKeyBase64);
 
-    return {
+    const encrypted = await encryptPayload({
+        ...payloadWithTimestamps,
         signature,
-        ticketPayload: payloadWithTimestamps,
+    });
+
+    return {
+        ciphertext: encrypted.cipherText,
+        nonce: encrypted.nonce,
     };
 }
 
@@ -96,23 +170,34 @@ export async function createSignedTicket(
  * Verify signed ticket payload for QR
  */
 export async function verifySignedTicket(
-    data: {
-        ticketPayload: Record<string, any>;
-        signature: string;
+    encryptedData: {
+        nonce: string;
+        ciphertext: string;
     },
     publicKeyBase64: string,
 ) {
-    const message = canonicalStringify(data.ticketPayload);
-    const isValidSignature = await verifySignature(message, data.signature, publicKeyBase64);
+    const decrypted = await decryptPayload(encryptedData.ciphertext, encryptedData.nonce);
 
-    if (!isValidSignature)
+    if (!decrypted) {
+        return {
+            reason: "Invalid Data",
+            valid: false,
+        };
+    }
+
+    const { signature, ...unsignedPayload } = decrypted;
+    const message = canonicalStringify(unsignedPayload);
+
+    const isValidSignature = await verifySignature(message, signature, publicKeyBase64);
+    if (!isValidSignature) {
         return {
             reason: "Invalid signature",
             valid: false,
         };
+    }
 
     const now = new Date();
-    const expiresAt = new Date(data.ticketPayload.expiresAt);
+    const expiresAt = new Date(decrypted.expiresAt);
     if (now > expiresAt) {
         return {
             reason: "Ticket expired",
@@ -121,6 +206,7 @@ export async function verifySignedTicket(
     }
 
     return {
+        payload: decrypted,
         valid: true,
     };
 }

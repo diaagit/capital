@@ -121,8 +121,8 @@ ticketRouter.post(
                 ticketPayload,
                 decryptedPrivateKey,
             );
-
-            const qrBuffer = await QRCode.toBuffer(JSON.stringify(signedTicketPayload));
+            const qrData = Buffer.from(JSON.stringify(signedTicketPayload)).toString("base64");
+            const qrBuffer = await QRCode.toBuffer(qrData);
 
             const fileName = `tickets/${userId}-${Date.now()}.png`;
             const { error: uploadError } = await supabase.storage
@@ -140,7 +140,7 @@ ticketRouter.post(
                     data: {
                         eventSlotId: eventSlotDetail.id,
                         qr_code_data: qrCodeUrl,
-                        signature: (await signedTicketPayload).signature,
+                        signature: JSON.stringify(signedTicketPayload),
                         userId,
                     },
                 });
