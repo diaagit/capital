@@ -180,6 +180,7 @@ transactionRouter.post("/withdraw", async (req: Request, res: Response) => {
                 token,
             },
         });
+
         if (!findDetails) {
             return res.status(400).json({
                 message: "Invalid token was provided",
