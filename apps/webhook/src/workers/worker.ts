@@ -15,6 +15,7 @@ interface jobInterface {
     transactionId: string;
     type: TransactionType;
     userId: string;
+    attempts?: number;
 }
 
 async function processJob() {
@@ -22,9 +23,7 @@ async function processJob() {
         const job = await _client.brPopLPush(Queue_name, Process_Queue, 0);
         if (!job) continue;
 
-        let jobValue: jobInterface & {
-            attempts?: number;
-        };
+        let jobValue: jobInterface;
 
         try {
             jobValue = JSON.parse(job.toString());
@@ -288,6 +287,9 @@ export async function refundMoney(job: jobInterface) {
                 },
             });
         });
+        return {
+            message: "Refund successful",
+        };
     } catch (error) {
         console.error("Internal error occurred during refund:", error);
     }

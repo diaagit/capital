@@ -1,5 +1,6 @@
+import redisCache from "@repo/cache";
 import db, { type Prisma } from "@repo/db";
-import { AlphanumericOTP, sendEmailOtp } from "@repo/notifications";
+import { AlphanumericOTP } from "@repo/notifications";
 import {
     allowedStatuses,
     InitiateSchema,
@@ -20,6 +21,8 @@ const organiserRouter: Router = express.Router();
 
 const jwtSecret = process.env.JWT_SECRET as string;
 const saltRounds = parseInt(process.env.SALT_ROUNDS || "10", 10);
+const _client = redisCache;
+const Queue_name = "notification:initiate";
 
 if (!jwtSecret) {
     throw new Error("JWT_SECRET is not defined in environment variables");
@@ -106,7 +109,16 @@ organiserRouter.post("/signup", async (req: Request, res: Response) => {
             },
         });
 
-        await sendEmailOtp(newUser.email, otp);
+        await _client.rPush(
+            Queue_name,
+            JSON.stringify({
+                email: newUser.email,
+                otp: otp,
+                type: "email",
+            }),
+        );
+
+        // await sendEmailOtp(newUser.email, otp);
 
         const token = generateToken(newUser.id, "10m");
         await db.jwtToken.create({

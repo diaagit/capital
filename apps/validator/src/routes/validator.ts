@@ -1,7 +1,7 @@
 import redisCache from "@repo/cache";
 import db, { type Prisma } from "@repo/db";
 import { decryptPayload, verifySignedTicket } from "@repo/keygen";
-import { AlphabeticOTP, NumericOTP, sendEmailOtp } from "@repo/notifications";
+import { AlphabeticOTP, NumericOTP } from "@repo/notifications";
 import {
     ResetPasswordSchema,
     SigninType,
@@ -24,6 +24,9 @@ const saltRounds = parseInt(process.env.SALT_ROUNDS || "10", 10);
 if (!jwtSecret) {
     throw new Error("JWT_SECRET is not defined in environment variables");
 }
+
+const client = redisCache;
+const Queue_name = "notification:initiate";
 
 export interface SignupErrorResponse {
     message: string;
@@ -95,7 +98,17 @@ validatorRouter.post(
                     userId: newUser.id,
                 },
             });
-            await sendEmailOtp(newUser.email, otp);
+
+            await client.rPush(
+                Queue_name,
+                JSON.stringify({
+                    email: newUser.email,
+                    otp: otp,
+                    type: "email",
+                }),
+            );
+
+            // await sendEmailOtp(newUser.email, otp);
 
             const token = generateToken(newUser.id, "10m");
             await db.jwtToken.create({
@@ -415,7 +428,15 @@ validatorRouter.post("/validate", validatorMiddleware, async (req: Request, res:
                 userId: publicKeyObj.id,
             },
         });
-        await sendEmailOtp(publicKeyObj.email, otpRecord.otp_code);
+        await client.rPush(
+            Queue_name,
+            JSON.stringify({
+                email: publicKeyObj.email,
+                otp: otpRecord.otp_code,
+                type: "email",
+            }),
+        );
+        // await sendEmailOtp(publicKeyObj.email, otpRecord.otp_code);
         return res.status(200).json({
             message: "OTP for person validation",
             ticketId: checkId.id,

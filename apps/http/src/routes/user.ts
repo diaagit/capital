@@ -1,15 +1,9 @@
+import redisCache from "@repo/cache";
 import db, { type Prisma } from "@repo/db";
 import { generateKeyPair } from "@repo/keygen";
-import { AlphabeticOTP, sendEmailOtp } from "@repo/notifications";
-import {
-    InitiateSchema,
-    SigninType,
-    type SignupResponse,
-    SignupType,
-    VerificationType,
-} from "@repo/types";
+import { AlphabeticOTP } from "@repo/notifications";
+import { SigninType, type SignupResponse, SignupType, VerificationType } from "@repo/types";
 import bcrypt from "bcrypt";
-import Decimal from "decimal.js";
 import dotenv from "dotenv";
 import express, { type Request, type Response, type Router } from "express";
 import jwt, { type SignOptions } from "jsonwebtoken";
@@ -17,13 +11,14 @@ import userMiddleware from "../middleware";
 import { createCardsForUser } from "../utils/bankCards";
 import { decrypt, encrypt } from "../utils/encrypter";
 
-// have to Add public private key logic Cards logic OTP logic
-
 dotenv.config();
 const userRouter: Router = express.Router();
 
 const jwtSecret = process.env.JWT_SECRET as string;
 const saltRounds = parseInt(process.env.SALT_ROUNDS || "10", 10);
+
+const client = redisCache;
+const Queue_name = "notification:initiate";
 
 if (!jwtSecret) {
     throw new Error("JWT_SECRET is not defined in environment variables");
@@ -108,7 +103,17 @@ userRouter.post(
                     userId: newUser.id,
                 },
             });
-            await sendEmailOtp(newUser.email, otp);
+
+            await client.rPush(
+                Queue_name,
+                JSON.stringify({
+                    email: newUser.email,
+                    otp: otp,
+                    type: "email",
+                }),
+            );
+
+            // await sendEmailOtp(newUser.email, otp);
 
             const token = generateToken(newUser.id, "10m");
             await db.jwtToken.create({
@@ -460,7 +465,7 @@ userRouter.put("/me", userMiddleware, async (req: Request, res: Response) => {
  * @returns {message: string} - Responds with a messaging.
  */
 userRouter.delete(
-    "/me",
+    "/my",
     userMiddleware,
     async (
         req: Request,
@@ -522,64 +527,6 @@ userRouter.delete(
         }
     },
 );
-
-/**
- * Initiates a transaction.
- * @route POST /transaction/initiate
- * @body {string} token - Transaction token.
- * @body {string} amount - Amount (2-4 digits).
- * @body {string} cardNumber - Card in format 1234-5678-9012-1234.
- * @body {string} [bankName] - Optional bank name.
- * @returns {200|400|500} JSON response with message or errors.
- */
-userRouter.post("/initiate", userMiddleware, async (req: Request, res: Response) => {
-    try {
-        const userId = req.userId;
-        const parsedData = InitiateSchema.safeParse(req.body);
-        if (!parsedData.success) {
-            return res.status(400).json({
-                errors: parsedData.error.flatten(),
-                message: "Invalid data was provided",
-            });
-        }
-        const { token, amount, cardNumber } = parsedData.data;
-
-        const Amount = new Decimal(amount);
-        await db.$transaction(async (tx: Prisma.TransactionClient) => {
-            if (Amount.lessThanOrEqualTo(0)) {
-                throw new Error("Amount must be greater than zero");
-            }
-            const checkCard = await tx.card.findUnique({
-                where: {
-                    card_number: cardNumber,
-                    userId,
-                },
-            });
-            if (!checkCard) {
-                throw new Error("Invalid card was provided");
-            }
-            await tx.transaction.create({
-                data: {
-                    amount,
-                    bank_name: checkCard.bank_name,
-                    cardId: checkCard.id,
-                    token,
-                    type: "Initiate",
-                    userId: checkCard.userId,
-                },
-            });
-        });
-        return res.status(200).json({
-            message: "Transaction was successfully initialized",
-        });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({
-            error: "Internal server error",
-            message: "Internal server error",
-        });
-    }
-});
 
 /**
  * GET /my/cards
