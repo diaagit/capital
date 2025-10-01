@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'frontend-app'
+    static_configs:
+      - targets: ['frontend:3000']
+
+  - job_name: 'backend-app'
+    static_configs:
+      - targets: ['backend:3001']
+
+  - job_name: 'webhook-app'
+    static_configs:
+      - targets: ['webhook:3002']
+
+  - job_name: 'validator-app'
+    static_configs:
+      - targets: ['validator:3003']
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
