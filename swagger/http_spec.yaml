@@ -1,0 +1,827 @@
+openapi: 3.0.3
+info:
+  title: Capital (auto-generated)
+  version: 1.0.0
+  description: Auto-generated OpenAPI skeleton from code scan. Please refine schemas
+    and security.
+servers:
+- url: http://localhost:3001
+  description: Local server
+paths:
+  /:
+    get:
+      summary: GET / (from http/dist/app.js)
+      tags:
+      - dist
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+    post:
+      summary: POST / (from http/dist/routes/event.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: 'JSDoc:
+
+
+        * Create a new event'
+  /pid:
+    get:
+      summary: GET /pid (from http/dist/app.js)
+      tags:
+      - dist
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+  /health:
+    get:
+      summary: GET /health (from http/dist/app.js)
+      tags:
+      - dist
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+  /metrics:
+    get:
+      summary: GET /metrics (from http/dist/app.js)
+      tags:
+      - dist
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+  /:id:
+    delete:
+      summary: DELETE /:id (from http/dist/routes/event.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: 'JSDoc:
+
+
+        * Delete an event and its slots'
+  /:eventId/slots:
+    post:
+      summary: POST /:eventId/slots (from http/dist/routes/event.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: 'JSDoc:
+
+
+        * Create a slot for an event'
+    get:
+      summary: GET /:eventId/slots (from http/dist/routes/event.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: 'JSDoc:
+
+
+        * Get all slots for an event'
+  /:eventId/slots/:slotId:
+    delete:
+      summary: DELETE /:eventId/slots/:slotId (from http/dist/routes/event.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: 'JSDoc:
+
+
+        * Delete a specific slot'
+  /signup:
+    post:
+      summary: POST /signup (from http/dist/routes/organiser.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* @route POST /signup\n * @desc Organiser Signup"
+  /signin:
+    post:
+      summary: POST /signin (from http/dist/routes/organiser.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* @route POST /signin\n * @desc Organiser Signin"
+  /verify:
+    post:
+      summary: POST /verify (from http/dist/routes/organiser.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* Verify the User after signup\n * @param {Express.Request}\
+        \ req - The HTTP request object containing user details.\n * @param {Express.Response}\
+        \ res - The HTTP response object used to return data.\n * @returns {Promise<void>}\
+        \ - Responds with a JSON object containing user info and JWT token.\n * @route\
+        \ POST /verify"
+  /initiate:
+    post:
+      summary: POST /initiate (from http/dist/routes/organiser.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* Initiate a payment from wallet to cardNumber\n * @route\
+        \ POST /initiate"
+  /events:
+    get:
+      summary: GET /events (from http/dist/routes/organiser.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* @route GET /events\n * @desc Get all events (with\
+        \ optional filters)"
+  /events/summary:
+    get:
+      summary: GET /events/summary (from http/dist/routes/organiser.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* @route GET /events/summary\n * @desc Event summary\
+        \ grouped by event: tickets sold, revenue, attendees"
+  /events/analytics:
+    get:
+      summary: GET /events/analytics (from http/dist/routes/organiser.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* @route GET /events/analytics\n * @desc Analytics for\
+        \ organiser: total events, tickets sold, total revenue"
+  /events/top:
+    get:
+      summary: GET /events/top (from http/dist/routes/organiser.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* @route GET /events/\n * @desc  performing events by\
+        \ revenue or tickets sold\n * @query limit (number) default 5\n * @query sortBy\
+        \ 'revenue' | 'tickets'"
+  /events/revenue:
+    get:
+      summary: GET /events/revenue (from http/dist/routes/organiser.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* @route GET /events/revenue\n * @desc Revenue trend\
+        \ for a given date range (daily totals)\n * @query startDate YYYY-MM-DD, endDate\
+        \ YYYY-MM-DD"
+  /balance:
+    get:
+      summary: GET /balance (from http/dist/routes/organiser.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* @route GET /balance\n * @desc Get organiser wallet\
+        \ balance"
+  /events/:eventId/tickets:
+    get:
+      summary: GET /events/:eventId/tickets (from http/dist/routes/organiser.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* @route GET /events/:eventId/tickets\n * @desc Number\
+        \ of tickets sold for a specific event (only PURCHASE transactions)"
+  /events/:eventId:
+    get:
+      summary: GET /events/:eventId (from http/dist/routes/organiser.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* @route GET /events/:eventId\n * @desc Get event info\
+        \ (and number of slots)"
+  /purchase:
+    post:
+      summary: POST /purchase (from http/dist/routes/ticketing.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+  /my:
+    get:
+      summary: GET /my (from http/dist/routes/ticketing.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+    delete:
+      summary: DELETE /my (from http/dist/routes/user.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* Deletes the User after signup/signin\n * @param {Express.Request}\
+        \ req - The HTTP request object containing user details.\n * @param {Express.Response}\
+        \ res - The HTTP response object used to return data.\n * @returns {message:\
+        \ string} - Responds with a messaging."
+  /:ticketId:
+    get:
+      summary: GET /:ticketId (from http/dist/routes/ticketing.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+  /:txnId:
+    get:
+      summary: GET /:txnId (from http/dist/routes/transactions.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* GET /transactions/:txnId\n * Get transaction details\
+        \ by ID"
+  /logout:
+    post:
+      summary: POST /logout (from http/dist/routes/user.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* Logout the User after signup/signin\n * @param {Express.Request}\
+        \ req - The HTTP request object containing user details.\n * @param {Express.Response}\
+        \ res - The HTTP response object used to return data.\n * @returns {message:\
+        \ string} - Responds with a messaging."
+  /reset-password:
+    post:
+      summary: POST /reset-password (from http/dist/routes/user.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* Resets the User after signup/signin\n * @param {Express.Request}\
+        \ req - The HTTP request object containing user details.\n * @param {Express.Response}\
+        \ res - The HTTP response object used to return data.\n * @returns {message:\
+        \ string} - Responds with a messaging."
+  /me:
+    get:
+      summary: GET /me (from http/dist/routes/user.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* Get the User details after signup/signin\n * @param\
+        \ {Express.Request} req - The HTTP request object containing user details.\n\
+        \ * @param {Express.Response} res - The HTTP response object used to return\
+        \ data.\n * @returns {message: string} - Responds with a messaging."
+    put:
+      summary: PUT /me (from http/dist/routes/user.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* Patch the User details after signup/signin\n * @param\
+        \ {Express.Request} req - The HTTP request object containing user details.\n\
+        \ * @param {Express.Response} res - The HTTP response object used to return\
+        \ data.\n * @returns {message: string} - Responds with a messaging."
+  /my/cards:
+    get:
+      summary: GET /my/cards (from http/dist/routes/user.js)
+      tags:
+      - routes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+      description: "JSDoc:\n\n* GET /my/cards\n * Get all cards of the logged-in user"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas: {}

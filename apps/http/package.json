@@ -29,7 +29,9 @@
         "qrcode": "^1.5.4",
         "resend": "^6.0.3",
         "sharp": "^0.34.3",
-        "ts-node": "^10.9.2"
+        "swagger-ui-express": "^5.0.1",
+        "ts-node": "^10.9.2",
+        "yaml": "^2.8.1"
     },
     "description": "",
     "devDependencies": {
