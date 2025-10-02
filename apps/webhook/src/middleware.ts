@@ -2,9 +2,11 @@ import type { NextFunction, Request, Response } from "express";
 import { activeRequestsGauge, httpRequestDurationMs, requestCount } from "./metrics/requestCount";
 
 export const metricsMiddleware = (req: Request, res: Response, next: NextFunction) => {
-    if (req.route.path === "/metrics") {
-        next();
+    // Skip metrics for /metrics endpoint
+    if (req.route?.path === "/metrics") {
+        return next();
     }
+
     const startTime = Date.now();
     activeRequestsGauge.inc();
 

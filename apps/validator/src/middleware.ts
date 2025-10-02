@@ -74,9 +74,11 @@ export default async function validatorMiddleware(req: Request, res: Response, n
 }
 
 export const metricsMiddleware = (req: Request, res: Response, next: NextFunction) => {
-    if (req.route.path === "/metrics") {
-        next();
+    // Skip metrics for /metrics endpoint
+    if (req.route?.path === "/metrics") {
+        return next();
     }
+
     const startTime = Date.now();
     activeRequestsGauge.inc();
 
