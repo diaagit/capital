@@ -5,6 +5,7 @@ COPY ./package.json ./
 COPY ./package-lock.json ./
 COPY ./turbo.json ./
 COPY ./packages ./packages
+COPY ./swagger ./swagger
 COPY ./apps/validator ./apps/validator
 
 RUN npm install 

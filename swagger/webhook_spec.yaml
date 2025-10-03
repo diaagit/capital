@@ -1,0 +1,204 @@
+openapi: 3.0.3
+info:
+  title: Webhook Transactions API
+  version: 1.0.0
+  description: Endpoints for queuing deposit, withdraw, refund, and payout operations via webhook.
+
+servers:
+  - url: http://localhost:3002
+    description: App root
+  - url: http://localhost:3002/api/v1/webhook
+    description: Webhook base path
+
+tags:
+  - name: Webhook Transactions
+    description: Transaction queueing routes
+  - name: Health
+    description: Service health
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        error:
+          type: string
+          nullable: true
+        errors:
+          nullable: true
+      required:
+        - message
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    TransactionTokenRequest:
+      type: object
+      description: Matches DepositSchema; token is required, others optional
+      properties:
+        token:
+          type: string
+        amount:
+          type: string
+          pattern: '^\d{2,4}$'
+          description: Optional; validated if provided
+        cardNumber:
+          type: string
+          pattern: '^\d{4}-\d{4}-\d{4}-\d{4}$'
+          description: Optional; validated if provided
+        userId:
+          type: string
+          description: Optional; validated if provided
+      required:
+        - token
+
+paths:
+  /:
+    get:
+      tags: [Health]
+      summary: Root
+      description: Service root at app level (not under webhook base path)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+
+  /transaction/deposit:
+    post:
+      tags: [Webhook Transactions]
+      summary: Queue a deposit by token
+      description: Validates body with DepositSchema and enqueues a DEPOSIT for a background worker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionTokenRequest'
+      responses:
+        '201':
+          description: Deposit queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Invalid data or token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transaction/withdraw:
+    post:
+      tags: [Webhook Transactions]
+      summary: Queue a withdrawal by token
+      description: Validates body with DepositSchema and enqueues a WITHDRAWAL for a background worker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionTokenRequest'
+      responses:
+        '201':
+          description: Withdraw queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Invalid data or token, or insufficient balance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Card not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transaction/refund:
+    post:
+      tags: [Webhook Transactions]
+      summary: Queue a refund by token
+      description: Validates body with DepositSchema and enqueues a REFUND for a background worker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionTokenRequest'
+      responses:
+        '201':
+          description: Refund queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Invalid data or token, or already refunded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transaction/payout:
+    post:
+      tags: [Webhook Transactions]
+      summary: Queue a payout by token
+      description: Validates body with DepositSchema and enqueues a PAYOUT for a background worker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionTokenRequest'
+      responses:
+        '201':
+          description: Payout queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Invalid data or token, or already paid out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

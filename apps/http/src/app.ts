@@ -29,16 +29,25 @@ app.use(metricsMiddleware);
 app.use("/api/v1", router);
 
 const swaggerPath = path.resolve(process.cwd(), "../../swagger/http_spec.yaml");
+const swaggerOptions = {
+    customCss: `
+    .topbar-wrapper img { content:url('https://yourcdn.com/logo.svg'); width:120px; }
+    .swagger-ui .topbar { background: #0f172a; }
+    .swagger-ui .topbar-wrapper .link span { color: #f8fafc !important; font-weight: bold; }
+    .swagger-ui .info h1 { font-size: 2.2rem; font-weight: 700; color: #0f172a; }
+    body { background-color: #f8fafc; }
+  `,
+    customfavIcon: "https://yourcdn.com/favicon.ico",
+    customSiteTitle: "Capital API Docs",
+};
 
 if (!fs.existsSync(swaggerPath)) {
     console.warn(`Swagger file not found at ${swaggerPath}`);
 } else {
     const file = fs.readFileSync(swaggerPath, "utf8");
     const swaggerDocument = YAML.parse(file);
-    app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+    app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));
 }
-
-// app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 app.get("/", async (_req: Request, res: Response) => {
     res.status(200).send("<h1>Hello HTTP!</h1>");

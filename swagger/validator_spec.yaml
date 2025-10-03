@@ -1,0 +1,562 @@
+openapi: 3.0.3
+info:
+  title: Validator API
+  version: 1.0.0
+  description: Endpoints for validator signup/signin, ticket validation, OTP confirmation, and ticket listing.
+
+servers:
+  - url: http://localhost:3003
+    description: Local server
+
+tags:
+  - name: Validator
+    description: Validator authentication and ticket validation routes
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          nullable: true
+      required:
+        - message
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    UserSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+      required:
+        - id
+        - email
+        - firstName
+        - lastName
+
+    AuthResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserSummary'
+      required:
+        - message
+        - token
+        - user
+
+    SignupRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+          minLength: 3
+          maxLength: 20
+        lastName:
+          type: string
+          minLength: 3
+          maxLength: 20
+        password:
+          type: string
+          minLength: 6
+      required:
+        - email
+        - password
+
+    SigninRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+      required:
+        - email
+        - password
+
+    VerificationRequest:
+      type: object
+      properties:
+        otp:
+          type: string
+      required:
+        - otp
+
+    ResetPasswordRequest:
+      type: object
+      properties:
+        password:
+          type: string
+      required:
+        - password
+
+    NonceCipherRequest:
+      type: object
+      properties:
+        nonce:
+          type: string
+        ciphertext:
+          type: string
+      required:
+        - nonce
+        - ciphertext
+
+    OTPSubmitRequest:
+      type: object
+      properties:
+        otp_code:
+          type: string
+        ticketId:
+          type: string
+      required:
+        - otp_code
+        - ticketId
+
+    TicketUser:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        first_name: { type: string }
+        last_name: { type: string }
+
+    TicketEvent:
+      type: object
+      properties:
+        title: { type: string }
+        status:
+          type: string
+          enum: [draft, published, cancelled]
+        location_name: { type: string }
+        location_url: { type: string }
+
+    TicketEventSlot:
+      type: object
+      properties:
+        start_time: { type: string, format: date-time }
+        end_time: { type: string, format: date-time }
+        price: { type: number }
+
+    Ticket:
+      type: object
+      properties:
+        id: { type: string }
+        is_valid: { type: boolean }
+        is_verified: { type: boolean }
+        issued_at: { type: string, format: date-time, nullable: true }
+        scanned_at: { type: string, format: date-time, nullable: true }
+        signature: { type: string, nullable: true }
+        eventSlotId: { type: string }
+        eventSlot:
+          $ref: '#/components/schemas/TicketEventSlot'
+        user:
+          $ref: '#/components/schemas/TicketUser'
+
+    TicketDetail:
+      type: object
+      properties:
+        success: { type: boolean }
+        ticket:
+          allOf:
+            - $ref: '#/components/schemas/Ticket'
+            - type: object
+              properties:
+                eventSlot:
+                  type: object
+                  properties:
+                    start_time: { type: string, format: date-time }
+                    end_time: { type: string, format: date-time }
+                    price: { type: number }
+                    event:
+                      $ref: '#/components/schemas/TicketEvent'
+
+    TicketListResponse:
+      type: object
+      properties:
+        source:
+          type: string
+          description: cache or database
+        tickets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ticket'
+
+    TicketCountResponse:
+      type: object
+      properties:
+        total:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ticket'
+
+paths:
+  /validator/signup:
+    post:
+      tags: [Validator]
+      summary: Validator signup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '201':
+          description: Verifier registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation failed or already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /validator/signin:
+    post:
+      tags: [Validator]
+      summary: Validator signin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SigninRequest'
+      responses:
+        '200':
+          description: Signin successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid email or request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /validator/verify:
+    post:
+      tags: [Validator]
+      summary: Verify validator via OTP
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationRequest'
+      responses:
+        '200':
+          description: Verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Invalid request or OTP expired/invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /validator/logout:
+    post:
+      tags: [Validator]
+      summary: Logout validator (revoke active tokens)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /validator/reset-password:
+    post:
+      tags: [Validator]
+      summary: Reset password for authenticated validator
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Invalid password data or user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /validator/validate:
+    post:
+      tags: [Validator]
+      summary: Validate a ticket using signed payload (nonce + ciphertext)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NonceCipherRequest'
+      responses:
+        '200':
+          description: OTP sent to ticket holder for person validation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  ticketId: { type: string }
+        '400':
+          description: Missing fields, invalid ticket, invalid signature, or missing user public key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /validator/otp:
+    post:
+      tags: [Validator]
+      summary: Submit OTP for ticket verification and finalize validation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OTPSubmitRequest'
+      responses:
+        '200':
+          description: Ticket successfully validated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  success: { type: boolean }
+        '400':
+          description: Invalid or expired OTP, or missing fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /validator/slots/{slotId}/pending:
+    get:
+      tags: [Validator]
+      summary: List pending (valid but not yet verified) tickets for a slot
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: slotId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Pending tickets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketListResponse'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /validator/slots/{slotId}/validated:
+    get:
+      tags: [Validator]
+      summary: List validated/scanned tickets for a slot
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: slotId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Validated tickets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketListResponse'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /validator/tickets/{ticketId}:
+    get:
+      tags: [Validator]
+      summary: Get detailed information for a specific ticket
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Ticket detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketDetail'
+        '404':
+          description: Ticket not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /validator/slots/{slotId}:
+    get:
+      tags: [Validator]
+      summary: List tickets for a slot that are not yet verified
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: slotId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Tickets listing with cache hint
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  store:
+                    type: string
+                    description: cache or Database
+                  tickets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Ticket'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /validator/ticketcount/pending:
+    get:
+      tags: [Validator]
+      summary: Count/list of all pending tickets (global)
+      security:
+        - bearerAuth
