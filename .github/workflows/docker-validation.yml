@@ -9,6 +9,9 @@ on:
 jobs:
   docker-validate:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ github.workspace }}  # ensures repo root
 
     steps:
       - name: Checkout repository
@@ -17,53 +20,29 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Install Docker Compose
-        run: sudo apt-get update && sudo apt-get install -y docker-compose
-
       - name: Build all Docker Images
         run: docker compose -f docker-compose.dev.yml build --pull
-        working-directory: ${{ github.workspace }}
 
       - name: Start Docker environment
         run: docker compose -f docker-compose.dev.yml up -d
-        working-directory: ${{ github.workspace }}
 
-      - name: Wait for HTTP service
-        run: |
-          for i in {1..30}; do
-            curl -f http://localhost:3000/health && break || sleep 2
-          done
+      - name: Wait for services to be ready
+        run: sleep 30
 
-      - name: Wait for Validator service
-        run: |
-          for i in {1..30}; do
-            curl -f http://localhost:3002/health && break || sleep 2
-          done
+      - name: Validate Prometheus readiness
+        run: curl -f http://localhost:9090/-/ready
 
-      - name: Wait for Webhook service
-        run: |
-          for i in {1..30}; do
-            curl -f http://localhost:3003/health && break || sleep 2
-          done
+      - name: Validate Grafana health
+        run: curl -f http://localhost:3001/api/health
 
-      - name: Wait for Frontend service
-        run: |
-          for i in {1..30}; do
-            curl -f http://localhost:4000/ || sleep 2
-          done
+      - name: Validate HTTP service
+        run: curl -f http://localhost:3000/health
 
-      - name: Wait for Grafana service
-        run: |
-          for i in {1..30}; do
-            curl -f http://localhost:3001/api/health && break || sleep 2
-          done
+      - name: Validate Validator service
+        run: curl -f http://localhost:3002/health
 
-      - name: Wait for Prometheus service
-        run: |
-          for i in {1..30}; do
-            curl -f http://localhost:9090/-/ready && break || sleep 2
-          done
+      - name: Validate Webhook service
+        run: curl -f http://localhost:3003/health
 
       - name: Tear down Docker environment
         run: docker compose -f docker-compose.dev.yml down -v
-        working-directory: ${{ github.workspace }}
