@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 import redisCache, { initRedis } from "@repo/cache";
 import db from "@repo/db";
 import cors from "cors";
@@ -27,10 +28,17 @@ app.use(morgan("dev"));
 app.use(metricsMiddleware);
 app.use("/api/v1", router);
 
-const file = fs.readFileSync("../../swagger/http_spec.yaml", "utf8");
-const swaggerDocument = YAML.parse(file);
+const swaggerPath = path.resolve(process.cwd(), "../../swagger/http_spec.yaml");
 
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+if (!fs.existsSync(swaggerPath)) {
+    console.warn(`Swagger file not found at ${swaggerPath}`);
+} else {
+    const file = fs.readFileSync(swaggerPath, "utf8");
+    const swaggerDocument = YAML.parse(file);
+    app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+}
+
+// app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 app.get("/", async (_req: Request, res: Response) => {
     res.status(200).send("<h1>Hello HTTP!</h1>");
