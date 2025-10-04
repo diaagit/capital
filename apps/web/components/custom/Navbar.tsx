@@ -17,7 +17,7 @@ const Navbar: FC = () => {
         <Link href="/about" className="hover:text-primary transition-colors">
           About
         </Link>
-        <Link href="/events" className="hover:text-primary transition-colors">
+        <Link rel="stylesheet" href="new_ui_event.tsx" className="hover:text-primary transition-colors">
           Events
         </Link>
         <Link href="/footer" className="hover:text-primary transition-colors">
