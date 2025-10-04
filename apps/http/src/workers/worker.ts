@@ -1,21 +1,34 @@
-import redisCache from "@repo/cache";
+import redisCache, { initRedis } from "@repo/cache";
 import { sendEmailOtp } from "@repo/notifications";
 
-type otpType = {
-    otp: string | number;
-};
+// type otpType = {
+//     otp: string | number;
+// };
 
-type notificationType = {
-    type: "email" | "phone";
-};
+// type notificationType = {
+//     type: "email" | "phone";
+// };
+
+// interface jobInterface {
+//     type: notificationType;
+//     email?: string;
+//     phone?: string;
+//     otp: otpType;
+//     attempts?: number;
+// }
 
 interface jobInterface {
-    type: notificationType;
+    type: "email" | "phone"; // <-- flatten type
     email?: string;
     phone?: string;
-    otp: otpType;
+    otp: string;
     attempts?: number;
 }
+
+async function RedisStarter() {
+    await initRedis();
+}
+RedisStarter();
 
 const _client = redisCache;
 const Queue_name = "notification:initiate";
@@ -36,7 +49,7 @@ export async function processJob() {
             jobValue = JSON.parse(job.toString());
             jobValue.attempts = jobValue.attempts || 0;
 
-            switch (jobValue.type.type) {
+            switch (jobValue.type) {
                 case "email":
                     await processEmail(jobValue);
                     break;
@@ -44,7 +57,7 @@ export async function processJob() {
                     await processPhone(jobValue);
                     break;
                 default:
-                    throw new Error(`Unknown notification type: ${jobValue.type.type}`);
+                    throw new Error(`Unknown notification type: ${jobValue.type}`);
             }
             await _client.lRem(Process_Queue, 1, job);
         } catch (err) {
@@ -76,7 +89,7 @@ export async function processJob() {
 
 export async function processEmail(job: jobInterface) {
     if (!job.email) throw new Error("Email not provided");
-    await sendEmailOtp(job.email, job.otp.otp);
+    await sendEmailOtp(job.email, job.otp);
 }
 
 export async function processPhone(job: jobInterface) {
