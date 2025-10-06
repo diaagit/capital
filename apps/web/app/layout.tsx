@@ -3,6 +3,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 import type React from "react";
 import { capitalConfig } from "@/lib/capitalConfig";
+import Footer from "@/components/new custom/Footer";
+
 
 const geistSans = Geist({
     subsets: [
@@ -78,7 +80,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             >
                 {/* <Navbar /> */}
                 <main className="min-h-screen">{children}</main>
-                {/* <Footer /> */}
+                <Footer/>
             </body>
         </html>
     );

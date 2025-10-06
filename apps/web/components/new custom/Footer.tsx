@@ -13,7 +13,7 @@ const Footer: FC = () => {
   const year: number = new Date().getFullYear();
 
   return (
-    <footer className="bg-[#0D0D0D] text-white">
+    <footer className="bg-gray-900 text-white mt-20">
       <div className="max-w-7xl mx-auto py-20">
         {/* Logo */}
         <div className="flex flex-col justify-center items-center w-full">
