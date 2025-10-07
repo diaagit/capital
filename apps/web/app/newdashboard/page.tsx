@@ -1,9 +1,10 @@
-import UserDashboard from "@/components/new ui/UserDashboard";
+import TicketDetails from "@/components/new custom/TicketDetails";
+import TicketList from "@/components/new custom/TicketList";
 
 const page = () => {
     return (
         <div className="">
-            <UserDashboard />
+            <TicketList/>
         </div>
     );
 };
