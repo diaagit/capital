@@ -1,65 +1,55 @@
 import { Bell, LogOut, Settings, Ticket, UserRound, Wallet } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
-import { Button } from "../ui/button";
 
-const Sidebar = () => {
+export default function Sidebar() {
+    const linkClass =
+        "text-md flex items-center gap-2 py-2 transition-colors hover:text-[#C251E6]";
+
     return (
-        <div className="w-1/4 bg-white h-[90vh] p-10 m-10 rounded-2xl flex flex-col items-start gap-5">
+        <div className="w-1/4 bg-white h-[90vh] p-10 mr-10 mt-10 rounded-2xl flex flex-col gap-5 shadow-[0_0_0_1px_rgba(0,0,0,0.05)]">
+
+            {/* Logo */}
             <div className="flex justify-center items-center w-full">
                 <Image alt="Logo" height={50} src="/assets/Eventique.png" width={180} />
             </div>
-            <Separator />
-            <div className="flex flex-col items-start justify-center gap-2">
-                <Button
-                    className="text-md flex items-center justify-center transition-colors hover:text-[#D580F2] hover:cursor-pointer"
-                    variant="link"
-                >
-                    <Ticket className="!w-[24px] !h-[24px] mr-1" />
-                    Tickets
-                </Button>
-                <Button
-                    className="text-md flex items-center justify-center transition-colors hover:text-[#D580F2] hover:cursor-pointer"
-                    variant="link"
-                >
-                    <UserRound className="!w-[24px] !h-[24px] mr-1" />
-                    Personal Info
-                </Button>
-                <Button
-                    className="text-md flex items-center justify-center transition-colors hover:text-[#D580F2] hover:cursor-pointer"
-                    variant="link"
-                >
-                    <Wallet className="!w-[24px] !h-[24px] mr-1" />
-                    Payment
-                </Button>
-                <Button
-                    className="text-md flex items-center justify-center transition-colors hover:text-[#D580F2] hover:cursor-pointer"
-                    variant="link"
-                >
-                    <Bell className="!w-[24px] !h-[24px] mr-1" />
-                    Notifications
-                </Button>
-            </div>
 
             <Separator />
-            <div className="flex flex-col items-start justify-center gap-2">
-                <Button
-                    className="text-md flex items-center justify-center transition-colors hover:text-[#D580F2] hover:cursor-pointer"
-                    variant="link"
-                >
-                    <Settings className="!w-[24px] !h-[24px] mr-1" />
+
+            {/* Main Links */}
+            <nav className="flex flex-col gap-2">
+                <Link href="/newdashboard/tickets" className={linkClass}>
+                    <Ticket className="w-5 h-5" />
+                    Tickets
+                </Link>
+                <Link href="/newdashboard/personal" className={linkClass}>
+                    <UserRound className="w-5 h-5" />
+                    Personal Info
+                </Link>
+                <Link href="/newdashboard/payment" className={linkClass}>
+                    <Wallet className="w-5 h-5" />
+                    Payment
+                </Link>
+                <Link href="/newdashboard/notifications" className={linkClass}>
+                    <Bell className="w-5 h-5" />
+                    Notifications
+                </Link>
+            </nav>
+
+            <Separator />
+
+            {/* Settings & Logout */}
+            <nav className="flex flex-col gap-2">
+                <Link href="/newdashboard/settings" className={linkClass}>
+                    <Settings className="w-5 h-5" />
                     Settings
-                </Button>
-                <Button
-                    className="text-md flex items-center justify-center transition-colors hover:text-[#D580F2] hover:cursor-pointer"
-                    variant="link"
-                >
-                    <LogOut className="!w-[24px] !h-[24px] mr-1" />
+                </Link>
+                <Link href="/logout" className={linkClass}>
+                    <LogOut className="w-5 h-5" />
                     Logout
-                </Button>
-            </div>
+                </Link>
+            </nav>
         </div>
     );
-};
-
-export default Sidebar;
+}

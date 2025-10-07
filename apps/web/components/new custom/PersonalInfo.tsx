@@ -12,7 +12,7 @@ import {
 
 const PersonalInfo = () => {
     return (
-        <div className="bg-white py-5 px-10 h-[79vh] rounded-2xl">
+        <div className="bg-white py-5 px-10 h-[79vh] rounded-2xl shadow-[0_0_0_1px_rgba(0,0,0,0.05)]">
             <div className="max-w-3xl mx-auto space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">

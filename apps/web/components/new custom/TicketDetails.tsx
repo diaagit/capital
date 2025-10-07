@@ -3,18 +3,22 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import Link from "next/link";
 
 const TicketDetails = () => {
     return (
-        <div className="flex flex-col gap-5 bg-white h-[79vh] rounded-2xl px-10 py-5">
-            <Button
-                className="flex justify-start transition-colors hover:text-[#D580F2] hover:cursor-pointer"
-                variant="link"
-            >
-                <ArrowLeft className="!w-[20px] !h-[20px]" />
-                Back to Ticket
-            </Button>
+        <div className="flex flex-col gap-5 bg-white h-[79vh] rounded-2xl px-10 py-5 shadow-[0_0_0_1px_rgba(0,0,0,0.05)]">
+            <Link href="/newdashboard">
+                <Button
+                    className="flex justify-start transition-colors hover:text-[#C251E6] hover:cursor-pointer"
+                    variant="link"
+                >
 
+                    <ArrowLeft className="!w-[20px] !h-[20px]" />
+                    Back to Ticket
+
+                </Button>
+            </Link>
             <div className="flex w-full">
                 <div className="flex flex-col items-center jutify-center gap-2">
                     <div className="w-48 h-48 rounded-2xl overflow-hidden">
@@ -32,14 +36,14 @@ const TicketDetails = () => {
 
                 <div className="flex flex-col justify-start w-full  gap-18 px-5 my-2 ">
                     <div className="flex w-full justify-between items-center">
-                        <div className="font-bold text-3xl text-[#482C52]">Order Details</div>
+                        <div className="font-bold text-3xl text-black">Order Details</div>
                         <div className="flex gap-2">
-                            <Button className="flex items-center justify-center transition-colors hover:text-[#D580F2] hover:cursor-pointer">
+                            <Button className="flex items-center justify-center transition-colors hover:text-white hover:bg-[#C251E6] hover:cursor-pointer">
                                 <History className="!w-[20px] !h-[20px]" />
                                 Back to Ticket
                             </Button>
                             <Button
-                                className="flex items-center justify-center transition-colors hover:text-[#D580F2] hover:cursor-pointer"
+                                className="flex items-center justify-center transition-colors hover:text-white hover:bg-[#C251E6] hover:cursor-pointer"
                                 variant="outline"
                             >
                                 <Download className="!w-[20px] !h-[20px]" />
@@ -58,7 +62,7 @@ const TicketDetails = () => {
                             <div className="text-lg">Fri 16 Oct - 13:57 PM</div>
                         </div>
 
-                        <Badge className="bg-green-50 text-green-600 font-semibold text-md">
+                        <Badge className="bg-green-50 text-green-600 font-semibold text-sm">
                             Success
                         </Badge>
                     </div>
@@ -74,15 +78,15 @@ const TicketDetails = () => {
                         <div className="flex items-center gap-2 text-gray-900">
                             <MapPin size={18} /> <span className="font-semibold">Location</span>
                         </div>
-                        <p className="text-gray-400 font-medium">American Airlines Center</p>
-                        <p className="text-gray-400 text-sm">Dallas, Texas, USA</p>
+                        <p className="text-gray-500 font-medium">American Airlines Center</p>
+                        <p className="text-gray-500 text-sm">Dallas, Texas, USA</p>
                     </div>
 
                     <div className="flex flex-col items-start space-y-1">
                         <div className="flex items-center gap-2 text-gray-900">
                             <Calendar size={18} /> <span className="font-semibold">Event Date</span>
                         </div>
-                        <p className="text-gray-400 font-medium">Tue 30 Sep • 7:30 PM</p>
+                        <p className="text-gray-500 font-medium">Tue 30 Sep • 7:30 PM</p>
                     </div>
 
                     <div className="flex flex-col items-start space-y-1">
@@ -90,7 +94,7 @@ const TicketDetails = () => {
                             <Armchair size={18} />{" "}
                             <span className="font-semibold">Selected Seat</span>
                         </div>
-                        <p className="text-gray-400 font-medium">
+                        <p className="text-gray-500 font-medium">
                             Section 324 • Row T • Seats 29-30
                         </p>
                     </div>
@@ -105,31 +109,40 @@ const TicketDetails = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="flex flex-col space-y-1">
                         <span className="font-semibold">Ticket count</span>
-                        <span className="text-gray-400 text-sm">2 tickets</span>
+                        <span className="text-gray-500 text-sm">2 tickets</span>
                     </div>
                     <div className="flex flex-col space-y-1">
                         <span className="font-semibold">Transaction costs</span>
-                        <span className="text-gray-400 text-sm">$20</span>
+                        <span className="text-gray-500 text-sm">$20</span>
                     </div>
                     <div className="flex flex-col space-y-1">
                         <span className="font-semibold">Total paid</span>
-                        <span className="text-gray-400 text-sm">$260</span>
+                        <span className="text-gray-500 text-sm">$260</span>
                     </div>
-                    <div className="flex justify-center items-center">
-                        <img alt="QR Code" className="w-20 h-20" src="/assets/qr-code.png" />
+                    <div className="relative">
+                        <div className="absolute flex justify-center items-center overflow-hidden">
+                            <Image
+                                alt="QR Code"
+                                className="w-32 h-32"
+                                src="/assets/qr-code.png"
+                                width={200}
+                                height={200}
+                            />
+                        </div>
                     </div>
+
 
                     <div className="flex flex-col space-y-1 mt-4">
                         <span className="font-semibold">Paid by</span>
-                        <span className="text-gray-400 text-sm">Negar khosravi</span>
+                        <span className="text-gray-500 text-sm">Negar khosravi</span>
                     </div>
                     <div className="flex flex-col space-y-1 mt-4">
                         <span className="font-semibold">Payment method</span>
-                        <span className="text-gray-400 text-sm">Stripe</span>
+                        <span className="text-gray-500 text-sm">Stripe</span>
                     </div>
                     <div className="flex flex-col space-y-1 mt-4">
                         <span className="font-semibold">Transaction ID</span>
-                        <span className="text-gray-400 text-sm">7984-KJD8-3827</span>
+                        <span className="text-gray-500 text-sm">7984-KJD8-3827</span>
                     </div>
                 </div>
             </div>

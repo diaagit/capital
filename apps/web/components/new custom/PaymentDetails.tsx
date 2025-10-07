@@ -8,9 +8,9 @@ import { Separator } from "@/components/ui/separator";
 
 const PaymentDetails = () => {
     return (
-        <div className="h-[79vh] rounded-2xl bg-white py-5 px-10">
+        <div className="h-[79vh] rounded-2xl bg-white py-5 px-10 shadow-[0_0_0_1px_rgba(0,0,0,0.05)]">
             <div className="flex flex-col gap-5">
-                <div className="font-bold text-3xl text-[#482C52]">Payment Details</div>
+                <div className="font-bold text-3xl text-black">Payment Details</div>
                 <Separator />
             </div>
 
