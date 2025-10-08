@@ -1,11 +1,5 @@
 import LandingPage from "@/components/new ui/LandingPage";
 
-const page = () => {
-    return (
-        <div className="">
-            <LandingPage />
-        </div>
-    );
+export default function Page() {
+  return <LandingPage />;
 }
-
-export default page;
