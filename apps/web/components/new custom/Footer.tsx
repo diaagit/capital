@@ -1,6 +1,7 @@
 import { FC } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import Link from "next/link"
 import {
   FaFacebookF,
   FaInstagram,
@@ -26,18 +27,19 @@ const Footer: FC = () => {
 
         {/* Navigation Links */}
         <div className="flex justify-center items-center mt-10 space-x-4">
-          <Button variant="link" className="text-white">
+         <Link href="/newlanding" className="text-white px-3 py-1 rounded hover:bg-white/10 transition">
             Home
-          </Button>
-          <Button variant="link" className="text-white">
+          </Link>
+          <Link href="/contact" className="text-white px-3 py-1 rounded hover:bg-white/10 transition">
             Contact
-          </Button>
-          <Button variant="link" className="text-white">
+          </Link>
+          <Link href="/about" className="text-white px-3 py-1 rounded hover:bg-white/10 transition">
             About
-          </Button>
-          <Button variant="link" className="text-white">
+          </Link>
+          <Link href="/privacy-policy" className="text-white px-3 py-1 rounded hover:bg-white/10 transition">
             Privacy Policy
-          </Button>
+          </Link>
+
         </div>
 
         {/* Social Icons */}
