@@ -1,0 +1,58 @@
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
+import Image from "next/image";
+
+const MovieCarousel = () => {
+  const movies = [
+  { src: "/assets/movie5.jpg", title: "The Last Horizon", genre: "Action" },
+  { src: "/assets/movie2.jpg", title: "Whisper of Time", genre: "Drama" },
+  { src: "/assets/movie3.jpg", title: "Nightfall", genre: "Thriller" },
+  { src: "/assets/movie4.jpg", title: "Laugh Out Loud", genre: "Comedy" },
+  { src: "/assets/movie5.jpg", title: "Romantic Escape", genre: "Romance" },
+  { src: "/assets/movie2.jpg", title: "Galactic Quest", genre: "Sci-Fi" },
+  { src: "/assets/movie3.jpg", title: "Mystery Manor", genre: "Mystery" },
+  { src: "/assets/movie4.jpg", title: "Hero's Return", genre: "Adventure" },
+  { src: "/assets/movie5.jpg", title: "Soulful Strings", genre: "Musical" },
+  { src: "/assets/movie3.jpg", title: "Haunted Nights", genre: "Horror" },
+];
+
+
+  return (
+    <section className="w-full max-w-4xl mx-auto  mt-10">
+
+      <Carousel className="w-full gap-6">
+        <CarouselContent>
+          {movies.map((movie, index) => (
+            <CarouselItem
+              key={index}
+              className="basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/4"
+            >
+              <div className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 cursor-pointer w-[203px] h-[345px]">
+               <Image
+                src={movie.src}
+                alt={movie.title}
+                width={203}
+                height={345}
+                className="object-cover rounded-xl transition-transform duration-500 hover:scale-105 w-[203px] h-[345px]"
+                />
+
+                
+              </div>
+              <div className="p-2">
+                  <h3 className="text-lg text-black font-medium">{movie.title}</h3>
+                  <p className="text-sm text-gray-500">{movie.genre}</p>
+              </div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+      </Carousel>
+    </section>
+  );
+};
+
+export default MovieCarousel;
