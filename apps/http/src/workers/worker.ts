@@ -5,25 +5,23 @@ import { sendEmailOtp } from "@repo/notifications";
 //     otp: string | number;
 // };
 
-// type notificationType = {
-//     type: "email" | "phone";
-// };
-
-// interface jobInterface {
-//     type: notificationType;
-//     email?: string;
-//     phone?: string;
-//     otp: otpType;
-//     attempts?: number;
-// }
+type notificationType = "email" | "phone";
 
 interface jobInterface {
-    type: "email" | "phone"; // <-- flatten type
+    type: notificationType;
     email?: string;
     phone?: string;
-    otp: string;
+    otp: string | number;
     attempts?: number;
 }
+
+// interface jobInterface {
+//     type: "email" | "phone";
+//     email?: string;
+//     phone?: string;
+//     otp: string;
+//     attempts?: number;
+// }
 
 async function RedisStarter() {
     await initRedis();
@@ -67,7 +65,7 @@ export async function processJob() {
                 jobValue.attempts = (jobValue.attempts || 0) + 1;
 
                 if (jobValue.attempts < MAX_ATTEMPTS) {
-                    const delay = 2 ** jobValue.attempts * 1000; //
+                    const delay = 2 ** jobValue.attempts * 1000;
                     await new Promise((res) => setTimeout(res, delay));
                     await _client.lPush(Queue_name, JSON.stringify(jobValue));
                 } else {

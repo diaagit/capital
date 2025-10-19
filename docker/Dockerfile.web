@@ -6,11 +6,11 @@ COPY ./package.json ./
 COPY ./package-lock.json ./
 COPY ./turbo.json ./
 COPY ./packages ./packages
-COPY apps/web/package.json ./apps/web/
+COPY ./apps/web/package.json ./apps/web/
 
 RUN npm install
 
-COPY . .
+COPY ./apps/web ./apps/web/
 
 RUN npm run generate:db
 RUN DB_URL=$DB_URL npx turbo build --filter=web...

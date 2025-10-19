@@ -35,7 +35,7 @@ services:
     container_name: http
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3001"
     networks:
       - monitoring
     depends_on:
@@ -43,7 +43,7 @@ services:
       - grafana
     environment:
       - NODE_ENV=development
-      - PORT=3000
+      - PORT=3001
 
   validator:
     build:
@@ -52,7 +52,7 @@ services:
     container_name: validator
     restart: unless-stopped
     ports:
-      - "3002:3000"
+      - "3002:3002"
     networks:
       - monitoring
     depends_on:
@@ -60,7 +60,7 @@ services:
       - grafana
     environment:
       - NODE_ENV=development
-      - PORT=3000
+      - PORT=3002
 
   frontend:
     build:
@@ -84,12 +84,15 @@ services:
     container_name: webhook
     restart: unless-stopped
     ports:
-      - "3003:3000"
+      - "3003:3003"
     networks:
       - monitoring
     depends_on:
       - http
       - validator
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
 
 networks:
   monitoring:
