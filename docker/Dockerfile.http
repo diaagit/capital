@@ -19,3 +19,56 @@ RUN npx turbo build --filter=http...
 EXPOSE 3001
 # ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
 CMD [ "npm","run","start:backend"]
+
+# # ---- Base Stage ----
+# FROM node:20-alpine AS base
+# WORKDIR /usr/src/app
+
+# # Ensure reproducible builds
+# ENV NODE_ENV=production
+# ENV CI=true
+
+# # Install system dependencies (for native modules if any)
+# # RUN apk add --no-cache libc6-compat python3 make g++
+
+# # Copy package manifests first for better caching
+# COPY package*.json turbo.json ./
+
+# # Copy only necessary workspace files (improves caching)
+# COPY packages ./packages
+# COPY swagger ./swagger
+# COPY apps/http ./apps/http
+
+# # ---- Dependencies Stage ----
+# FROM base AS deps
+# RUN npm i --ignore-scripts
+
+# # ---- Build Stage ----
+# FROM deps AS build
+# # Generate DB client (like Prisma)
+# RUN npm run generate:db
+# # Build only the http app and its deps
+# RUN npx turbo build --filter=apps/http...
+
+# # ---- Production Stage ----
+# FROM node:20-alpine AS prod
+# WORKDIR /usr/src/app
+
+# ENV NODE_ENV=production
+
+# # Copy runtime dependencies
+# COPY --from=deps /usr/src/app/node_modules ./node_modules
+# # Copy built output from build stage
+# COPY --from=build /usr/src/app/apps/http/dist ./apps/http/dist
+# COPY --from=build /usr/src/app/swagger ./swagger
+
+# # Copy package manifest for runtime (good practice)
+# COPY package*.json ./
+
+# EXPOSE 3001
+
+# # Use a non-root user for security
+# RUN addgroup -S app && adduser -S app -G app
+# USER app
+
+# CMD ["npm", "run", "start:backend"]

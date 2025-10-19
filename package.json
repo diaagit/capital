@@ -40,8 +40,10 @@
         "start:backend": "cd apps/http && npm run dev",
         "start:db": "cd packages/db/prisma && npx prisma studio",
         "start:frontend": "cd apps/web && npm run start",
+        "start:tworker": "cd apps/webhook && npm run worker",
         "start:validator": "cd apps/validator && npm run dev",
-        "start:webhook": "cd apps/webhook && npm run dev"
+        "start:webhook": "cd apps/webhook && npm run dev",
+        "start:worker": "cd apps/http && npm run worker"
     },
     "workspaces": [
         "apps/*",

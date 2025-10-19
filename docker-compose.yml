@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres
+    image: postgres:16.3
     restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: mysecretpassword
@@ -32,7 +32,7 @@ services:
     networks:
       - monitoring
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.4.3
     restart: unless-stopped
     ports:
       - "3005:3000"
@@ -134,7 +134,38 @@ services:
       - prometheus
     networks:
       - monitoring
-
+  http-workers:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.http
+    restart: unless-stopped
+    command: ["npm", "run", "start:worker"]
+    env_file:
+      - ./apps/http/.env
+    environment:
+      - DATABASE_URL=postgresql://postgres:mysecretpassword@postgres:5432/postgres
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - monitoring
+  transaction-workers:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.webhook
+    restart: unless-stopped
+    command: ["npm", "run", "start:tworker"]
+    env_file:
+      - ./apps/webhook/.env
+    environment:
+      - DATABASE_URL=postgresql://postgres:mysecretpassword@postgres:5432/postgres
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - monitoring
 volumes:
   pgdata:
   redisdata:

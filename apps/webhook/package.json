@@ -4,6 +4,7 @@
         "@repo/cache": "*",
         "@repo/db": "*",
         "@repo/notifications": "*",
+        "@repo/ratelimit": "*",
         "@repo/types": "*",
         "@types/cors": "^2.8.19",
         "@types/express": "^5.0.3",
@@ -26,7 +27,8 @@
     "scripts": {
         "build": "tsc -b",
         "dev": "tsc -b && node ./dist/server.js",
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "worker": "tsc -b && node ./dist/workers/worker.js"
     },
     "version": "1.0.0"
 }

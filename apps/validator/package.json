@@ -5,6 +5,7 @@
         "@repo/db": "*",
         "@repo/keygen": "*",
         "@repo/notifications": "*",
+        "@repo/ratelimit": "*",
         "@repo/types": "*",
         "@types/express": "^5.0.3",
         "@types/jsonwebtoken": "^9.0.10",

@@ -1,4 +1,4 @@
-import redisCache from "@repo/cache";
+import redisCache, { initRedis } from "@repo/cache";
 import db, { type Prisma, type TransactionType } from "@repo/db";
 import Decimal from "decimal.js";
 
@@ -17,6 +17,11 @@ interface jobInterface {
     userId: string;
     attempts?: number;
 }
+
+async function RedisStarter() {
+    await initRedis();
+}
+RedisStarter();
 
 async function processJob() {
     while (true) {

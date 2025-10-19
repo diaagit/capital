@@ -2,6 +2,7 @@ import redisCache from "@repo/cache";
 import db, { type Prisma } from "@repo/db";
 import { generateKeyPair } from "@repo/keygen";
 import { AlphabeticOTP } from "@repo/notifications";
+import { otpLimits, resetPasswordLimits } from "@repo/ratelimit";
 import { SigninType, type SignupResponse, SignupType, VerificationType } from "@repo/types";
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
@@ -231,7 +232,7 @@ userRouter.post(
  * @param {Express.Response} res - The HTTP response object used to return data.
  * @returns {Promise<void>} - Responds with a JSON object containing user info and JWT token.
  */
-userRouter.post("/verify", userMiddleware, async (req: Request, res: Response) => {
+userRouter.post("/verify", otpLimits, userMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
         const parseResult = VerificationType.safeParse(req.body);
@@ -327,6 +328,7 @@ userRouter.post("/logout", userMiddleware, async (req: Request, res: Response) =
  */
 userRouter.post(
     "/reset-password",
+    resetPasswordLimits,
     async (
         req: Request,
         res: Response<
