@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import type React from "react";
 import { capitalConfig } from "@/lib/capitalConfig";
 import Footer from "@/components/new custom/Footer";
+// import LNavbar from "@/components/new custom/LNavbar";
 
 
 const geistSans = Geist({
@@ -78,7 +79,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <body
                 className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} antialiased bg-[#FDFDFD]`}
             >
-                {/* <Navbar /> */}
+                {/* <LNavbar/> */}
                 <main className="min-h-screen">{children}</main>
                 <Footer/>
             </body>

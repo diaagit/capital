@@ -5,6 +5,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import Image from "next/image";
 
 const MovieCarousel = () => {
   const movies = [
@@ -22,22 +23,24 @@ const MovieCarousel = () => {
 
 
   return (
-    <section className="w-full max-w-7xl mx-auto mt-10">
-      <h2 className="text-2xl font-semibold mb-6">Recommended Movies</h2>
+    <section className="w-full max-w-4xl mx-auto  mt-10">
 
-      <Carousel className="w-full">
+      <Carousel className="w-full gap-6">
         <CarouselContent>
           {movies.map((movie, index) => (
             <CarouselItem
               key={index}
-              className="basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 pl-4"
+              className="basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/4"
             >
-              <div className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 cursor-pointer w-[222px] h-[378px]">
-                <img
-                  src={movie.src}
-                  alt={movie.title}
-                  className="object-cover rounded-xl transition-transform duration-500 hover:scale-105 w-[222px] h-[378px]"
+              <div className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 cursor-pointer w-[203px] h-[345px]">
+               <Image
+                src={movie.src}
+                alt={movie.title}
+                width={203}
+                height={345}
+                className="object-cover rounded-xl transition-transform duration-500 hover:scale-105 w-[203px] h-[345px]"
                 />
+
                 
               </div>
               <div className="p-2">
@@ -47,9 +50,6 @@ const MovieCarousel = () => {
             </CarouselItem>
           ))}
         </CarouselContent>
-
-        <CarouselPrevious className="!left-4 !bg-white/90 hover:!bg-black hover:!text-white !shadow-lg !rounded-full !w-10 !h-10 transition-all duration-300" />
-        <CarouselNext className="!right-4 !bg-white/90 hover:!bg-black hover:!text-white !shadow-lg !rounded-full !w-10 !h-10 transition-all duration-300" />
       </Carousel>
     </section>
   );
