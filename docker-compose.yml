@@ -134,6 +134,38 @@ services:
       - prometheus
     networks:
       - monitoring
+  react-validator:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.reactValidator
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - DATABASE_URL=postgresql://postgres:mysecretpassword@postgres:5432/postgres
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+      - prometheus
+    networks:
+      - monitoring
+  react-webhook:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.reactWebhook
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      - DATABASE_URL=postgresql://postgres:mysecretpassword@postgres:5432/postgres
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+      - prometheus
+    networks:
+      - monitoring
   http-workers:
     build:
       context: .

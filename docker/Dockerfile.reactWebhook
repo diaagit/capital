@@ -1,0 +1,23 @@
+# ---------- Base build stage ----------
+FROM node:20-alpine AS base
+WORKDIR /usr/src/app
+
+COPY package*.json turbo.json ./
+
+COPY packages/typescript-config ./packages/typescript-config
+COPY packages/types ./packages/types/
+
+COPY apps/react-webhook/package*.json apps/react-webhook/
+COPY apps/react-webhook/tsconfig*.json apps/react-webhook/
+
+RUN npm install
+
+COPY apps/react-webhook ./apps/react-webhook/
+
+RUN npx turbo build --filter=react-webhook...
+
+# ---------- Final nginx stage ----------
+FROM nginx:alpine
+COPY --from=base /usr/src/app/apps/react-webhook/dist /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
