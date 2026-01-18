@@ -25,6 +25,7 @@ export default function Bank() {
     provider: BankName;
     type: keyof typeof transactionMap;
     token: string;
+    amount: string;
   }>();
 
   const [searchParams] = useSearchParams();
