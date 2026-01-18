@@ -8,7 +8,7 @@ function App() {
     <div>
       <BrowserRouter>
         <Routes>
-          <Route path="/bank/:provider/:type/:token" element={<Bank />} />
+          <Route path="/bank/:provider/:type/:token/:amount" element={<Bank />} />
         </Routes>
       </BrowserRouter>
     </div>
