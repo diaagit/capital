@@ -6,6 +6,7 @@ COPY package*.json turbo.json ./
 
 COPY packages/typescript-config ./packages/typescript-config
 COPY packages/types ./packages/types/
+COPY packages/db ./packages/db/
 
 COPY apps/react-webhook/package*.json apps/react-webhook/
 COPY apps/react-webhook/tsconfig*.json apps/react-webhook/
