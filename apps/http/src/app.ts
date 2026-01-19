@@ -60,7 +60,7 @@ app.get("/pid", (_req: Request, res: Response) => {
 app.get("/health", async (_req: Request, res: Response) => {
     try {
         await db.$queryRaw`SELECT 1`;
-
+        
         const redisCheck = await redisCache.ping();
 
         if (redisCheck !== "PONG") {
