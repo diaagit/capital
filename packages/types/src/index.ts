@@ -1,4 +1,4 @@
-import z, { email } from "zod";
+import z from "zod";
 
 const emailSchema = z.email("Please enter a valid email address").nonempty("Email is required");
 
@@ -29,14 +29,21 @@ export const SigninType = z.object({
 });
 
 export const OtpType = z.object({
-    email: emailSchema
-})
+    email: emailSchema,
+});
 
 export const ForgetType = z.object({
     email: emailSchema,
-    otp: z.string().nonempty("OTP is Required").min(6,{error: "Invalid OTP format was provided"}),
-    newpassword: z.string({error:"Wrong Password format"}).nonempty("Password is required").min(6, "Password must be at least 6 characters long"),
-})
+    newpassword: z
+        .string({
+            error: "Wrong Password format",
+        })
+        .nonempty("Password is required")
+        .min(6, "Password must be at least 6 characters long"),
+    otp: z.string().nonempty("OTP is Required").min(6, {
+        error: "Invalid OTP format was provided",
+    }),
+});
 
 export const SignupResponseSchema = z.object({
     message: z.string(),

@@ -3,7 +3,14 @@ import db, { type Prisma } from "@repo/db";
 import { generateKeyPair } from "@repo/keygen";
 import { AlphabeticOTP } from "@repo/notifications";
 import { otpLimits, resetPasswordLimits } from "@repo/ratelimit";
-import { ForgetType, OtpType, SigninType, type SignupResponse, SignupType, VerificationType } from "@repo/types";
+import {
+    ForgetType,
+    OtpType,
+    SigninType,
+    type SignupResponse,
+    SignupType,
+    VerificationType,
+} from "@repo/types";
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import express, { type Request, type Response, type Router } from "express";
@@ -323,34 +330,34 @@ userRouter.post("/logout", userMiddleware, async (req: Request, res: Response) =
 userRouter.post("/otp", otpLimits, async (req: Request, res: Response) => {
     try {
         const parsed = OtpType.safeParse(req.body);
-        if(!parsed.success){
+        if (!parsed.success) {
             return res.status(401).json({
-                message: "No Email was provided"
-            })
+                message: "No Email was provided",
+            });
         }
-        const {email} = parsed.data;
+        const { email } = parsed.data;
 
         const findEmail = await db.user.findUnique({
-            where:{
-                email
-            }
-        })
+            where: {
+                email,
+            },
+        });
 
-        if(!email){
+        if (!email) {
             return res.status(404).json({
-                message: `The given ${email} is not registered with our services`
-            })
+                message: `The given ${email} is not registered with our services`,
+            });
         }
 
         const otp = AlphabeticOTP(6);
-        const createOtp = await db.otp.create({
-            data:{
-                userId: findEmail.id,
-                purpose: "forgot_password",
+        const _createOtp = await db.otp.create({
+            data: {
+                expires_at: new Date(Date.now() + 15 * 60 * 1000),
                 otp_code: otp,
-                expires_at: new Date(Date.now() + 15 * 60 *1000)
-            }
-        })
+                purpose: "forgot_password",
+                userId: findEmail.id,
+            },
+        });
 
         await client.rPush(
             Queue_name,
@@ -363,37 +370,37 @@ userRouter.post("/otp", otpLimits, async (req: Request, res: Response) => {
 
         return res.status(200).json({
             message: `If your ${email} exists, a reset link will be sent`,
-        })
-    } catch (error) {
+        });
+    } catch (_error) {
         return res.status(500).json({
             message: "Internal server error",
         });
     }
-})
+});
 
 userRouter.post("/forget-password", resetPasswordLimits, async (req: Request, res: Response) => {
     try {
         const parsed = ForgetType.safeParse(req.body);
-        if(!parsed.success){
+        if (!parsed.success) {
             const error = parsed.error.format();
             return res.status(400).json({
+                error: error,
                 message: "Invalid Data format was provided",
-                error: error
-            })
+            });
         }
-        const {email, otp, newpassword} = parsed.data;
+        const { email, otp, newpassword } = parsed.data;
         const findEmail = await db.user.findUnique({
-            where:{
+            where: {
                 email,
             },
-        })
+        });
 
-        if(!findEmail){
+        if (!findEmail) {
             return res.status(404).json({
-                message: `Invalid email ${email} was provided`
-            })
+                message: `Invalid email ${email} was provided`,
+            });
         }
-        
+
         const otpRecord = await db.otp.findFirst({
             where: {
                 otp_code: otp,
@@ -408,34 +415,36 @@ userRouter.post("/forget-password", resetPasswordLimits, async (req: Request, re
         }
 
         if (otpRecord.is_used) {
-            return res.status(400).json({ message: "OTP already used" });
-        }
-
-        if(otpRecord.expires_at < new Date(Date.now())){
             return res.status(400).json({
-                message: "OTP was already expired"
-            })
+                message: "OTP already used",
+            });
         }
 
-        const hashedPassword = await bcrypt.hash(newpassword,saltRounds);
+        if (otpRecord.expires_at < new Date(Date.now())) {
+            return res.status(400).json({
+                message: "OTP was already expired",
+            });
+        }
 
-        await db.$transaction(async(tx: Prisma.TransactionClient) => {
+        const hashedPassword = await bcrypt.hash(newpassword, saltRounds);
+
+        await db.$transaction(async (tx: Prisma.TransactionClient) => {
             await tx.otp.update({
-                where:{
+                data: {
+                    is_used: true,
+                },
+                where: {
                     id: otpRecord.id,
                 },
-                data:{
-                    is_used: true
-                }
             });
 
             await tx.user.update({
-                where:{
+                data: {
+                    password: hashedPassword,
+                },
+                where: {
                     id: findEmail.id,
                 },
-                data:{
-                    password: hashedPassword
-                }
             });
         });
 
@@ -447,7 +456,7 @@ userRouter.post("/forget-password", resetPasswordLimits, async (req: Request, re
             message: "Internal server error",
         });
     }
-})
+});
 
 /**
  * Resets the User after signup/signin
