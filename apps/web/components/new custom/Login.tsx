@@ -18,10 +18,10 @@ import { Eye, EyeOff, Mail, Lock, User, ArrowUpRightIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-const URL = process.env.NEXT_PUBLIC_BACKEND_URL
-if(!URL){
-  throw new Error("No backend URL was provided");
-}
+const URL = process.env.NEXT_PUBLIC_BACKEND_URL!
+// if(!URL){
+//   throw new Error("No backend URL was provided");
+// }
 
 interface AuthProps {
   type: "signup" | "signin";

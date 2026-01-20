@@ -77,3 +77,5 @@ jobs:
       # 11. Build Turborepo + Next.js app
       - name: Build Capital
         run: npm run build
+        env: 
+          NEXT_PUBLIC_BACKEND_URL: ${{ secrets.BACKEND_URL }}
