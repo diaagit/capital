@@ -92,10 +92,8 @@ export default function AuthCard({ type }: AuthProps) {
         `${URL}/user/signin`,
         { firstName, lastName, email, password, token }
       );
-      if (result.status === 200) {
         localStorage.setItem("token", result.data.token);
         router.push("/");
-      }
     } catch (error) {
       console.log(error);
     }
