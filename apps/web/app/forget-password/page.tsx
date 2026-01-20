@@ -10,10 +10,10 @@ import StepEmail from "@/components/new custom/ResetP_StepEmail";
 import StepIndicator from "@/components/new custom/ResetP_StepIndicator";
 import { useRouter } from "next/navigation";
 
-const URL = process.env.NEXT_PUBLIC_BACKEND_URL
-if(!URL){
-  throw new Error("No backend URL was provided");
-}
+const URL = process.env.NEXT_PUBLIC_BACKEND_URL!
+// if(!URL){
+//   throw new Error("No backend URL was provided");
+// }
 
 export type Step = 1 | 2 | 3;
 
