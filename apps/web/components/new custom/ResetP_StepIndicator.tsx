@@ -1,4 +1,4 @@
-import { Step } from "@/app/forget-password/page";
+import { Step } from "@/app/forgot-password/page";
 
 function StepIndicator({ step }: { step: Step }) {
   return (

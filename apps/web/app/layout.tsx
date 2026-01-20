@@ -45,7 +45,10 @@ export const metadata: Metadata = {
     description: capitalConfig.description,
     keywords: capitalConfig.seo.keywords,
     metadataBase: new URL(capitalConfig.seo.url),
-
+    icons: {
+        icon: "/assets/forget-password/Capital-White.svg",
+        apple: "/assets/forget-password/Capital-White.svg",
+    },
     openGraph: {
         description: capitalConfig.description,
         images: [

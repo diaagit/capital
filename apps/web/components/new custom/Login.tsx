@@ -18,10 +18,9 @@ import { Eye, EyeOff, Mail, Lock, User, ArrowUpRightIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-const URL = process.env.NEXT_PUBLIC_BACKEND_URL!
-// if(!URL){
-//   throw new Error("No backend URL was provided");
-// }
+function getBackendUrl() {
+  return process.env.NEXT_PUBLIC_BACKEND_URL ?? "";
+}
 
 interface AuthProps {
   type: "signup" | "signin";
@@ -72,14 +71,15 @@ export default function AuthCard({ type }: AuthProps) {
 
   const handleSignup = async () => {
     try {
+      const URL = getBackendUrl();
       const result = await axios.post(
         `${URL}/user/signup`,
         { firstName, lastName, email, password, token }
       );
-      if (result.status === 200) {
+      
         localStorage.setItem("token", result.data.token);
-        router.push("/");
-      }
+        router.push("/verify");
+      
     } catch (error) {
       console.log(error);
     }
@@ -87,6 +87,7 @@ export default function AuthCard({ type }: AuthProps) {
 
   const handleSignin = async () => {
     try {
+      const URL = getBackendUrl();
       const result = await axios.post(
         `${URL}/user/signin`,
         { firstName, lastName, email, password, token }

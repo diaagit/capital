@@ -111,7 +111,7 @@ userRouter.post(
                 },
             });
 
-            await client.rPush(
+            const _checkEmail = await client.rPush(
                 Queue_name,
                 JSON.stringify({
                     email: newUser.email,
@@ -119,7 +119,6 @@ userRouter.post(
                     type: "email",
                 }),
             );
-
             // await sendEmailOtp(newUser.email, otp);
 
             const token = generateToken(newUser.id, "10m");

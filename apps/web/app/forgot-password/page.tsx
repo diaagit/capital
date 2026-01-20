@@ -10,10 +10,15 @@ import StepEmail from "@/components/new custom/ResetP_StepEmail";
 import StepIndicator from "@/components/new custom/ResetP_StepIndicator";
 import { useRouter } from "next/navigation";
 
-const URL = process.env.NEXT_PUBLIC_BACKEND_URL!
-// if(!URL){
-//   throw new Error("No backend URL was provided");
-// }
+function getBackendUrl() {
+  return process.env.NEXT_PUBLIC_BACKEND_URL ?? "";
+}
+
+const stepImageMap: Record<number, string> = {
+  1: "/assets/forget-password/forgetPassword.png",
+  2: "/assets/forget-password/sentMail.png",
+  3: "/assets/forget-password/ResetPassword.png",
+};
 
 export type Step = 1 | 2 | 3;
 
@@ -25,6 +30,7 @@ export default function Page() {
   const [password, setPassword] = React.useState("");
 
   const sendOtp = async () => {
+    const URL = getBackendUrl();
     const response = await axios.post(`${URL}/user/otp`, { email });
     if(response.status === 200){
         setStep(2);
@@ -38,7 +44,8 @@ export default function Page() {
   };
 
   const resetPassword = async () => {
-    const response = await axios.post(`${URL}/user//reset-password`, { email, otp, password });
+    const URL = getBackendUrl();
+    const response = await axios.post(`${URL}/user/reset-password`, { email, otp, password });
     if(response.status === 200){
         router.push("/login");
     }
@@ -72,7 +79,7 @@ export default function Page() {
 
         <div className="flex flex-col items-center text-center px-10 py-10 gap-6">
           <Image
-            src="/assets/forget-password/forgetPassword.png"
+            src= {stepImageMap[step]}
             alt="Forget Password"
             width={120}
             height={120}
@@ -114,7 +121,7 @@ export default function Page() {
 
           <Link
             href="/login"
-            className="text-sm text-indigo-600 hover:underline flex items-center gap-1 mt-2"
+            className="text-sm text-gray-600 hover:text-indigo-600 flex items-center gap-1 transition"
           >
             <CircleArrowLeft className="h-4 w-4" />
             Back to login
