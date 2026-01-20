@@ -18,17 +18,46 @@ import { Eye, EyeOff, Mail, Lock, User, ArrowUpRightIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+const URL = process.env.NEXT_PUBLIC_BACKEND_URL
+if(!URL){
+  throw new Error("No backend URL was provided");
+}
+
 interface AuthProps {
   type: "signup" | "signin";
 }
 
-interface InputProps {
+interface IconInputProps {
   icon: React.ElementType;
   type?: string;
   placeholder: string;
   autoComplete?: string;
+  value: string;
   setValue: (value: string) => void;
 }
+
+export const IconInput = React.memo(function IconInput({
+  icon: Icon,
+  type = "text",
+  placeholder,
+  autoComplete,
+  value,
+  setValue,
+}: IconInputProps) {
+  return (
+    <div className="relative">
+      <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+      <Input
+        type={type}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        className="pl-9 h-10 focus:ring-2 focus:ring-purple-500"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      />
+    </div>
+  );
+});
 
 export default function AuthCard({ type }: AuthProps) {
   const router = useRouter();
@@ -44,7 +73,7 @@ export default function AuthCard({ type }: AuthProps) {
   const handleSignup = async () => {
     try {
       const result = await axios.post(
-        `${process.env.BACKEND_URL}/user/signup`,
+        `${URL}/user/signup`,
         { firstName, lastName, email, password, token }
       );
       if (result.status === 200) {
@@ -59,7 +88,7 @@ export default function AuthCard({ type }: AuthProps) {
   const handleSignin = async () => {
     try {
       const result = await axios.post(
-        `${process.env.BACKEND_URL}/user/signin`,
+        `${URL}/user/signin`,
         { firstName, lastName, email, password, token }
       );
       if (result.status === 200) {
@@ -70,25 +99,6 @@ export default function AuthCard({ type }: AuthProps) {
       console.log(error);
     }
   };
-
-  const IconInput = ({
-    icon: Icon,
-    type = "text",
-    placeholder,
-    autoComplete,
-    setValue,
-  }: InputProps) => (
-    <div className="relative">
-      <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
-      <Input
-        type={type}
-        placeholder={placeholder}
-        autoComplete={autoComplete}
-        className="pl-9 h-10 focus:ring-2 focus:ring-purple-500"
-        onChange={(e) => setValue(e.target.value)}
-      />
-    </div>
-  );
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100">
@@ -132,8 +142,10 @@ export default function AuthCard({ type }: AuthProps) {
               </CardDescription>
             </CardHeader>
 
-            {/* 🔒 HARD BLOCK NATIVE SUBMIT */}
-            <form onSubmit={(e) => e.preventDefault()}>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}>
               <CardContent className="grid gap-4 mt-2">
 
                 {type === "signup" && (
@@ -142,12 +154,14 @@ export default function AuthCard({ type }: AuthProps) {
                       icon={User}
                       placeholder="First Name"
                       autoComplete="given-name"
+                      value={firstName}
                       setValue={setfirstName}
                     />
                     <IconInput
                       icon={User}
                       placeholder="Last Name"
                       autoComplete="family-name"
+                      value={lastName}
                       setValue={setlastName}
                     />
                   </div>
@@ -157,6 +171,7 @@ export default function AuthCard({ type }: AuthProps) {
                   icon={Mail}
                   placeholder="you@example.com"
                   autoComplete="email"
+                  value={email}
                   setValue={setEmail}
                 />
 
@@ -177,6 +192,7 @@ export default function AuthCard({ type }: AuthProps) {
                   <Input
                     type={showPassword ? "text" : "password"}
                     placeholder="Password"
+                    value={password}
                     autoComplete={
                       type === "signup" ? "new-password" : "current-password"
                     }

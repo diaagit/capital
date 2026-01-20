@@ -343,7 +343,7 @@ userRouter.post("/otp", otpLimits, async (req: Request, res: Response) => {
             },
         });
 
-        if (!email) {
+        if (!findEmail) {
             return res.status(404).json({
                 message: `The given ${email} is not registered with our services`,
             });
@@ -364,6 +364,7 @@ userRouter.post("/otp", otpLimits, async (req: Request, res: Response) => {
             JSON.stringify({
                 email: findEmail.email,
                 otp: otp,
+                reason: "forget-password",
                 type: "email",
             }),
         );

@@ -6,6 +6,7 @@ import { sendEmailOtp } from "@repo/notifications";
 // };
 
 type notificationType = "email" | "phone";
+type reasonType = "forget-password" | "login";
 
 interface jobInterface {
     type: notificationType;
@@ -13,6 +14,7 @@ interface jobInterface {
     phone?: string;
     otp: string | number;
     attempts?: number;
+    reason?: reasonType;
 }
 
 // interface jobInterface {
@@ -87,7 +89,7 @@ export async function processJob() {
 
 export async function processEmail(job: jobInterface) {
     if (!job.email) throw new Error("Email not provided");
-    await sendEmailOtp(job.email, job.otp);
+    await sendEmailOtp(job.email, job.otp, job.reason);
 }
 
 export async function processPhone(job: jobInterface) {
