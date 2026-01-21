@@ -1,20 +1,21 @@
 
 import LNavbar from "@/components/new custom/LNavbar"
 import Carousel from "@/components/new custom/Carousel";
-import  Card  from "@/components/new custom/Card";
-import Banner from "../new custom/Banner";
-// import { Separator } from "@/components/ui/separator";
+import MovieCarousel from "@/components/new custom/EventCard";
+import CapitalBanner from "../new custom/HomePageBanner";
+import HomeCard from "../new custom/HomeCard";
+import Premier_Card from "../new custom/Premier_Card";
 
 const LandingPage = () => {
   return(
-    <div className="">
-        <LNavbar />
-        {/* <Separator/> */}
+    <div className="min-h-full min-w-full">
+        <LNavbar type="home" />
         <Carousel />
-        <Card />
-        <Banner />
-        <Card />
-        <Card />
+        <MovieCarousel variant="home" title="Trending Movies" />
+        <CapitalBanner />
+        <HomeCard />
+        <Premier_Card />
+        <MovieCarousel variant="home" title="Your Music Studio" />
     </div>
   )
 };

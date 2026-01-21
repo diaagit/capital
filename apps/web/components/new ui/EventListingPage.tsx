@@ -1,15 +1,20 @@
-import LNavbar from "@/components/new custom/LNavbar"
-import Events from "@/components/new custom/Eventlist"
-import Eventlist from "@/components/new custom/Eventlist"
+import LNavbar from "@/components/new custom/LNavbar";
+import Eventlist from "@/components/new custom/Eventlist";
 
+type Props = {
+  searchParams: {
+    q?: string;
+    location?: string;
+  };
+};
 
-const EventListingPage = () => {
+const EventListingPage = ({ searchParams }: Props) => {
   return (
     <div>
-      <LNavbar/>
-      <Eventlist/>
+      <LNavbar type="home" />
+      <Eventlist searchParams={searchParams} />
     </div>
-  )
+  );
 };
 
 export default EventListingPage;

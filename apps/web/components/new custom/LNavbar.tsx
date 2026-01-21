@@ -1,8 +1,10 @@
+"use client";
+
 import Image from "next/image";
-import { Search, Menu, MapPin } from "lucide-react";
+import Link from "next/link";
+import { Search, MapPin, Menu } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import {
   Select,
   SelectContent,
@@ -10,83 +12,193 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useEffect, useRef, useState } from "react";
+import getBackendUrl from "@/lib/config";
+import TitleSearchCard from "./Title_Search_Card";
+import { useRouter } from "next/navigation";
 
-const LNavbar = () => {
+const cities = ["Pune", "Mumbai", "Delhi"];
+const categories = ["Movies", "Events", "Sports", "Plays", "Concerts"];
+
+type EventResult = {
+  id: string;
+  title: string;
+  location_name: string;
+  banner_url?: string;
+  organiser?: {
+    first_name: string;
+  };
+};
+
+interface LNavbarType {
+  type?: "home" | "search";
+};
+
+const LNavbar = ({ type }: LNavbarType) => {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<EventResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+  const [city, setCity] = useState("pune");
+
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    setSignedIn(!!localStorage.getItem("token"));
+  }, []);
+
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults([]);
+      setOpen(false);
+      return;
+    }
+
+    const timeout = setTimeout(async () => {
+      try {
+        setLoading(true);
+        const URL = getBackendUrl();
+
+        const res = await fetch(
+          `${URL}/events?title=${encodeURIComponent(query)}&city=${city}`
+        );
+        const data = await res.json();
+
+        const eventsArray = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.events)
+          ? data.events
+          : [];
+
+        setResults(eventsArray);
+        setOpen(true);
+      } catch {
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [query, city]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!searchRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  //bg-[#1f2533]
   return (
-    <div className="w-full">
-      <div className="flex justify-between items-center max-w-7xl mx-auto pb-1 pt-5">
-        <div className="flex gap-5 justify-start items-center w-1/2">
-          <div>
-            <Image
-              alt="Logo"
-              width={150}
-              height={70}
-              src={"/assets/Eventique.png"}
-            />
-          </div>
-
-          <div className="w-full">
-            <div className="relative w-full max-w-xl rounded-2xl">
-              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-500" />
-              <Input
-                className="pl-10 w-full"
-                placeholder="Search for Events, Concerts and Movies"
-                type="text"
+    <header className="w-full">
+      <div className="bg-[#1f2533]"> 
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-6">
+          <div className="flex items-center gap-6 w-full max-w-4xl">
+            <Link href="/home" className="flex items-center gap-2 shrink-0">
+              <Image
+                src="/assets/forget-password/Capital-White.svg"
+                alt="Capital"
+                width={32}
+                height={32}
               />
+              <span className="text-white text-xl font-semibold">
+                Capital
+              </span>
+            </Link>
+
+            <div ref={searchRef} className="relative w-full">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => query && setOpen(true)}
+                placeholder="Search for Movies, Events, Plays, Sports"
+                className="pl-11 h-10 bg-white"
+              />
+
+              {open && (
+                <div className="absolute top-12 left-0 w-full bg-white rounded-lg shadow-2xl border z-50 max-h-[400px] overflow-y-auto">
+                  {loading && (
+                    <div className="p-4 text-sm text-gray-500">
+                      Searching events...
+                    </div>
+                  )}
+
+                  {!loading && results.length === 0 && (
+                    <div className="p-4 text-sm text-gray-500">
+                      No events found
+                    </div>
+                  )}
+
+                  {!loading &&
+                    results.map((event) => (
+                      <TitleSearchCard
+                        key={event.id}
+                        event={event}
+                        onSelect={() => setOpen(false)}
+                      />
+                    ))}
+                </div>
+              )}
             </div>
           </div>
-        </div>
 
-        <div className="flex gap-5 justify-center items-center">
-          <div className="">
-            <div className="flex items-center gap-2">
-              <Select>
-                <SelectTrigger className="border-none text-md">
-                  <SelectValue placeholder="Location" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#1f1f1f] border-none shadow-[0_4px_20px_rgba(0,0,0,0.7)] ring-0 rounded-md">
-                  <SelectItem value="pune" className="text-white hover:bg-zinc-800">
-                    Pune
+          <div className="flex items-center gap-4 shrink-0">
+            <Select value={city} onValueChange={setCity}>
+              <SelectTrigger className="h-9 px-3 rounded-md bg-transparent border border-white/20 text-white text-sm">
+                <MapPin className="mr-1 h-4 w-4" />
+                <SelectValue />
+              </SelectTrigger>
+
+              <SelectContent className="bg-[#1f2533] border border-white/20 rounded-lg shadow-2xl">
+                {cities.map((c) => (
+                  <SelectItem
+                    key={c}
+                    value={c.toLowerCase()}
+                    className="text-zinc-200"
+                  >
+                    {c}
                   </SelectItem>
-                  <SelectItem value="mumbai" className="text-white hover:bg-zinc-800">
-                    Mumbai
-                  </SelectItem>
-                  <SelectItem value="delhi" className="text-white hover:bg-zinc-800">
-                    Delhi
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {mounted && !signedIn && (
+              <Button className="h-9 px-5 bg-[#f84464] hover:bg-[#e13b58] text-white">
+                Sign in
+              </Button>
+            )}
+            <Menu className="text-zinc-50" onClick={()=>{router.push("/dashboard/personal")}}/>
           </div>
-
-          <Button className="bg-[#C251E6] hover:cursor-pointer text-white hover:bg-[#C251E6]">
-            Sign in
-          </Button>
         </div>
       </div>
 
-      <div className="bg-gray-100 py-2 text-center shadow-md">
-        <div className="max-w-7xl mx-auto flex flex-wrap gap-4 ">
-          <Link href="/neweventlisting" className="text-gray-700 hover:font-semibold px-3 py-1">
-            Events
-          </Link>
-          <Link href="/neweventlisting" className="text-gray-700 hover:font-semibold px-3 py-1">
-            Movies
-          </Link>
-          <Link href="/neweventlisting" className="text-gray-700 hover:font-semibold px-3 py-1 ">
-            Concerts
-          </Link>
-          
-          
+      {type === "home" ? (
+        <div className="bg-[#f5f5f5] border-b">
+          <div className="max-w-7xl mx-auto px-6 h-10 flex items-center gap-6 text-sm font-medium text-gray-800">
+            {categories.map((item) => (
+              <Link
+                key={item}
+                href={`/search?q=${(item).toLowerCase()}`}
+                className="hover:text-indigo-600 transition-colors"
+              >
+                {item}
+              </Link>
+            ))}
+          </div>
         </div>
-      </div>
-    </div>
+        ): null
+      }
+    </header>
   );
 };
 
 export default LNavbar;
-
-
-
-
-

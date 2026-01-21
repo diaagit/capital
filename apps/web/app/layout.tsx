@@ -81,6 +81,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <html lang="en">
             <body
                 className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} antialiased bg-[#FDFDFD]`}
+                suppressHydrationWarning
             >
                 {/* <LNavbar/> */}
                 <main className="min-h-screen">{children}</main>

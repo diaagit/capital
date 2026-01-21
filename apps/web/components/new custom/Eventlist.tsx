@@ -1,6 +1,18 @@
-import Filter from "@/components/new custom/Filter";
-import EventCard from "@/components/new custom/EventCard";
+"use client";
+
+import Filter, { EventType } from "@/components/new custom/Filter";
 import { Button } from "@/components/ui/button";
+import MovieCarousel from "@/components/new custom/EventCard";
+import axios from "axios";
+import getBackendUrl from "@/lib/config";
+import { useState } from "react";
+
+type Props = {
+  searchParams: {
+    q?: string;
+    location?: string;
+  };
+};
 
 const tags = [
   "Workshops",
@@ -13,30 +25,31 @@ const tags = [
   "Screening",
 ];
 
-const events = [
-  { src: "/assets/movie5.jpg", title: "The Last Horizon", genre: "Action" },
-  { src: "/assets/movie2.jpg", title: "Whisper of Time", genre: "Drama" },
-  { src: "/assets/movie3.jpg", title: "Nightfall", genre: "Thriller" },
-  { src: "/assets/movie4.jpg", title: "Laugh Out Loud", genre: "Comedy" },
-  { src: "/assets/movie5.jpg", title: "Romantic Escape", genre: "Romance" },
-  { src: "/assets/movie2.jpg", title: "Galactic Quest", genre: "Sci-Fi" },
-  { src: "/assets/movie3.jpg", title: "Mystery Manor", genre: "Mystery" },
-  { src: "/assets/movie4.jpg", title: "Hero's Return", genre: "Adventure" },
-];
+export default function Eventlist({ searchParams }: Props) {
+  //const { status, organiser, title, location } = req.query;
+  const [data,setData] = useState("");
+  const [status,setStatus] = useState("");
+  const [organiser,setOrganiser] = useState("");
+  const [location,setLocation] = useState("");
 
-export default function Eventlist() {
+  const URL = getBackendUrl();
+  async function GetData() {
+    const res = await axios.get(
+        `${URL}/events?title=${encodeURIComponent(searchParams.q)}&city=${searchParams.location}`
+    );  
+    if(res.status === 200){
+      setData(res.data)
+    }
+  }
   return (
-    <div className="max-w-7xl mx-auto flex gap-10 mt-10">
-      {/* LEFT SIDE: Filters */}
-      <aside className="w-[450px]">
-        <Filter />
+    <div className="w-full max-w-7xl mx-auto flex gap-10 mt-10">
+      <aside className="w-[300px]">
+        <Filter type={searchParams.q as EventType} />
       </aside>
 
-      {/* RIGHT SIDE: Events */}
       <main className="flex-1">
         <h1 className="text-3xl font-bold mb-5">Events in Pune</h1>
 
-        {/* Tag Buttons */}
         <div className="flex flex-wrap gap-3 mb-8">
           {tags.map((tag) => (
             <Button
@@ -49,10 +62,8 @@ export default function Eventlist() {
           ))}
         </div>
 
-        {/* Event Cards */}
-        <div className=" ">
-          <EventCard />
-          <EventCard />
+        <div className="">
+          <MovieCarousel variant="search" />
         </div>
       </main>
     </div>

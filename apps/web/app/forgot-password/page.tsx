@@ -9,10 +9,7 @@ import StepOtp from "@/components/new custom/ResetP_StepOtp";
 import StepEmail from "@/components/new custom/ResetP_StepEmail";
 import StepIndicator from "@/components/new custom/ResetP_StepIndicator";
 import { useRouter } from "next/navigation";
-
-function getBackendUrl() {
-  return process.env.NEXT_PUBLIC_BACKEND_URL ?? "";
-}
+import getBackendUrl from "@/lib/config";
 
 const stepImageMap: Record<number, string> = {
   1: "/assets/forget-password/forgetPassword.png",

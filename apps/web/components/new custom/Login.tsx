@@ -17,10 +17,7 @@ import {
 import { Eye, EyeOff, Mail, Lock, User, ArrowUpRightIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
-function getBackendUrl() {
-  return process.env.NEXT_PUBLIC_BACKEND_URL ?? "";
-}
+import getBackendUrl from "@/lib/config";
 
 interface AuthProps {
   type: "signup" | "signin";
@@ -92,8 +89,8 @@ export default function AuthCard({ type }: AuthProps) {
         `${URL}/user/signin`,
         { firstName, lastName, email, password, token }
       );
-        localStorage.setItem("token", result.data.token);
-        router.push("/");
+      localStorage.setItem("token", result.data.token);
+      router.push("/");
     } catch (error) {
       console.log(error);
     }
