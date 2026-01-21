@@ -74,6 +74,9 @@ jobs:
       - name: Disable Next.js telemetry
         run: npx next telemetry disable
 
+      - name: Generate Prisma client
+        run: npx prisma generate
+
       # 11. Build Turborepo + Next.js app
       - name: Build Capital
         run: npm run build
