@@ -102,14 +102,14 @@ export default async function userMiddleware(req: Request, res: Response, next: 
         }
 
         const dbToken = await db.jwtToken.findFirst({
+            include: {
+                user: true,
+            },
             where: {
                 is_revoked: false,
                 token,
                 userId,
             },
-            include:{
-                user:true
-            }
         });
 
         if (!dbToken) {
@@ -123,10 +123,10 @@ export default async function userMiddleware(req: Request, res: Response, next: 
             });
         }
 
-        if(!dbToken.user.is_verified) {
+        if (!dbToken.user.is_verified) {
             return res.status(403).json({
-                message: "Unverified User tried to access services"
-            })
+                message: "Unverified User tried to access services",
+            });
         }
 
         req.userId = userId;
@@ -138,7 +138,11 @@ export default async function userMiddleware(req: Request, res: Response, next: 
     }
 }
 
-export async function unVerifiedOrganiserMiddleware(req: Request, res: Response, next: NextFunction) {
+export async function unVerifiedOrganiserMiddleware(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+) {
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -247,10 +251,10 @@ export async function organiserMiddleware(req: Request, res: Response, next: Nex
             });
         }
 
-        if(!dbToken.user.is_verified){
+        if (!dbToken.user.is_verified) {
             return res.status(403).json({
-                message:"Unverified User tried to access services"
-            })
+                message: "Unverified User tried to access services",
+            });
         }
 
         req.organiserId = organiserId;

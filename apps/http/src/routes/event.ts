@@ -1,11 +1,16 @@
 import redisCache from "@repo/cache";
-import db, { EventCategory, EventGenre, EventLanguage, EventStatus } from "@repo/db";
-import { allowedStatuses, EventSlotType, EventType } from "@repo/types";
+import db, {
+    type EventCategory,
+    type EventGenre,
+    type EventLanguage,
+    type EventStatus,
+    type Prisma,
+} from "@repo/db";
+import { EventSlotType, EventType } from "@repo/types";
 import express, { type Request, type Response, type Router } from "express";
-import { type Prisma } from "@repo/db";
-import { deleteCache } from "../schedule/eventCache";
-import { paginate } from "../helper/pagination";
 import { filterEvents } from "../helper/eventFilters";
+import { paginate } from "../helper/pagination";
+import { deleteCache } from "../schedule/eventCache";
 
 const eventRouter: Router = express.Router();
 
@@ -22,8 +27,19 @@ eventRouter.post("/", async (req: Request, res: Response) => {
             });
         }
 
-        const { organiserId, title, description, banner_url, status, location_name, location_url, category, genre, language, is_online } =
-            parsed.data;
+        const {
+            organiserId,
+            title,
+            description,
+            banner_url,
+            status,
+            location_name,
+            location_url,
+            category,
+            genre,
+            language,
+            is_online,
+        } = parsed.data;
 
         const organiser = await db.user.findUnique({
             where: {
@@ -39,16 +55,16 @@ eventRouter.post("/", async (req: Request, res: Response) => {
         const newEvent = await db.event.create({
             data: {
                 banner_url,
+                category,
                 description,
+                genre,
+                is_online,
+                language,
                 location_name,
                 location_url,
                 organiserId,
                 status,
                 title,
-                category,
-                genre,
-                language,
-                is_online
             },
         });
         await deleteCache();
@@ -65,7 +81,7 @@ eventRouter.post("/", async (req: Request, res: Response) => {
 
 /**
  * Get events with optional filters (status, organiser name, title, location, price, category, genre, minPrice, maxPrice, pade)
-*/
+ */
 eventRouter.get("/", async (req: Request, res: Response) => {
     try {
         const {
@@ -103,30 +119,34 @@ eventRouter.get("/", async (req: Request, res: Response) => {
             const allEvents = JSON.parse(allEventsCache.toString());
 
             events = filterEvents(allEvents, {
-                status: status as string,
-                organiser: organiser as string,
-                title: title as string,
-                location: location as string,
                 category: category as string,
                 genre: genre as string,
+                isOnline: isOnline !== undefined ? isOnline === "true" : undefined,
                 language: language as string,
-                minPrice: minPrice ? Number(minPrice) : undefined,
+                location: location as string,
                 maxPrice: maxPrice ? Number(maxPrice) : undefined,
-                isOnline:
-                    isOnline !== undefined
-                        ? isOnline === "true"
-                        : undefined,
+                minPrice: minPrice ? Number(minPrice) : undefined,
+                organiser: organiser as string,
+                status: status as string,
+                title: title as string,
             });
 
             total = events.length;
             if (!isAll) events = paginate(events, pageNum, limitNum);
-        }
-        else {
+        } else {
             const where = {
-                ...(status && { status: status as EventStatus }),
-                ...(category && { category: category as EventCategory }),
-                ...(genre && { genre: genre as EventGenre }),
-                ...(language && { language: language as EventLanguage }),
+                ...(status && {
+                    status: status as EventStatus,
+                }),
+                ...(category && {
+                    category: category as EventCategory,
+                }),
+                ...(genre && {
+                    genre: genre as EventGenre,
+                }),
+                ...(language && {
+                    language: language as EventLanguage,
+                }),
                 ...(isOnline !== undefined && {
                     is_online: isOnline === "true",
                 }),
@@ -155,10 +175,14 @@ eventRouter.get("/", async (req: Request, res: Response) => {
                           slots: {
                               some: {
                                   ...(minPrice && {
-                                      price: { gte: Number(minPrice) },
+                                      price: {
+                                          gte: Number(minPrice),
+                                      },
                                   }),
                                   ...(maxPrice && {
-                                      price: { lte: Number(maxPrice) },
+                                      price: {
+                                          lte: Number(maxPrice),
+                                      },
                                   }),
                               },
                           },
@@ -166,16 +190,21 @@ eventRouter.get("/", async (req: Request, res: Response) => {
                     : {}),
             };
 
-            total = await db.event.count({ where });
+            total = await db.event.count({
+                where,
+            });
 
             events = await db.event.findMany({
-                where,
                 include: {
                     organiser: {
-                        select: { id: true, first_name: true },
+                        select: {
+                            first_name: true,
+                            id: true,
+                        },
                     },
                     slots: true,
                 },
+                where,
                 ...(isAll
                     ? {}
                     : {
@@ -184,8 +213,12 @@ eventRouter.get("/", async (req: Request, res: Response) => {
                       }),
                 orderBy:
                     sortBy === "price"
-                        ? { created_at: "desc" }
-                        : { [sortBy as string]: order },
+                        ? {
+                              created_at: "desc",
+                          }
+                        : {
+                              [sortBy as string]: order,
+                          },
             });
         }
 
@@ -193,8 +226,8 @@ eventRouter.get("/", async (req: Request, res: Response) => {
             const prices = event.slots.map((s: any) => Number(s.price));
             return {
                 ...event,
-                startingPrice: prices.length ? Math.min(...prices) : 0,
                 maxPrice: prices.length ? Math.max(...prices) : 0,
+                startingPrice: prices.length ? Math.min(...prices) : 0,
             };
         });
 
@@ -202,22 +235,26 @@ eventRouter.get("/", async (req: Request, res: Response) => {
             enriched.sort((a, b) =>
                 order === "asc"
                     ? a.startingPrice - b.startingPrice
-                    : b.startingPrice - a.startingPrice
+                    : b.startingPrice - a.startingPrice,
             );
         }
 
         const response = {
-            total,
-            page: isAll ? null : pageNum,
-            limit: isAll ? null : limitNum,
             events: enriched,
+            limit: isAll ? null : limitNum,
+            page: isAll ? null : pageNum,
+            total,
         };
 
-        await redisCache.set(cacheKey, JSON.stringify(response), { EX: 30 });
+        await redisCache.set(cacheKey, JSON.stringify(response), {
+            EX: 30,
+        });
         return res.json(response);
     } catch (error) {
         console.error(error);
-        return res.status(500).json({ message: "Internal server error" });
+        return res.status(500).json({
+            message: "Internal server error",
+        });
     }
 });
 

@@ -16,7 +16,7 @@ export type EventFilters = {
 export function filterEvents(events: any[], filters: EventFilters) {
     return events.filter((event) => {
         const prices = (event.slots || []).map((s: any) =>
-            Number(s.price instanceof Decimal ? s.price.toNumber() : s.price)
+            Number(s.price instanceof Decimal ? s.price.toNumber() : s.price),
         );
 
         const minEventPrice = prices.length ? Math.min(...prices) : 0;
@@ -27,24 +27,16 @@ export function filterEvents(events: any[], filters: EventFilters) {
             (!filters.category || event.category === filters.category) &&
             (!filters.genre || event.genre === filters.genre) &&
             (!filters.language || event.language === filters.language) &&
-            (filters.isOnline === undefined ||
-                event.is_online === filters.isOnline) &&
+            (filters.isOnline === undefined || event.is_online === filters.isOnline) &&
             (!filters.organiser ||
                 event.organiser?.first_name
                     ?.toLowerCase()
                     .includes(filters.organiser.toLowerCase())) &&
-            (!filters.title ||
-                event.title
-                    ?.toLowerCase()
-                    .includes(filters.title.toLowerCase())) &&
+            (!filters.title || event.title?.toLowerCase().includes(filters.title.toLowerCase())) &&
             (!filters.location ||
-                event.location_name
-                    ?.toLowerCase()
-                    .includes(filters.location.toLowerCase())) &&
-            (filters.minPrice === undefined ||
-                minEventPrice >= filters.minPrice) &&
-            (filters.maxPrice === undefined ||
-                maxEventPrice <= filters.maxPrice)
+                event.location_name?.toLowerCase().includes(filters.location.toLowerCase())) &&
+            (filters.minPrice === undefined || minEventPrice >= filters.minPrice) &&
+            (filters.maxPrice === undefined || maxEventPrice <= filters.maxPrice)
         );
     });
 }

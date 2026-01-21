@@ -174,7 +174,7 @@ userRouter.post(
             const existingUser = await db.user.findUnique({
                 where: {
                     email,
-                    is_verified: true
+                    is_verified: true,
                 },
             });
 
@@ -240,87 +240,92 @@ userRouter.post(
  * @param {Express.Response} res - The HTTP response object used to return data.
  * @returns {Promise<void>} - Responds with a JSON object containing user info and JWT token.
  */
-userRouter.post("/verify", otpLimits, unVerifiedUserMiddleware, async (req: Request, res: Response) => {
-    try {
-        const userId = req.userId;
-        const parseResult = VerificationType.safeParse(req.body);
+userRouter.post(
+    "/verify",
+    otpLimits,
+    unVerifiedUserMiddleware,
+    async (req: Request, res: Response) => {
+        try {
+            const userId = req.userId;
+            const parseResult = VerificationType.safeParse(req.body);
 
-        if (!userId || !parseResult.success) {
-            return res.status(400).json({
-                message: "Invalid userId or OTP format",
+            if (!userId || !parseResult.success) {
+                return res.status(400).json({
+                    message: "Invalid userId or OTP format",
+                });
+            }
+            const { otp } = parseResult.data;
+            const otpRecord = await db.otp.findFirst({
+                where: {
+                    expires_at: {
+                        gt: new Date(),
+                    },
+                    is_used: false,
+                    otp_code: otp,
+                    userId,
+                },
+            });
+            if (!otpRecord) {
+                return res.status(400).json({
+                    message: "Invalid or expired OTP",
+                });
+            }
+            const findUser = await db.$transaction(async (tx: Prisma.TransactionClient) => {
+                await tx.otp.update({
+                    data: {
+                        is_used: true,
+                    },
+                    where: {
+                        id: otpRecord.id,
+                    },
+                });
+
+                const _cards = await createCardsForUser(userId);
+                const { publicKey, privateKey } = await generateKeyPair();
+                const encrypted_privateKey = encrypt(privateKey);
+
+                const updatedUser = await tx.user.update({
+                    data: {
+                        encrypted_private_key: encrypted_privateKey,
+                        is_verified: true,
+                        public_key: publicKey,
+                    },
+                    where: {
+                        id: userId,
+                    },
+                });
+
+                return updatedUser;
+            });
+
+            const token = generateToken(findUser.id, "1d");
+            await db.$transaction(async (tx: Prisma.TransactionClient) => {
+                await tx.jwtToken.deleteMany({
+                    where: {
+                        userId: findUser.id,
+                    },
+                });
+                await tx.jwtToken.create({
+                    data: {
+                        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+                        issued_at: new Date(),
+                        token,
+                        userId: findUser.id,
+                    },
+                });
+            });
+
+            return res.status(200).json({
+                message: "OTP verified successfully",
+                token: token,
+            });
+        } catch (_error) {
+            return res.status(500).json({
+                message: "Internal server error",
             });
         }
-        const { otp } = parseResult.data;
-        const otpRecord = await db.otp.findFirst({
-            where: {
-                expires_at: {
-                    gt: new Date(),
-                },
-                is_used: false,
-                otp_code: otp,
-                userId,
-            },
-        });
-        if (!otpRecord) {
-            return res.status(400).json({
-                message: "Invalid or expired OTP",
-            });
-        }
-        const findUser = await db.$transaction(async (tx: Prisma.TransactionClient) => {
-            await tx.otp.update({
-                data: {
-                    is_used: true,
-                },
-                where: {
-                    id: otpRecord.id,
-                },
-            });
-
-            const _cards = await createCardsForUser(userId);
-            const { publicKey, privateKey } = await generateKeyPair();
-            const encrypted_privateKey = encrypt(privateKey);
-
-            const updatedUser = await tx.user.update({
-                data: {
-                    encrypted_private_key: encrypted_privateKey,
-                    is_verified: true,
-                    public_key: publicKey,
-                },
-                where: {
-                    id: userId,
-                },
-            });
-            
-            return updatedUser;
-        });
-
-        const token = generateToken(findUser.id, "1d");
-        await db.$transaction(async (tx: Prisma.TransactionClient) => {
-            await tx.jwtToken.deleteMany({
-                where: {
-                    userId: findUser.id,
-                },
-            });
-            await tx.jwtToken.create({
-                data: {
-                    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
-                    issued_at: new Date(),
-                    token,
-                    userId: findUser.id,
-                },
-            });
-        });
-        
-        return res.status(200).json({
-            message: "OTP verified successfully",
-            token: token
-        });
-    } catch (_error) {
-        return res.status(500).json({
-            message: "Internal server error",
-        });
-    }
-});
+    },
+);
 /**
  * Logout the User after signup/signin
  * @param {Express.Request} req - The HTTP request object containing user details.
@@ -368,7 +373,7 @@ userRouter.post("/otp", otpLimits, async (req: Request, res: Response) => {
         const findEmail = await db.user.findUnique({
             where: {
                 email,
-                is_verified: true
+                is_verified: true,
             },
         });
 
@@ -428,7 +433,7 @@ userRouter.post("/forget-password", resetPasswordLimits, async (req: Request, re
         const findEmail = await db.user.findUnique({
             where: {
                 email,
-                is_verified: true
+                is_verified: true,
             },
         });
 
@@ -525,27 +530,27 @@ userRouter.post(
             }
             const { newpassword, password } = parsedData.data;
             const userExist = await db.user.findUnique({
+                select: {
+                    email: true,
+                    id: true,
+                    password: true,
+                },
                 where: {
                     id: user,
-                    is_verified: true
+                    is_verified: true,
                 },
-                select:{
-                    id: true,
-                    email: true,
-                    password: true
-                }
             });
             if (!userExist) {
                 return res.status(400).json({
                     message: "Provided email is invalid",
                 });
             }
-            const comparePassword = await bcrypt.hash(password,userExist.password);
-            
-            if(!comparePassword){
+            const comparePassword = await bcrypt.hash(password, userExist.password);
+
+            if (!comparePassword) {
                 return res.status(403).json({
-                    message: "Provided password was invalid"
-                })
+                    message: "Provided password was invalid",
+                });
             }
 
             const hashedPassword = await bcrypt.hash(newpassword, saltRounds);
@@ -632,7 +637,7 @@ userRouter.put("/me", userMiddleware, async (req: Request, res: Response) => {
             },
             where: {
                 id: userId,
-                is_verified: true
+                is_verified: true,
             },
         });
 

@@ -52,7 +52,7 @@ export const ResetType = z.object({
         })
         .nonempty("Password is required")
         .min(6, "Password must be at least 6 characters long"),
-    password:  z
+    password: z
         .string({
             error: "Wrong Password format",
         })
@@ -86,12 +86,58 @@ export const allowedStatuses = [
 ] as const;
 
 export const EventType = z.object({
-    category: z.enum(["movie","concert","sports","theatre","comedy","conference","workshop","exhibition","festival","other"]),
-    genre: z.enum(["action","drama","comedy","romance","horror","thriller","sci_fi","fantasy","documentary","animation","classical","rock","pop","jazz","hip_hop","sports_general","other"]).optional(),
-    language: z.enum(["english","hindi","marathi","spanish","french","german","japanese","korean","chinese","tamil","telugu","multi_language"]).optional(),
-    is_online: z.boolean().optional().default(false),
     banner_url: z.string().url().optional(),
+    category: z.enum([
+        "movie",
+        "concert",
+        "sports",
+        "theatre",
+        "comedy",
+        "conference",
+        "workshop",
+        "exhibition",
+        "festival",
+        "other",
+    ]),
     description: z.string().min(5),
+    genre: z
+        .enum([
+            "action",
+            "drama",
+            "comedy",
+            "romance",
+            "horror",
+            "thriller",
+            "sci_fi",
+            "fantasy",
+            "documentary",
+            "animation",
+            "classical",
+            "rock",
+            "pop",
+            "jazz",
+            "hip_hop",
+            "sports_general",
+            "other",
+        ])
+        .optional(),
+    is_online: z.boolean().optional().default(false),
+    language: z
+        .enum([
+            "english",
+            "hindi",
+            "marathi",
+            "spanish",
+            "french",
+            "german",
+            "japanese",
+            "korean",
+            "chinese",
+            "tamil",
+            "telugu",
+            "multi_language",
+        ])
+        .optional(),
     location_name: z.string().min(3),
     location_url: z.string().url(),
     organiserId: z.string().optional(),
