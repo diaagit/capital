@@ -45,6 +45,21 @@ export const ForgetType = z.object({
     }),
 });
 
+export const ResetType = z.object({
+    newpassword: z
+        .string({
+            error: "Wrong Password format",
+        })
+        .nonempty("Password is required")
+        .min(6, "Password must be at least 6 characters long"),
+    password:  z
+        .string({
+            error: "Wrong Password format",
+        })
+        .nonempty("Password is required")
+        .min(6, "Password must be at least 6 characters long"),
+});
+
 export const SignupResponseSchema = z.object({
     message: z.string(),
     token: z.string(),
@@ -71,11 +86,15 @@ export const allowedStatuses = [
 ] as const;
 
 export const EventType = z.object({
+    category: z.enum(["movie","concert","sports","theatre","comedy","conference","workshop","exhibition","festival","other"]),
+    genre: z.enum(["action","drama","comedy","romance","horror","thriller","sci_fi","fantasy","documentary","animation","classical","rock","pop","jazz","hip_hop","sports_general","other"]).optional(),
+    language: z.enum(["english","hindi","marathi","spanish","french","german","japanese","korean","chinese","tamil","telugu","multi_language"]).optional(),
+    is_online: z.boolean().optional().default(false),
     banner_url: z.string().url().optional(),
     description: z.string().min(5),
     location_name: z.string().min(3),
     location_url: z.string().url(),
-    organiserId: z.string(),
+    organiserId: z.string().optional(),
     status: z.enum([
         "draft",
         "published",
@@ -92,7 +111,7 @@ export const EventType = z.object({
 export const EventSlotType = z.object({
     capacity: z.number().int().positive(),
     end_time: z.string().datetime(),
-    price: z.number().nonnegative(), // ✅ added
+    price: z.number().nonnegative(),
     start_time: z.string().datetime(),
 });
 

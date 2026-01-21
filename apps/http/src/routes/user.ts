@@ -6,6 +6,7 @@ import { otpLimits, resetPasswordLimits } from "@repo/ratelimit";
 import {
     ForgetType,
     OtpType,
+    ResetType,
     SigninType,
     type SignupResponse,
     SignupType,
@@ -15,7 +16,7 @@ import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import express, { type Request, type Response, type Router } from "express";
 import jwt, { type SignOptions } from "jsonwebtoken";
-import userMiddleware from "../middleware";
+import userMiddleware, { unVerifiedUserMiddleware } from "../middleware";
 import { createCardsForUser } from "../utils/bankCards";
 import { decrypt, encrypt } from "../utils/encrypter";
 
@@ -173,8 +174,10 @@ userRouter.post(
             const existingUser = await db.user.findUnique({
                 where: {
                     email,
+                    is_verified: true
                 },
             });
+
             if (!existingUser) {
                 return res.status(400).json({
                     message: "Invalid email or password",
@@ -237,7 +240,7 @@ userRouter.post(
  * @param {Express.Response} res - The HTTP response object used to return data.
  * @returns {Promise<void>} - Responds with a JSON object containing user info and JWT token.
  */
-userRouter.post("/verify", otpLimits, userMiddleware, async (req: Request, res: Response) => {
+userRouter.post("/verify", otpLimits, unVerifiedUserMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
         const parseResult = VerificationType.safeParse(req.body);
@@ -263,7 +266,7 @@ userRouter.post("/verify", otpLimits, userMiddleware, async (req: Request, res: 
                 message: "Invalid or expired OTP",
             });
         }
-        await db.$transaction(async (tx: Prisma.TransactionClient) => {
+        const findUser = await db.$transaction(async (tx: Prisma.TransactionClient) => {
             await tx.otp.update({
                 data: {
                     is_used: true,
@@ -277,7 +280,7 @@ userRouter.post("/verify", otpLimits, userMiddleware, async (req: Request, res: 
             const { publicKey, privateKey } = await generateKeyPair();
             const encrypted_privateKey = encrypt(privateKey);
 
-            await tx.user.update({
+            const updatedUser = await tx.user.update({
                 data: {
                     encrypted_private_key: encrypted_privateKey,
                     is_verified: true,
@@ -287,10 +290,30 @@ userRouter.post("/verify", otpLimits, userMiddleware, async (req: Request, res: 
                     id: userId,
                 },
             });
+            
+            return updatedUser;
         });
 
+        const token = generateToken(findUser.id, "1d");
+        await db.$transaction(async (tx: Prisma.TransactionClient) => {
+            await tx.jwtToken.deleteMany({
+                where: {
+                    userId: findUser.id,
+                },
+            });
+            await tx.jwtToken.create({
+                data: {
+                    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+                    issued_at: new Date(),
+                    token,
+                    userId: findUser.id,
+                },
+            });
+        });
+        
         return res.status(200).json({
             message: "OTP verified successfully",
+            token: token
         });
     } catch (_error) {
         return res.status(500).json({
@@ -326,6 +349,12 @@ userRouter.post("/logout", userMiddleware, async (req: Request, res: Response) =
     }
 });
 
+/**
+ * 2FA Verifications for Forget_PASSWORDs
+ * @param {Express.Request} req - The HTTP request object containing user details.
+ * @param {Express.Response} res - The HTTP response object used to return data.
+ * @returns {Promise<void>} - Responds with a JSON object containing user info and JWT token.
+ */
 userRouter.post("/otp", otpLimits, async (req: Request, res: Response) => {
     try {
         const parsed = OtpType.safeParse(req.body);
@@ -339,6 +368,7 @@ userRouter.post("/otp", otpLimits, async (req: Request, res: Response) => {
         const findEmail = await db.user.findUnique({
             where: {
                 email,
+                is_verified: true
             },
         });
 
@@ -378,6 +408,12 @@ userRouter.post("/otp", otpLimits, async (req: Request, res: Response) => {
     }
 });
 
+/**
+ * Complete Process for Forget_PASSWORDs
+ * @param {Express.Request} req - The HTTP request object containing user details.
+ * @param {Express.Response} res - The HTTP response object used to return data.
+ * @returns {Promise<void>} - Responds with a JSON object containing user info and JWT token.
+ */
 userRouter.post("/forget-password", resetPasswordLimits, async (req: Request, res: Response) => {
     try {
         const parsed = ForgetType.safeParse(req.body);
@@ -392,6 +428,7 @@ userRouter.post("/forget-password", resetPasswordLimits, async (req: Request, re
         const findEmail = await db.user.findUnique({
             where: {
                 email,
+                is_verified: true
             },
         });
 
@@ -459,7 +496,7 @@ userRouter.post("/forget-password", resetPasswordLimits, async (req: Request, re
 });
 
 /**
- * Resets the User after signup/signin
+ * Resets the User after signup/signin like normal ones that allow to change in settings
  * @param {Express.Request} req - The HTTP request object containing user details.
  * @param {Express.Response} res - The HTTP response object used to return data.
  * @returns {message: string} - Responds with a messaging.
@@ -467,6 +504,7 @@ userRouter.post("/forget-password", resetPasswordLimits, async (req: Request, re
 userRouter.post(
     "/reset-password",
     resetPasswordLimits,
+    userMiddleware,
     async (
         req: Request,
         res: Response<
@@ -477,33 +515,49 @@ userRouter.post(
         >,
     ) => {
         try {
-            const parsedData = SigninType.safeParse(req.body);
+            const user = req.userId;
+            const parsedData = ResetType.safeParse(req.body);
             if (!parsedData.success) {
                 return res.status(400).json({
                     errors: parsedData.error.format(),
                     message: "Invalid data was provided",
                 });
             }
-            const { email, password } = parsedData.data;
+            const { newpassword, password } = parsedData.data;
             const userExist = await db.user.findUnique({
                 where: {
-                    email,
+                    id: user,
+                    is_verified: true
                 },
+                select:{
+                    id: true,
+                    email: true,
+                    password: true
+                }
             });
             if (!userExist) {
                 return res.status(400).json({
                     message: "Provided email is invalid",
                 });
             }
-            const hashedPassword = await bcrypt.hash(password, saltRounds);
+            const comparePassword = await bcrypt.hash(password,userExist.password);
+            
+            if(!comparePassword){
+                return res.status(403).json({
+                    message: "Provided password was invalid"
+                })
+            }
+
+            const hashedPassword = await bcrypt.hash(newpassword, saltRounds);
             await db.user.update({
                 data: {
                     password: hashedPassword,
                 },
                 where: {
-                    email,
+                    email: userExist.email,
                 },
             });
+
             return res.status(200).json({
                 message: "Password was successfully updated",
             });
@@ -578,6 +632,7 @@ userRouter.put("/me", userMiddleware, async (req: Request, res: Response) => {
             },
             where: {
                 id: userId,
+                is_verified: true
             },
         });
 

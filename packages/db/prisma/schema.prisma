@@ -27,6 +27,61 @@
     cancelled
   }
 
+  enum EventCategory {
+    movie
+    concert
+    sports
+    theatre
+    comedy
+    conference
+    workshop
+    exhibition
+    festival
+    other
+  }
+
+  enum EventGenre {
+    action
+    drama
+    comedy
+    romance
+    horror
+    thriller
+    sci_fi
+    fantasy
+    documentary
+    animation
+    classical
+    rock
+    pop
+    jazz
+    hip_hop
+    sports_general
+    other
+  }
+
+  enum EventLanguage {
+    english
+    hindi
+    marathi
+    spanish
+    french
+    german
+    japanese
+    korean
+    chinese
+    tamil
+    telugu
+    multi_language
+  }
+
+  enum TicketStatus {
+    ISSUED
+    CANCELLED
+    USED
+    EXPIRED
+  }
+
   enum TransactionType {
     Initiate
     DEPOSIT
@@ -74,7 +129,7 @@
     jwtTokens             JwtToken[]
     organisedEvents       Event[]         @relation("OrganiserEvents")
     tickets               Ticket[]
-    verifications         TicketVerification[] @relation("VerifierVerifications", fields: [], references: [])
+    verifications         TicketVerification[] @relation("VerifierVerifications")
     scannedTickets        Ticket[]        @relation("VerifierVerifications")
     cards                 Card[]
     transactions          Transaction[]
@@ -123,11 +178,18 @@
     title          String
     description    String
     banner_url     String?
-    status         EventStatus
+    status         EventStatus   @default(draft)
+    category       EventCategory
+    genre          EventGenre?    
+    language       EventLanguage?
     location_name  String
-    location_url   String
+    location_url   String?
+    is_online      Boolean       @default(false)
     created_at     DateTime      @default(now())
+    updated_at     DateTime      @updatedAt
     slots          EventSlot[]
+    @@index([category])
+    @@index([status])
   }
 
   model EventSlot {
@@ -139,6 +201,7 @@
     capacity   Int
     price      Decimal    @default(0.00) 
     tickets    Ticket[]
+    @@index([eventId])
   }
 
   model Ticket {
@@ -149,6 +212,7 @@
     userId         String
     qr_code_data   String
     signature      String
+    status         TicketStatus @default(ISSUED)
     issued_at      DateTime   @default(now())
     is_valid       Boolean    @default(true)
     is_verified    Boolean    @default(false)
@@ -158,6 +222,8 @@
     otp            Otp[]
     verifications  TicketVerification[]
     transactions   Transaction[]
+    @@index([eventSlotId])
+    @@index([userId])
   }
 
   model TicketVerification {

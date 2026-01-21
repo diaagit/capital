@@ -1,35 +1,13 @@
 import redisCache from "@repo/cache";
-import db from "@repo/db";
+import db, { EventCategory, EventGenre, EventLanguage, EventStatus } from "@repo/db";
 import { allowedStatuses, EventSlotType, EventType } from "@repo/types";
 import express, { type Request, type Response, type Router } from "express";
+import { type Prisma } from "@repo/db";
 import { deleteCache } from "../schedule/eventCache";
+import { paginate } from "../helper/pagination";
+import { filterEvents } from "../helper/eventFilters";
 
 const eventRouter: Router = express.Router();
-/**
- * Helper: Apply Filters from Query Params
- */
-function filterEvents(
-    events: any[],
-    filters: {
-        status?: string;
-        organiser?: string;
-        title?: string;
-        location?: string;
-    },
-) {
-    return events.filter((event) => {
-        return (
-            (!filters.status || event.status === filters.status) &&
-            (!filters.organiser ||
-                event.organiser?.first_name
-                    ?.toLowerCase()
-                    .includes(filters.organiser.toLowerCase())) &&
-            (!filters.title || event.title?.toLowerCase().includes(filters.title.toLowerCase())) &&
-            (!filters.location ||
-                event.location_name?.toLowerCase().includes(filters.location.toLowerCase()))
-        );
-    });
-}
 
 /**
  * Create a new event
@@ -44,7 +22,7 @@ eventRouter.post("/", async (req: Request, res: Response) => {
             });
         }
 
-        const { organiserId, title, description, banner_url, status, location_name, location_url } =
+        const { organiserId, title, description, banner_url, status, location_name, location_url, category, genre, language, is_online } =
             parsed.data;
 
         const organiser = await db.user.findUnique({
@@ -67,6 +45,10 @@ eventRouter.post("/", async (req: Request, res: Response) => {
                 organiserId,
                 status,
                 title,
+                category,
+                genre,
+                language,
+                is_online
             },
         });
         await deleteCache();
@@ -82,93 +64,160 @@ eventRouter.post("/", async (req: Request, res: Response) => {
 });
 
 /**
- * Get events with optional filters (status, organiser name, title, location)
- */
+ * Get events with optional filters (status, organiser name, title, location, price, category, genre, minPrice, maxPrice, pade)
+*/
 eventRouter.get("/", async (req: Request, res: Response) => {
     try {
-        const { status, organiser, title, location } = req.query;
-        const cacheKey = `events:${status || "all"}:${organiser || "all"}:${title || "all"}:${location || "all"}`;
+        const {
+            status,
+            organiser,
+            title,
+            location,
+            category,
+            genre,
+            language,
+            minPrice,
+            maxPrice,
+            isOnline,
+            page = "1",
+            limit = "10",
+            all,
+            sortBy = "created_at",
+            order = "desc",
+        } = req.query;
 
+        const pageNum = Math.max(1, Number(page));
+        const limitNum = Math.max(1, Number(limit));
+        const isAll = all === "true";
+
+        const cacheKey = `events:${JSON.stringify(req.query)}`;
         const cached = await redisCache.get(cacheKey);
-        if (cached) {
-            return res.status(200).json({
-                events: JSON.parse(cached.toString()),
-                message: "Got from cache",
-            });
-        }
+        if (cached) return res.json(JSON.parse(cached.toString()));
+
+        let events: any[] = [];
+        let total = 0;
 
         const allEventsCache = await redisCache.get("events:all");
-        let events: any[] = [];
+
         if (allEventsCache) {
             const allEvents = JSON.parse(allEventsCache.toString());
+
             events = filterEvents(allEvents, {
-                location: location as string,
-                organiser: organiser as string,
                 status: status as string,
+                organiser: organiser as string,
                 title: title as string,
+                location: location as string,
+                category: category as string,
+                genre: genre as string,
+                language: language as string,
+                minPrice: minPrice ? Number(minPrice) : undefined,
+                maxPrice: maxPrice ? Number(maxPrice) : undefined,
+                isOnline:
+                    isOnline !== undefined
+                        ? isOnline === "true"
+                        : undefined,
             });
-        } else {
-            events = await db.event.findMany({
-                include: {
+
+            total = events.length;
+            if (!isAll) events = paginate(events, pageNum, limitNum);
+        }
+        else {
+            const where = {
+                ...(status && { status: status as EventStatus }),
+                ...(category && { category: category as EventCategory }),
+                ...(genre && { genre: genre as EventGenre }),
+                ...(language && { language: language as EventLanguage }),
+                ...(isOnline !== undefined && {
+                    is_online: isOnline === "true",
+                }),
+                ...(title && {
+                    title: {
+                        contains: title as string,
+                        mode: "insensitive" as Prisma.QueryMode,
+                    },
+                }),
+                ...(location && {
+                    location_name: {
+                        contains: location as string,
+                        mode: "insensitive" as Prisma.QueryMode,
+                    },
+                }),
+                ...(organiser && {
                     organiser: {
-                        select: {
-                            first_name: true,
-                            id: true,
+                        first_name: {
+                            contains: organiser as string,
+                            mode: "insensitive" as Prisma.QueryMode,
                         },
                     },
+                }),
+                ...(minPrice || maxPrice
+                    ? {
+                          slots: {
+                              some: {
+                                  ...(minPrice && {
+                                      price: { gte: Number(minPrice) },
+                                  }),
+                                  ...(maxPrice && {
+                                      price: { lte: Number(maxPrice) },
+                                  }),
+                              },
+                          },
+                      }
+                    : {}),
+            };
+
+            total = await db.event.count({ where });
+
+            events = await db.event.findMany({
+                where,
+                include: {
+                    organiser: {
+                        select: { id: true, first_name: true },
+                    },
+                    slots: true,
                 },
-                where: {
-                    ...(status &&
-                    typeof status === "string" &&
-                    allowedStatuses.includes(status as any)
-                        ? {
-                              status: status as any,
-                          }
-                        : {}),
-                    ...(title
-                        ? {
-                              title: {
-                                  contains: title as string,
-                                  mode: "insensitive",
-                              },
-                          }
-                        : {}),
-                    ...(location
-                        ? {
-                              location_name: {
-                                  contains: location as string,
-                                  mode: "insensitive",
-                              },
-                          }
-                        : {}),
-                    ...(organiser
-                        ? {
-                              organiser: {
-                                  first_name: {
-                                      contains: organiser as string,
-                                      mode: "insensitive",
-                                  },
-                              },
-                          }
-                        : {}),
-                },
+                ...(isAll
+                    ? {}
+                    : {
+                          skip: (pageNum - 1) * limitNum,
+                          take: limitNum,
+                      }),
+                orderBy:
+                    sortBy === "price"
+                        ? { created_at: "desc" }
+                        : { [sortBy as string]: order },
             });
         }
 
-        if (!events || events.length === 0) {
-            return res.status(404).json({
-                message: "No events found for the given filters",
-            });
+        const enriched = events.map((event) => {
+            const prices = event.slots.map((s: any) => Number(s.price));
+            return {
+                ...event,
+                startingPrice: prices.length ? Math.min(...prices) : 0,
+                maxPrice: prices.length ? Math.max(...prices) : 0,
+            };
+        });
+
+        if (sortBy === "price") {
+            enriched.sort((a, b) =>
+                order === "asc"
+                    ? a.startingPrice - b.startingPrice
+                    : b.startingPrice - a.startingPrice
+            );
         }
 
-        await redisCache.set(cacheKey, JSON.stringify(events), {
-            EX: 30,
-        });
-        return res.status(200).json(events);
-    } catch (_error) {
-        return res.status(500).json({
-            message: "Internal server error",
-        });
+        const response = {
+            total,
+            page: isAll ? null : pageNum,
+            limit: isAll ? null : limitNum,
+            events: enriched,
+        };
+
+        await redisCache.set(cacheKey, JSON.stringify(response), { EX: 30 });
+        return res.json(response);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 });
 

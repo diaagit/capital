@@ -1,10 +1,11 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export default function CapitalBanner() {
   //bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900
   return (
     <section className="w-full max-w-7xl mx-auto px-4 mt-8">
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-800 to-indigo-900">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900">
         <div className="relative z-10 flex items-center justify-between px-6 py-5">
           <div>
             <div className="w-xs h-10 flex justify-start items-center gap-2">
@@ -26,7 +27,7 @@ export default function CapitalBanner() {
             </p>
           </div>
           <button className="shrink-0 rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition">
-            Explore
+            <Link href={"/search?movie"}>Explore</Link>
           </button>
         </div>
       </div>
