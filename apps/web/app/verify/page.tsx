@@ -40,6 +40,8 @@ export default function Page() {
             }
         })
         if(response.status === 200){
+            //localStorage.removeItem("token");
+            localStorage.setItem("token", response.data.token);
             router.push("/");
         }
     } catch (error) {
