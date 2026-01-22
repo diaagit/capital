@@ -12,7 +12,7 @@ const EventListingPage = ({ searchParams }: Props) => {
   return (
     <div>
       <LNavbar type="home" />
-      <Eventlist searchParams={searchParams} />
+      <Eventlist />
     </div>
   );
 };

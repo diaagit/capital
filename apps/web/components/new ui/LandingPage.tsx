@@ -11,11 +11,12 @@ const LandingPage = () => {
     <div className="min-h-full min-w-full">
         <LNavbar type="home" />
         <Carousel />
-        <MovieCarousel variant="home" title="Trending Movies" />
+        <MovieCarousel category="movie" variant="home" title="Trending Movies" />
         <CapitalBanner />
         <HomeCard />
         <Premier_Card />
-        <MovieCarousel variant="home" title="Your Music Studio" />
+        <MovieCarousel variant="home" title="Your Music Studio" category="concert" />
+        <MovieCarousel variant="home" title="Festive Season" category="festival" genre="hip_hop" />
     </div>
   )
 };

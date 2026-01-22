@@ -1,70 +1,83 @@
 "use client";
 
 import Filter, { EventType } from "@/components/new custom/Filter";
-import { Button } from "@/components/ui/button";
-import MovieCarousel from "@/components/new custom/EventCard";
 import axios from "axios";
 import getBackendUrl from "@/lib/config";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import EventGridSkeleton from "./EventGridSkeleton";
+import EventGrid from "./Search_Event_Card";
+import Pagination from "./Pagination";
 
-type Props = {
-  searchParams: {
-    q?: string;
-    location?: string;
-  };
-};
+const LIMIT = 12;
 
-const tags = [
-  "Workshops",
-  "Music Shows",
-  "Meetups",
-  "Theatre",
-  "Performances",
-  "Exhibitions",
-  "Talks",
-  "Screening",
-];
-
-export default function Eventlist({ searchParams }: Props) {
-  //const { status, organiser, title, location } = req.query;
-  const [data,setData] = useState("");
-  const [status,setStatus] = useState("");
-  const [organiser,setOrganiser] = useState("");
-  const [location,setLocation] = useState("");
-
+export default function Eventlist() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const URL = getBackendUrl();
-  async function GetData() {
-    const res = await axios.get(
-        `${URL}/events?title=${encodeURIComponent(searchParams.q)}&city=${searchParams.location}`
-    );  
-    if(res.status === 200){
-      setData(res.data)
+
+  const page = Number(searchParams.get("page") ?? 1);
+
+  const [events, setEvents] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchEvents() {
+      setLoading(true);
+      try {
+      const res = await axios.get(`${URL}/events`, {
+        params: {
+          ...Object.fromEntries(searchParams.entries()),
+          page,
+          limit: LIMIT,
+        },
+        headers:{
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
+      });
+
+        setEvents(res.data.events);
+        setTotal(res.data.total);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
     }
-  }
+
+    fetchEvents();
+  }, [searchParams, page]);
+
+  const changePage = (p: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(p));
+    router.push(`/search?${params.toString()}`);
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto flex gap-10 mt-10">
-      <aside className="w-[300px]">
-        <Filter type={searchParams.q as EventType} />
+      <aside className="w-[300px] shrink-0">
+        <Filter type={searchParams.get("type") as EventType} />
       </aside>
 
       <main className="flex-1">
-        <h1 className="text-3xl font-bold mb-5">Events in Pune</h1>
+        <h1 className="text-3xl font-bold mb-6">Events</h1>
 
-        <div className="flex flex-wrap gap-3 mb-8">
-          {tags.map((tag) => (
-            <Button
-              key={tag}
-              variant="outline"
-              className="rounded-full text-[#C251E6] hover:cursor-pointer hover:text-white hover:bg-[#C251E6]"
-            >
-              {tag}
-            </Button>
-          ))}
-        </div>
+        {loading ? (
+          <EventGridSkeleton />
+        ) : (
+          <div>
+            <EventGrid events={events} />
 
-        <div className="">
-          <MovieCarousel variant="search" />
-        </div>
+            <Pagination
+              page={page}
+              total={total}
+              limit={LIMIT}
+              onPageChange={changePage}
+            />
+          </div>
+        )}
       </main>
     </div>
   );

@@ -12,13 +12,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import getBackendUrl from "@/lib/config";
 import TitleSearchCard from "./Title_Search_Card";
 import { useRouter } from "next/navigation";
+import axios from "axios";
 
 const cities = ["Pune", "Mumbai", "Delhi"];
-const categories = ["Movies", "Events", "Sports", "Plays", "Concerts"];
+const categories = [
+  "movie",
+  "concert",
+  "sports",
+  "theatre",
+  "comedy",
+];
 
 type EventResult = {
   id: string;
@@ -45,6 +52,15 @@ const LNavbar = ({ type }: LNavbarType) => {
   const [city, setCity] = useState("pune");
 
   const searchRef = useRef<HTMLDivElement>(null);
+
+  const handleLogout = useCallback(async() => {
+    const URL = getBackendUrl();
+    const response = await axios.get(`${URL}/user/logout`,{headers:{Authorization:`Bearer ${localStorage.getItem("token")}`}})
+    if(response.status === 200){
+      localStorage.removeItem("token");
+      router.push("login")
+    }
+  }, [])
 
   useEffect(() => {
     setMounted(true);
@@ -172,8 +188,13 @@ const LNavbar = ({ type }: LNavbarType) => {
             </Select>
 
             {mounted && !signedIn && (
-              <Button className="h-9 px-5 bg-[#f84464] hover:bg-[#e13b58] text-white">
+              <Button onClick={() => router.push("/login")} className="h-9 px-5 bg-[#f84464] hover:bg-[#e13b58] text-white">
                 Sign in
+              </Button>
+            )}
+            {mounted && signedIn && (
+              <Button onClick={handleLogout} className="h-9 px-5 bg-[#f84464] hover:bg-[#e13b58] text-white">
+                Log Out
               </Button>
             )}
             <Menu className="text-zinc-50" onClick={()=>{router.push("/dashboard/personal")}}/>
@@ -187,10 +208,10 @@ const LNavbar = ({ type }: LNavbarType) => {
             {categories.map((item) => (
               <Link
                 key={item}
-                href={`/search?q=${(item).toLowerCase()}`}
-                className="hover:text-indigo-600 transition-colors"
+                href={`/search?category=${item}`}
+                className="hover:cursor-pointer  border-gray-300 text-gray-700 hover:bg-red-50 hover:border-red-500 hover:text-red-600"
               >
-                {item}
+                {item.charAt(0).toUpperCase() + item.slice(1)}
               </Link>
             ))}
           </div>

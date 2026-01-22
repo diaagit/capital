@@ -332,7 +332,7 @@ userRouter.post(
  * @param {Express.Response} res - The HTTP response object used to return data.
  * @returns {message: string} - Responds with a messaging.
  */
-userRouter.post("/logout", userMiddleware, async (req: Request, res: Response) => {
+userRouter.get("/logout", userMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
         await db.jwtToken.updateMany({

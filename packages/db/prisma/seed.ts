@@ -1,3 +1,4 @@
+import dotenv from "dotenv"
 import {
   PrismaClient,
   Prisma,
@@ -11,6 +12,189 @@ import {
   BankName,
 } from '@prisma/client';
 
+dotenv.config()
+
+const POSTER_SOURCES: Record<
+  EventGenre,
+  Partial<Record<EventLanguage, string[]>>
+> = {
+  action: {
+    english: [
+      "tt0137523","tt0468569","tt2911666","tt4154796","tt1375666",
+      "tt1877830","tt0120815","tt0088247","tt0110413","tt0107290",
+    ],
+    hindi: [
+      "tt12844910","tt8178634","tt15654328","tt10701074","tt10295212",
+      "tt9389998","tt10811166","tt8983202","tt15097216","tt14208870",
+    ],
+    telugu: [
+      "tt8178634","tt8772262","tt2631186","tt7466810","tt15501640",
+      "tt11604542","tt12837256","tt13622952","tt14218138","tt14359978",
+    ],
+    tamil: [
+      "tt11385128","tt4987556","tt10579952","tt11911336","tt1262416",
+      "tt1305797","tt15654328","tt8760670","tt12844910","tt8178634",
+    ],
+    korean: [
+      "tt4154796","tt6751668","tt8579674","tt9263514","tt1219827",
+      "tt1375666","tt0468569","tt2911666","tt4154664","tt4633694",
+    ],
+    japanese: [
+      "tt5311514","tt6751668","tt0816692","tt4154796","tt0468569",
+      "tt0137523","tt0088763","tt0096895","tt0107290","tt1877830",
+    ],
+    multi_language: [
+      "tt4154796","tt1375666","tt0816692","tt0468569","tt0137523",
+      "tt2911666","tt1877830","tt0107290","tt0088763","tt0096895",
+    ],
+  },
+
+  drama: {
+    english: [
+      "tt0111161","tt0068646","tt0109830","tt0120689","tt0169547",
+      "tt0118799","tt0086879","tt0133093","tt0038650","tt0047478",
+    ],
+    hindi: [
+      "tt1562872","tt2082197","tt4849438","tt8983160","tt10295212",
+      "tt8267604","tt9420648","tt13391604","tt13534808","tt14487556",
+    ],
+    marathi: [
+      "tt5312232","tt8045736","tt10209318","tt9860464","tt13131074",
+      "tt13391604","tt13622952","tt10811166","tt10964430","tt8999882",
+    ],
+    tamil: [
+      "tt11385128","tt4987556","tt10579952","tt11911336","tt8760670",
+      "tt12844910","tt15654328","tt8178634","tt1305797","tt1262416",
+    ],
+    korean: [
+      "tt6751668","tt8579674","tt1219827","tt0468569","tt1375666",
+      "tt0137523","tt0109830","tt0111161","tt0086879","tt0120689",
+    ],
+    multi_language: [
+      "tt0111161","tt0068646","tt0109830","tt0120689","tt0169547",
+      "tt0118799","tt0086879","tt0133093","tt0038650","tt0047478",
+    ],
+  },
+
+  comedy: {
+    english: [
+      "tt0107048","tt0110912","tt0103639","tt0365748","tt0088763",
+      "tt0241527","tt0110357","tt0080684","tt0083866","tt0116282",
+    ],
+    hindi: [
+      "tt1562872","tt1292703","tt2338151","tt1980986","tt1954470",
+      "tt5474036","tt6967980","tt8108198","tt6862546","tt1187043",
+    ],
+    multi_language: [
+      "tt0107048","tt0110912","tt0103639","tt0365748","tt0088763",
+      "tt0241527","tt0110357","tt0080684","tt0083866","tt0116282",
+    ],
+  },
+
+  animation: {
+    english: [
+      "tt2948356","tt6105098","tt4633694","tt2380307","tt2096673",
+      "tt3606756","tt2294629","tt0398286","tt0317219","tt0110357",
+    ],
+    japanese: [
+      "tt0245429","tt5311514","tt8075192","tt0096283","tt0347149",
+      "tt0119698","tt0092067","tt0876563","tt1308129","tt5109784",
+    ],
+    multi_language: [
+      "tt2948356","tt6105098","tt4633694","tt2380307","tt2096673",
+      "tt3606756","tt2294629","tt0398286","tt0317219","tt0110357",
+    ],
+  },
+
+  documentary: {
+    english: [
+      "tt2395427","tt1028532","tt1631867","tt1149362","tt0848228",
+      "tt0317248","tt2395427","tt1305797","tt4154796","tt1375666",
+    ],
+    hindi: [
+      "tt6845886","tt8267604","tt13534808","tt9420648","tt13391604",
+      "tt14487556","tt6845886","tt8267604","tt13534808","tt9420648",
+    ],
+    multi_language: [
+      "tt2395427","tt1028532","tt1631867","tt1149362","tt0848228",
+      "tt0317248","tt2395427","tt1305797","tt4154796","tt1375666",
+    ],
+  },
+
+  romance: { multi_language: ["tt0332280","tt0118799","tt0109830","tt0120338","tt0110413","tt0034583","tt0133093","tt0096895","tt0107290","tt0088763"] },
+  horror: { multi_language: ["tt0078748","tt0081505","tt7784604","tt1179933","tt0084787","tt0102926","tt0137523","tt0468569","tt1877830","tt0816692"] },
+  thriller: { multi_language: ["tt0102926","tt0137523","tt0468569","tt1375666","tt1877830","tt2911666","tt0816692","tt0088763","tt0107290","tt0096895"] },
+  sci_fi: { multi_language: ["tt0816692","tt1375666","tt0133093","tt0088763","tt0096895","tt0468569","tt4154796","tt1877830","tt0107290","tt0110413"] },
+  fantasy: { multi_language: ["tt0120737","tt0167260","tt0088763","tt0816692","tt4154796","tt1877830","tt0096895","tt0107290","tt0110413","tt0133093"] },
+  classical: { multi_language: ["tt0111161","tt0068646","tt0109830","tt0120689","tt0169547","tt0118799","tt0086879","tt0038650","tt0047478","tt0108052"] },
+  rock: { multi_language: ["tt0117500","tt0100935","tt0080455","tt0365265","tt0113627","tt0088258","tt0103874","tt0120601","tt0111161","tt0068646"] },
+  pop: { multi_language: ["tt2865120","tt0111161","tt0365265","tt0100935","tt0117500","tt0088258","tt0103874","tt0120601","tt0113627","tt0068646"] },
+  jazz: { multi_language: ["tt2582802","tt0057012","tt0045152","tt0086879","tt0108052","tt0111161","tt0068646","tt0109830","tt0120689","tt0169547"] },
+  hip_hop: { multi_language: ["tt0468569","tt1375666","tt0137523","tt4154796","tt1877830","tt2911666","tt0816692","tt0088763","tt0107290","tt0096895"] },
+  sports_general: { multi_language: ["tt0108052","tt0111161","tt0068646","tt0109830","tt0120689","tt0169547","tt0118799","tt0086879","tt0038650","tt0047478"] },
+  other: { multi_language: ["tt0111161","tt0068646","tt0109830","tt0120689","tt0169547","tt0118799","tt0086879","tt0133093","tt0038650","tt0047478"] },
+};
+
+const IMDB_TITLES: Record<string, string> = {
+  // ACTION
+  tt0137523: "Fight Club",
+  tt0468569: "The Dark Knight",
+  tt1375666: "Inception",
+  tt4154796: "Avengers: Endgame",
+  tt2911666: "John Wick",
+  tt1877830: "The Batman",
+  tt0120815: "Saving Private Ryan",
+  tt0088247: "The Terminator",
+  tt0110413: "Leon: The Professional",
+  tt0107290: "Jurassic Park",
+
+  // DRAMA
+  tt0111161: "The Shawshank Redemption",
+  tt0068646: "The Godfather",
+  tt0109830: "Forrest Gump",
+  tt0120689: "The Green Mile",
+  tt0169547: "American Beauty",
+  tt0118799: "Life Is Beautiful",
+  tt0086879: "Amadeus",
+
+  // COMEDY
+  tt0107048: "Groundhog Day",
+  tt0110912: "Pulp Fiction",
+  tt0103639: "Aladdin",
+  tt0365748: "Shaun of the Dead",
+  tt0088763: "Back to the Future",
+
+  // ANIMATION
+  tt2948356: "Zootopia",
+  tt6105098: "The Lion King",
+  tt4633694: "Spider-Man: Into the Spider-Verse",
+  tt2380307: "Coco",
+  tt2096673: "Inside Out",
+
+  // SCI-FI
+  tt0816692: "Interstellar",
+  tt0133093: "The Matrix",
+  tt0096895: "Batman",
+
+  // HORROR
+  tt0078748: "Alien",
+  tt0081505: "The Shining",
+  tt7784604: "Hereditary",
+
+  // ROMANCE
+  tt0120338: "Titanic",
+  tt0332280: "The Notebook",
+  tt0034583: "Casablanca",
+
+  // FANTASY
+  tt0120737: "The Lord of the Rings: The Fellowship of the Ring",
+  tt0167260: "The Lord of the Rings: The Two Towers",
+};
+
+function getMovieTitle(imdbId: string) {
+  return IMDB_TITLES[imdbId] ?? "Kantara Movie";
+}
+
 const prisma = new PrismaClient({ log: ['error'] });
 
 const rand = (min: number, max: number) =>
@@ -21,75 +205,79 @@ const daysFromNow = (d: number) =>
 
 const pick = <T>(arr: T[]) => arr[rand(0, arr.length - 1)];
 
-const EVENT_IMAGES = [
-  'https://images.unsplash.com/photo-1507874457470-272b3c8d8ee2',
-  'https://images.unsplash.com/photo-1492684223066-81342ee5ff30',
-  'https://images.unsplash.com/photo-1514525253161-7a46d19cd819',
-  'https://images.unsplash.com/photo-1508609349937-5ec4ae374ebf',
-  'https://images.unsplash.com/photo-1542751371-adc38448a05e',
-  'https://images.unsplash.com/photo-1521334884684-d80222895322',
-];
+
+const posterCache = new Map<string, string>();
+
+async function fetchPoster(imdbId: string) {
+  if (posterCache.has(imdbId)) return posterCache.get(imdbId)!;
+
+  try {
+    const res = await fetch(
+      `https://www.omdbapi.com/?apikey=${process.env.OMDB_API_KEY}&i=${imdbId}`
+    );
+    const data = await res.json();
+    const poster =
+      data?.Poster && data.Poster !== "N/A"
+        ? data.Poster
+        : "https://theposterdb.com/api/assets/9798/view";
+
+    posterCache.set(imdbId, poster);
+    return poster;
+  } catch {
+    return "https://theposterdb.com/api/assets/9798/view";
+  }
+}
+
+async function getMovieData(genre: EventGenre, language: EventLanguage) {
+  const list =
+    POSTER_SOURCES[genre]?.[language] ??
+    POSTER_SOURCES[genre]?.multi_language ??
+    POSTER_SOURCES[genre]?.english;
+
+  const imdbId = list?.length ? pick(list) : null;
+
+  return {
+    imdbId,
+    poster: imdbId
+      ? await fetchPoster(imdbId)
+      : "https://theposterdb.com/api/assets/9798/view",
+    title: imdbId ? getMovieTitle(imdbId) : "Kantara",
+  };
+}
 
 const LOCATIONS = [
-  {
-    name: 'Mumbai Convention Center',
-    city: 'Mumbai',
-    map: 'https://www.google.com/maps?q=Mumbai+Convention+Center',
-  },
-  {
-    name: 'Wadia College of Engineering',
-    city: 'Pune',
-    map: 'https://www.google.com/maps?q=Wadia+College+of+Engineering',
-  },
-  {
-    name: 'Bangalore Palace Grounds',
-    city: 'Bangalore',
-    map: 'https://www.google.com/maps?q=Bangalore+Palace+Grounds',
-  },
-  {
-    name: 'Delhi Pragati Maidan',
-    city: 'Delhi',
-    map: 'https://www.google.com/maps?q=Pragati+Maidan+Delhi',
-  },
-  {
-    name: 'Hyderabad HITEX Convention Centre',
-    city: 'Hyderabad',
-    map: 'https://www.google.com/maps?q=HITEX+Hyderabad',
-  },
-  {
-    name: 'Chennai Trade Centre',
-    city: 'Chennai',
-    map: 'https://www.google.com/maps?q=Chennai+Trade+Centre',
-  },
-  {
-    name: 'Kolkata Biswa Bangla Convention Centre',
-    city: 'Kolkata',
-    map: 'https://www.google.com/maps?q=Biswa+Bangla+Convention+Centre',
-  },
+  { name: "Mumbai Convention Center", map: "https://maps.google.com?q=Mumbai" },
+  { name: "Wadia College of Engineering", map: "https://maps.google.com?q=Pune" },
+  { name: "Bangalore Palace Grounds", map: "https://maps.google.com?q=Bangalore" },
+  { name: "Delhi Pragati Maidan", map: "https://maps.google.com?q=Delhi" },
+  { name: "Hyderabad HITEX", map: "https://maps.google.com?q=Hyderabad" },
+  { name: "Chennai Trade Centre", map: "https://maps.google.com?q=Chennai" },
+  { name: "Kolkata Biswa Bangla", map: "https://maps.google.com?q=Kolkata" },
 ];
 
 const EVENT_TITLES = [
-  'Live Music Festival',
-  'Startup India Summit',
-  'Stand-up Comedy Night',
-  'Tech Innovators Conference',
-  'Bollywood Movie Premiere',
-  'Food & Wine Carnival',
-  'Design Thinking Workshop',
-  'Marathon Run',
-  'Indie Film Screening',
-  'Jazz & Blues Evening',
+  "Live Music Festival",
+  "Startup India Summit",
+  "Stand-up Comedy Night",
+  "Tech Innovators Conference",
+  "Bollywood Movie Premiere",
+  "Food & Wine Carnival",
+  "Design Thinking Workshop",
+  "Marathon Run",
+  "Indie Film Screening",
+  "Jazz & Blues Evening",
 ];
 
 async function main() {
-  console.time('Seed completed in');
-  const usersData: Prisma.UserCreateManyInput[] = Array.from({ length: 20 }).map(
-    (_, i) => ({
+  console.time("Seed completed in");
+
+  await prisma.user.createMany({
+    data: Array.from({ length: 20 }).map((_, i) => ({
       id: `user-${i + 1}`,
       first_name: `User${i + 1}`,
-      last_name: 'Demo',
+      last_name: "Demo",
       email: `user${i + 1}@mail.com`,
-      password: 'Pass@123',
+      password: "Pass@123",
       role:
         i < 12
           ? Role.user
@@ -99,15 +287,17 @@ async function main() {
           ? Role.verifier
           : Role.admin,
       is_verified: true,
-    })
-  );
-
-  await prisma.user.createMany({ data: usersData });
+    })),
+  });
 
   const users = await prisma.user.findMany();
   const buyers = users.filter((u) => u.role === Role.user);
   const organisers = users.filter((u) => u.role === Role.organiser);
   const verifiers = users.filter((u) => u.role === Role.verifier);
+
+  if (!buyers.length || !organisers.length || !verifiers.length) {
+    throw new Error("Missing required user roles for seeding");
+  }
 
   await prisma.wallet.createMany({
     data: users.map((u) => ({
@@ -129,32 +319,44 @@ async function main() {
   const cards = await prisma.card.findMany();
   const cardByUser = new Map(cards.map((c) => [c.userId, c]));
 
-  const events = await Promise.all(
-    Array.from({ length: 30 }).map((_, i) => {
-      const location = pick(LOCATIONS);
-      return prisma.event.create({
-        data: {
-          title: `${pick(EVENT_TITLES)} ${i + 1}`,
-          description:
-            'Join us for an unforgettable experience with live performances, premium venues, and exclusive access.',
-          banner_url: pick(EVENT_IMAGES),
+  const EVENTS_PER_GENRE_LANG = 10;
+  const eventData: Prisma.EventCreateManyInput[] = [];
+
+  for (const genre of Object.values(EventGenre)) {
+    for (const language of Object.values(EventLanguage)) {
+      const poster = await getMovieData(genre, language);
+
+      for (let i = 0; i < EVENTS_PER_GENRE_LANG; i++) {
+        const loc = pick(LOCATIONS);
+         const category = pick(Object.values(EventCategory));
+      
+        eventData.push({
+          title: category === EventCategory.movie ? poster.title : `${pick(EVENT_TITLES)}`,
+          description: "An unforgettable premium event experience.",
+          banner_url: poster.poster,
           organiserId: pick(organisers).id,
           status: EventStatus.published,
-          category: pick(Object.values(EventCategory)),
-          genre: pick(Object.values(EventGenre)),
-          language: pick(Object.values(EventLanguage)),
-          location_name: location.name,
-          location_url: location.map,
+          category,
+          genre,
+          language,
+          location_name: loc.name,
+          location_url: loc.map,
           is_online: false,
-        },
-      });
-    })
-  );
+        });
+      }
+    }
+  }
+
+  await prisma.event.createMany({ data: eventData });
+
+  const createdEvents = await prisma.event.findMany({
+    where: {},
+  });
 
   const slotData: Prisma.EventSlotCreateManyInput[] = [];
 
-  for (const event of events) {
-    for (let i = 0; i < 15; i++) {
+  for (const event of createdEvents) {
+    for (let i = 0; i < 10; i++) {
       const start = daysFromNow(rand(1, 120));
       slotData.push({
         eventId: event.id,
@@ -169,15 +371,12 @@ async function main() {
   await prisma.eventSlot.createMany({ data: slotData });
 
   const slots = await prisma.eventSlot.findMany();
-
   const tickets: Prisma.TicketCreateManyInput[] = [];
   const transactions: Prisma.TransactionCreateManyInput[] = [];
   const verifications: Prisma.TicketVerificationCreateManyInput[] = [];
 
   for (const slot of slots) {
-    const count = rand(5, 20);
-
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < rand(5, 20); i++) {
       const buyer = pick(buyers);
       const card = cardByUser.get(buyer.id);
       if (!card) continue;
@@ -189,7 +388,7 @@ async function main() {
         id: ticketId,
         eventSlotId: slot.id,
         userId: buyer.id,
-        qr_code_data: JSON.stringify({ ticketId, slotId: slot.id }),
+        qr_code_data: JSON.stringify({ ticketId }),
         signature: `sig-${ticketId}`,
         is_verified: verified,
       });
@@ -200,7 +399,7 @@ async function main() {
         ticketId,
         amount: slot.price,
         type: TransactionType.PURCHASE,
-        description: 'Ticket purchase',
+        description: "Ticket purchase",
         token: `txn-${ticketId}`,
       });
 
@@ -215,16 +414,26 @@ async function main() {
     }
   }
 
-  await prisma.ticket.createMany({ data: tickets });
-  await prisma.transaction.createMany({ data: transactions });
-  await prisma.ticketVerification.createMany({ data: verifications });
+  const BATCH = 10_000;
 
-  console.timeEnd('Seed completed in');
+  for (let i = 0; i < tickets.length; i += BATCH) {
+    await prisma.ticket.createMany({ data: tickets.slice(i, i + BATCH) });
+  }
+  for (let i = 0; i < transactions.length; i += BATCH) {
+    await prisma.transaction.createMany({ data: transactions.slice(i, i + BATCH) });
+  }
+  for (let i = 0; i < verifications.length; i += BATCH) {
+    await prisma.ticketVerification.createMany({
+      data: verifications.slice(i, i + BATCH),
+    });
+  }
+
+  console.timeEnd("Seed completed in");
 }
 
 main()
   .catch((e) => {
-    console.error('Look`s like seeder FAILED! Call RonaK!!', e);
+    console.error("Seeder FAILED", e);
     process.exit(1);
   })
   .finally(async () => {

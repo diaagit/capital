@@ -108,13 +108,14 @@ eventRouter.get("/", async (req: Request, res: Response) => {
 
         const cacheKey = `events:${JSON.stringify(req.query)}`;
         const cached = await redisCache.get(cacheKey);
-        if (cached) return res.json(JSON.parse(cached.toString()));
+        if (cached) {
+            return res.json(JSON.parse(cached.toString()));
+        }
 
         let events: any[] = [];
         let total = 0;
 
         const allEventsCache = await redisCache.get("events:all");
-
         if (allEventsCache) {
             const allEvents = JSON.parse(allEventsCache.toString());
 
@@ -221,16 +222,18 @@ eventRouter.get("/", async (req: Request, res: Response) => {
                           },
             });
         }
-
         const enriched = events.map((event) => {
-            const prices = event.slots.map((s: any) => Number(s.price));
+            const slots = Array.isArray(event.slots) ? event.slots : [];
+
+            const prices = slots.map((s: any) => Number(s.price)).filter((p) => !Number.isNaN(p));
+
             return {
                 ...event,
                 maxPrice: prices.length ? Math.max(...prices) : 0,
+                slots,
                 startingPrice: prices.length ? Math.min(...prices) : 0,
             };
         });
-
         if (sortBy === "price") {
             enriched.sort((a, b) =>
                 order === "asc"
@@ -249,9 +252,10 @@ eventRouter.get("/", async (req: Request, res: Response) => {
         await redisCache.set(cacheKey, JSON.stringify(response), {
             EX: 30,
         });
+
         return res.json(response);
     } catch (error) {
-        console.error(error);
+        console.error("EVENT ROUTE ERROR:", error);
         return res.status(500).json({
             message: "Internal server error",
         });
