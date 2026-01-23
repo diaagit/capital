@@ -8,8 +8,6 @@ import db, {
 } from "@repo/db";
 import { EventSlotType, EventType } from "@repo/types";
 import express, { type Request, type Response, type Router } from "express";
-import { filterEvents } from "../helper/eventFilters";
-import { paginate } from "../helper/pagination";
 import { deleteCache } from "../schedule/eventCache";
 
 const eventRouter: Router = express.Router();
@@ -33,8 +31,7 @@ eventRouter.post("/", async (req: Request, res: Response) => {
             description,
             banner_url,
             status,
-            location_name,
-            location_url,
+            hero_image_url,
             category,
             genre,
             language,
@@ -58,10 +55,9 @@ eventRouter.post("/", async (req: Request, res: Response) => {
                 category,
                 description,
                 genre,
+                hero_image_url,
                 is_online,
                 language,
-                location_name,
-                location_url,
                 organiserId,
                 status,
                 title,
@@ -80,7 +76,8 @@ eventRouter.post("/", async (req: Request, res: Response) => {
 });
 
 /**
- * Get events with optional filters (status, organiser name, title, location, price, category, genre, minPrice, maxPrice, pade)
+ * Get events with optional filters
+ * Filters: status, organiser, title, location (slot-based), date, category, genre, language, price
  */
 eventRouter.get("/", async (req: Request, res: Response) => {
     try {
@@ -95,6 +92,9 @@ eventRouter.get("/", async (req: Request, res: Response) => {
             minPrice,
             maxPrice,
             isOnline,
+            date, // YYYY-MM-DD
+            startDate, // YYYY-MM-DD
+            endDate, // YYYY-MM-DD
             page = "1",
             limit = "10",
             all,
@@ -106,134 +106,143 @@ eventRouter.get("/", async (req: Request, res: Response) => {
         const limitNum = Math.max(1, Number(limit));
         const isAll = all === "true";
 
-        const cacheKey = `events:${JSON.stringify(req.query)}`;
+        const cacheKey = `events:${JSON.stringify({
+            category,
+            date,
+            endDate,
+            genre,
+            isOnline,
+            language,
+            limit: isAll ? "all" : limitNum,
+            location,
+            maxPrice,
+            minPrice,
+            order,
+            organiser,
+            page: isAll ? "all" : pageNum,
+            sortBy,
+            startDate,
+            status,
+            title,
+        })}`;
+
         const cached = await redisCache.get(cacheKey);
         if (cached) {
             return res.json(JSON.parse(cached.toString()));
         }
 
-        let events: any[] = [];
-        let total = 0;
-
-        const allEventsCache = await redisCache.get("events:all");
-        if (allEventsCache) {
-            const allEvents = JSON.parse(allEventsCache.toString());
-
-            events = filterEvents(allEvents, {
-                category: category as string,
-                genre: genre as string,
-                isOnline: isOnline !== undefined ? isOnline === "true" : undefined,
-                language: language as string,
-                location: location as string,
-                maxPrice: maxPrice ? Number(maxPrice) : undefined,
-                minPrice: minPrice ? Number(minPrice) : undefined,
-                organiser: organiser as string,
-                status: status as string,
-                title: title as string,
-            });
-
-            total = events.length;
-            if (!isAll) events = paginate(events, pageNum, limitNum);
-        } else {
-            const where = {
-                ...(status && {
-                    status: status as EventStatus,
-                }),
-                ...(category && {
-                    category: category as EventCategory,
-                }),
-                ...(genre && {
-                    genre: genre as EventGenre,
-                }),
-                ...(language && {
-                    language: language as EventLanguage,
-                }),
-                ...(isOnline !== undefined && {
-                    is_online: isOnline === "true",
-                }),
-                ...(title && {
-                    title: {
-                        contains: title as string,
-                        mode: "insensitive" as Prisma.QueryMode,
-                    },
-                }),
-                ...(location && {
-                    location_name: {
-                        contains: location as string,
-                        mode: "insensitive" as Prisma.QueryMode,
-                    },
-                }),
-                ...(organiser && {
-                    organiser: {
-                        first_name: {
-                            contains: organiser as string,
-                            mode: "insensitive" as Prisma.QueryMode,
-                        },
-                    },
-                }),
-                ...(minPrice || maxPrice
-                    ? {
-                          slots: {
-                              some: {
-                                  ...(minPrice && {
-                                      price: {
-                                          gte: Number(minPrice),
-                                      },
-                                  }),
-                                  ...(maxPrice && {
-                                      price: {
-                                          lte: Number(maxPrice),
-                                      },
-                                  }),
-                              },
-                          },
-                      }
-                    : {}),
-            };
-
-            total = await db.event.count({
-                where,
-            });
-
-            events = await db.event.findMany({
-                include: {
-                    organiser: {
-                        select: {
-                            first_name: true,
-                            id: true,
-                        },
-                    },
-                    slots: true,
+        const slotFilters: Prisma.EventSlotWhereInput = {
+            ...(location && {
+                location_name: {
+                    contains: location as string,
+                    mode: "insensitive",
                 },
-                where,
-                ...(isAll
-                    ? {}
-                    : {
-                          skip: (pageNum - 1) * limitNum,
-                          take: limitNum,
-                      }),
-                orderBy:
-                    sortBy === "price"
-                        ? {
-                              created_at: "desc",
-                          }
-                        : {
-                              [sortBy as string]: order,
-                          },
-            });
-        }
-        const enriched = events.map((event) => {
-            const slots = Array.isArray(event.slots) ? event.slots : [];
+            }),
+            ...(minPrice && {
+                price: {
+                    gte: Number(minPrice),
+                },
+            }),
+            ...(maxPrice && {
+                price: {
+                    lte: Number(maxPrice),
+                },
+            }),
+            ...(date && {
+                event_date: new Date(date as string),
+            }),
+            ...(startDate || endDate
+                ? {
+                      event_date: {
+                          ...(startDate && {
+                              gte: new Date(startDate as string),
+                          }),
+                          ...(endDate && {
+                              lte: new Date(endDate as string),
+                          }),
+                      },
+                  }
+                : {}),
+        };
 
-            const prices = slots.map((s: any) => Number(s.price)).filter((p) => !Number.isNaN(p));
+        const where: Prisma.EventWhereInput = {
+            ...(status && {
+                status: status as EventStatus,
+            }),
+            ...(category && {
+                category: category as EventCategory,
+            }),
+            ...(genre && {
+                genre: genre as EventGenre,
+            }),
+            ...(language && {
+                language: language as EventLanguage,
+            }),
+            ...(isOnline !== undefined && {
+                is_online: isOnline === "true",
+            }),
+            ...(title && {
+                title: {
+                    contains: title as string,
+                    mode: "insensitive",
+                },
+            }),
+            ...(organiser && {
+                organiser: {
+                    first_name: {
+                        contains: organiser as string,
+                        mode: "insensitive",
+                    },
+                },
+            }),
+            ...(Object.keys(slotFilters).length && {
+                slots: {
+                    some: slotFilters,
+                },
+            }),
+        };
+
+        const total = await db.event.count({
+            where,
+        });
+
+        const events = await db.event.findMany({
+            include: {
+                organiser: {
+                    select: {
+                        first_name: true,
+                        id: true,
+                    },
+                },
+                slots: true,
+            },
+            where,
+            ...(isAll
+                ? {}
+                : {
+                      skip: (pageNum - 1) * limitNum,
+                      take: limitNum,
+                  }),
+            orderBy:
+                sortBy === "price"
+                    ? {
+                          created_at: "desc",
+                      }
+                    : {
+                          [sortBy as string]: order,
+                      },
+        });
+
+        const enriched = events.map((event) => {
+            const prices = event.slots.map((s) => Number(s.price)).filter((p) => !Number.isNaN(p));
 
             return {
                 ...event,
                 maxPrice: prices.length ? Math.max(...prices) : 0,
-                slots,
                 startingPrice: prices.length ? Math.min(...prices) : 0,
             };
         });
+
         if (sortBy === "price") {
             enriched.sort((a, b) =>
                 order === "asc"
@@ -316,7 +325,8 @@ eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
             });
         }
 
-        const { start_time, end_time, capacity, price } = parsed.data;
+        const { location_name, location_url, event_date, start_time, end_time, capacity, price } =
+            parsed.data;
 
         const event = await db.event.findUnique({
             where: {
@@ -334,7 +344,10 @@ eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
             data: {
                 capacity,
                 end_time: new Date(end_time),
+                event_date: new Date(event_date),
                 eventId: event.id,
+                location_name,
+                location_url,
                 price,
                 start_time: new Date(start_time),
             },
@@ -359,8 +372,11 @@ eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
 eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
     try {
         const { eventId } = req.params;
-        const cachedKey = `eventSlots:${eventId}`;
+        const { location, capacity, event_date, price } = req.query;
+
+        const cachedKey = `eventSlots:${eventId}:${JSON.stringify(req.query)}`;
         const cached = await redisCache.get(cachedKey);
+
         if (cached) {
             return res.status(200).json(JSON.parse(cached.toString()));
         }
@@ -370,27 +386,50 @@ eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
                 id: eventId,
             },
         });
+
         if (!event) {
             return res.status(404).json({
                 message: "Event not found",
             });
         }
 
+        const filter: Record<string, any> = {
+            eventId,
+        };
+
+        if (typeof location === "string" && location.trim() !== "") {
+            filter.location_name = location.trim();
+        }
+
+        const capacityNum = capacity ? Number(capacity) : undefined;
+        if (capacityNum !== undefined && !Number.isNaN(capacityNum)) {
+            filter.capacity = capacityNum;
+        }
+
+        const priceNum = price ? Number(price) : undefined;
+        if (priceNum !== undefined && !Number.isNaN(priceNum)) {
+            filter.price = priceNum;
+        }
+
+        if (typeof event_date === "string" && event_date.trim() !== "") {
+            filter.event_date = event_date.trim();
+        }
+
         const slots = await db.eventSlot.findMany({
             orderBy: {
                 start_time: "asc",
             },
-            where: {
-                eventId,
-            },
+            where: filter,
         });
 
-        await redisCache.set(cachedKey, JSON.stringify(slots), {
+        const response = {
+            slots,
+        };
+
+        await redisCache.set(cachedKey, JSON.stringify(response), {
             EX: 30,
         });
-        return res.status(200).json({
-            slots,
-        });
+        return res.status(200).json(response);
     } catch (_error) {
         return res.status(500).json({
             message: "Internal server error",

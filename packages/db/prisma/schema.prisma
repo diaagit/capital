@@ -178,12 +178,11 @@
     title          String
     description    String
     banner_url     String?
+    hero_image_url String?
     status         EventStatus   @default(draft)
     category       EventCategory
     genre          EventGenre?    
     language       EventLanguage?
-    location_name  String
-    location_url   String?
     is_online      Boolean       @default(false)
     created_at     DateTime      @default(now())
     updated_at     DateTime      @updatedAt
@@ -196,8 +195,11 @@
     id         String     @id @default(uuid())
     event      Event      @relation(fields: [eventId], references: [id])
     eventId    String
+    event_date DateTime
     start_time DateTime
     end_time   DateTime
+    location_name  String
+    location_url   String?
     capacity   Int
     price      Decimal    @default(0.00) 
     tickets    Ticket[]

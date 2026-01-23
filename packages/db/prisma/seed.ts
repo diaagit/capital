@@ -255,17 +255,38 @@ const LOCATIONS = [
   { name: "Kolkata Biswa Bangla", map: "https://maps.google.com?q=Kolkata" },
 ];
 
-const EVENT_TITLES = [
-  "Live Music Festival",
-  "Startup India Summit",
-  "Stand-up Comedy Night",
-  "Tech Innovators Conference",
-  "Bollywood Movie Premiere",
-  "Food & Wine Carnival",
-  "Design Thinking Workshop",
-  "Marathon Run",
-  "Indie Film Screening",
-  "Jazz & Blues Evening",
+export const EVENT_TITLES = [
+  "Tomorrowland",
+  "Coachella Valley Music and Arts Festival",
+  "Lollapalooza India",
+  "Sunburn Festival",
+  "NH7 Weekender",
+  "Ultra Music Festival",
+  "Boiler Room Live",
+  "Ziro Music Festival",
+  "Comic Con India",
+  "Indian Premier League Opening Ceremony",
+  "Arijit Singh Live in Concert",
+  "Diljit Dosanjh – Born To Shine Tour",
+  "Coldplay: Music of the Spheres",
+  "Ed Sheeran Mathematics Tour",
+  "DIVINE – Gully Gang Live",
+  "Zakir Khan – Manpasand Stand-Up Special",
+  "Vir Das: Mind Fool Tour",
+  "Biswa Kalyan Rath Live",
+];
+
+export const EVENT_DESCRIPTIONS = [
+  "Experience an unforgettable evening filled with energy, emotion, and world-class performances. Join us for a spectacular event you won’t want to miss.",
+  "Get ready to immerse yourself in a captivating experience that brings people together through entertainment, creativity, and excitement.",
+  "From stunning visuals to powerful moments, this event promises to deliver memories that will stay with you long after the curtains close.",
+  "Step into a world of entertainment where passion meets performance. Perfect for fans, families, and first-timers alike.",
+  "An extraordinary event crafted to entertain, inspire, and leave you wanting more. Be part of the moment everyone will be talking about.",
+  "Whether you’re a long-time fan or discovering it for the first time, this experience offers something truly special for everyone.",
+  "Join thousands of enthusiasts for a high-energy experience featuring top-tier talent, immersive production, and an electrifying atmosphere.",
+  "A carefully curated event designed to deliver joy, excitement, and unforgettable live moments from start to finish.",
+  "Witness the magic unfold as this event brings together art, performance, and emotion in a way that’s truly one of a kind.",
+  "Don’t miss this chance to be part of an incredible experience that blends entertainment, atmosphere, and unforgettable performances.",
 ];
 
 async function main() {
@@ -327,8 +348,7 @@ async function main() {
       const poster = await getMovieData(genre, language);
 
       for (let i = 0; i < EVENTS_PER_GENRE_LANG; i++) {
-        const loc = pick(LOCATIONS);
-         const category = pick(Object.values(EventCategory));
+        const category = pick(Object.values(EventCategory));
       
         eventData.push({
           title: category === EventCategory.movie ? poster.title : `${pick(EVENT_TITLES)}`,
@@ -339,8 +359,6 @@ async function main() {
           category,
           genre,
           language,
-          location_name: loc.name,
-          location_url: loc.map,
           is_online: false,
         });
       }
@@ -356,15 +374,44 @@ async function main() {
   const slotData: Prisma.EventSlotCreateManyInput[] = [];
 
   for (const event of createdEvents) {
-    for (let i = 0; i < 10; i++) {
-      const start = daysFromNow(rand(1, 120));
-      slotData.push({
-        eventId: event.id,
-        start_time: start,
-        end_time: new Date(start.getTime() + 2 * 60 * 60 * 1000),
-        capacity: rand(50, 300),
-        price: new Prisma.Decimal(rand(299, 2499)),
-      });
+    const baseDate = daysFromNow(rand(1, 120));
+
+    const eventDate = new Date(
+      baseDate.getFullYear(),
+      baseDate.getMonth(),
+      baseDate.getDate()
+    );
+
+    const locationCount = rand(4, 5);
+    const eventLocations = [...LOCATIONS]
+      .sort(() => 0.5 - Math.random())
+      .slice(0, locationCount);
+
+    for (const loc of eventLocations) {
+      const slotsPerLocation = rand(8, 10);
+
+      for (let i = 0; i < slotsPerLocation; i++) {
+        //  const HOURS = [9, 12, 15, 18, 21, 23];
+        //  const start = new Date(eventDate.getTime() + HOURS[i] * 60 * 60 * 1000);
+        const start = new Date(
+          eventDate.getTime() + i * 3 * 60 * 60 * 1000 
+        );
+
+        slotData.push({
+          eventId: event.id,
+
+          event_date: eventDate,
+
+          start_time: start,
+          end_time: new Date(start.getTime() + 2 * 60 * 60 * 1000),
+
+          location_name: loc.name,
+          location_url: loc.map,
+
+          capacity: rand(80, 300),
+          price: i >= 5 ? new Prisma.Decimal(rand(999, 2499)) : new Prisma.Decimal(rand(299, 799))
+        });
+      }
     }
   }
 
@@ -433,7 +480,7 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error("Seeder FAILED", e);
+    console.error("Seeder FAILED! Contact RONAK immediately", e);
     process.exit(1);
   })
   .finally(async () => {

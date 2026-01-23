@@ -54,6 +54,7 @@ ticketRouter.post(
                 await db.event.findFirst({
                     include: {
                         organiser: true,
+                        slots: true,
                     },
                     where: {
                         slots: {
@@ -103,7 +104,7 @@ ticketRouter.post(
                 email: user.email,
                 eventEndTime: new Date(eventSlotDetail.end_time).toISOString(),
                 eventId: eventDetail.id,
-                eventLocation: eventDetail.location_name,
+                eventLocation: eventSlotDetail.location_name,
                 eventSlotId: eventSlotDetail.id,
                 eventStartTime: new Date(eventSlotDetail.start_time).toISOString(),
                 eventTitle: eventDetail.title,
@@ -169,7 +170,7 @@ ticketRouter.post(
                 convenienceFee: 0,
                 email: user.email,
                 eventDate: new Date(eventSlotDetail.start_time).toISOString(),
-                eventLocation: eventDetail.location_name,
+                eventLocation: eventSlotDetail.location_name,
                 eventTime: `${eventSlotDetail.start_time} - ${eventSlotDetail.end_time}`,
                 eventTitle: eventDetail.title,
                 gstAmount: 0,
@@ -233,8 +234,6 @@ ticketRouter.get("/:ticketId", userMiddleware, async (req: Request, res: Respons
                     select: {
                         event: {
                             select: {
-                                location_name: true,
-                                location_url: true,
                                 organiser: {
                                     select: {
                                         email: true,
@@ -244,6 +243,8 @@ ticketRouter.get("/:ticketId", userMiddleware, async (req: Request, res: Respons
                                 title: true,
                             },
                         },
+                        location_name: true,
+                        location_url: true,
                     },
                 },
                 eventSlotId: true,

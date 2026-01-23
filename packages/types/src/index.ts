@@ -121,6 +121,7 @@ export const EventType = z.object({
             "other",
         ])
         .optional(),
+    hero_image_url: z.string().url().optional(),
     is_online: z.boolean().optional().default(false),
     language: z
         .enum([
@@ -138,8 +139,6 @@ export const EventType = z.object({
             "multi_language",
         ])
         .optional(),
-    location_name: z.string().min(3),
-    location_url: z.string().url(),
     organiserId: z.string().optional(),
     status: z.enum([
         "draft",
@@ -154,12 +153,22 @@ export const EventType = z.object({
 //     end_time: z.string().datetime(),
 //     start_time: z.string().datetime(),
 // });
-export const EventSlotType = z.object({
-    capacity: z.number().int().positive(),
-    end_time: z.string().datetime(),
-    price: z.number().nonnegative(),
-    start_time: z.string().datetime(),
-});
+export const EventSlotType = z
+    .object({
+        capacity: z.number().int().positive(),
+        end_time: z.string(),
+        event_date: z.string(),
+        location_name: z.string().min(2),
+        location_url: z.string().url(),
+        price: z.number().nonnegative(),
+        start_time: z.string(),
+    })
+    .refine((data) => new Date(data.end_time) > new Date(data.start_time), {
+        message: "End time must be after start time",
+        path: [
+            "end_time",
+        ],
+    });
 
 const BaseTransactionSchema = z.object({
     amount: z

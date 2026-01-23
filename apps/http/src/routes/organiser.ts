@@ -801,9 +801,10 @@ organiserRouter.get(
 
             return res.status(200).json({
                 event: {
+                    banner_url: event.banner_url,
                     created_at: event.created_at,
+                    hero_image_url: event.hero_image_url,
                     id: event.id,
-                    location_name: event.location_name,
                     slotCount: event.slots.length,
                     status: event.status,
                     title: event.title,
