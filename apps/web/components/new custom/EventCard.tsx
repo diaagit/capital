@@ -16,6 +16,7 @@ import { MovieCarouselSkeleton } from "./EventSkeletonCard";
 import { EventCategory, EventGenre, EventLanguage } from "@/lib/types/eventCard";
 import Link from "next/link";
 import { NoEventsFound } from "./NoEventsFound";
+import { useRouter } from "next/router";
 
 export type Variant = "home" | "search" | "premier";
 
@@ -28,6 +29,7 @@ interface MovieCarouselProps {
 }
 
 export interface Movie {
+  id: string
   src: string;
   title: string;
   genre: string;
@@ -163,6 +165,7 @@ export default function MovieCarousel({
         );
 
         const mapped: Movie[] = res.data.events.map((event: any) => ({
+          id: event.id,
           src: event.banner_url ?? "/assets/movie9.jpg",
           title: event.title,
           genre: event.genre,
@@ -304,7 +307,13 @@ export default function MovieCarousel({
   );
 }
 
-export function MovieCard({ movie, varient }: { movie: Movie, varient?: Variant }) {
+export function MovieCard({
+  movie,
+  varient,
+}: {
+  movie: Movie;
+  varient?: Variant;
+}) {
   const isGoodRating = movie.rating >= 7.5;
   const FALLBACK_IMAGE = "https://theposterdb.com/api/assets/9798/view";
 
@@ -312,86 +321,88 @@ export function MovieCard({ movie, varient }: { movie: Movie, varient?: Variant 
     movie.src && movie.src !== "N/A" ? movie.src : FALLBACK_IMAGE
   );
 
-  if (varient === "premier") {
-    return (
-      <div className="group cursor-pointer max-w-[240px]">
-        <div className="relative w-full aspect-[2/3] rounded-lg overflow-hidden bg-gray-200 shadow-md transition-all duration-300 group-hover:scale-[1.03]">
-          <Image
-            src={imgSrc}
-            alt={movie.title}
-            fill
-            sizes="(max-width: 768px) 150px, 220px"
-            className="object-cover"
-            onError={() => setImgSrc(FALLBACK_IMAGE)}
-          />
-          <div className="absolute bottom-0 left-0 right-0 text-white bg-rose-500 px-2 py-1 w-32 flex items-center gap-1">
-            <p className="text-zinc-50 font-semibold">PREMIERE</p>
-          </div>
-        </div>
-
-        <div className="mt-3 space-y-1">
-          <h3 className="text-sm font-semibold text-zinc-50 line-clamp-2">
-            {formatEnumLabel(movie.title)}
-          </h3>
-
-          <p className="text-xs text-gray-200">
-            {movie.duration}h • {movie.imdbVotes}M IMDB • {formatEnumLabel(movie.language)}
-          </p>
-
-          <span className="inline-block text-xs font-medium text-white">
-            {formatEnumLabel(movie.genre)}
-          </span>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="group cursor-pointer max-w-[240px]">
-      <div className="relative w-full aspect-[2/3] rounded-lg overflow-hidden bg-gray-200 shadow-md transition-all duration-300 group-hover:scale-[1.03]">
-        <Image
-          src={imgSrc}
-          alt={movie.title}
-          fill
-          sizes="(max-width: 768px) 150px, 220px"
-          className="object-cover"
-          onError={() => setImgSrc(FALLBACK_IMAGE)}
-        />
+    <Link href={`/event/${movie.id}`} className="block">
+      <div className="group cursor-pointer max-w-[240px]">
+        {varient === "premier" ? (
+          <>
+            <div className="relative w-full aspect-[2/3] rounded-lg overflow-hidden bg-gray-200 shadow-md transition-all duration-300 group-hover:scale-[1.03]">
+              <Image
+                src={imgSrc}
+                alt={movie.title}
+                fill
+                sizes="(max-width: 768px) 150px, 220px"
+                className="object-cover"
+                onError={() => setImgSrc(FALLBACK_IMAGE)}
+              />
+              <div className="absolute bottom-0 left-0 right-0 text-white bg-rose-500 px-2 py-1 w-32 flex items-center gap-1">
+                <p className="text-zinc-50 font-semibold">PREMIERE</p>
+              </div>
+            </div>
 
-        <div className="absolute bottom-0 left-0 right-0 bg-stone-800/95 px-3 py-2 flex items-center gap-1">
-          {isGoodRating ? (
-            <ThumbsUp className="w-5 h-5 text-green-400 fill-green-900" />
-          ) : (
-            <ThumbsDown className="w-5 h-5 text-red-400 fill-red-900" />
-          )}
+            <div className="mt-3 space-y-1">
+              <h3 className="text-sm font-semibold text-zinc-50 line-clamp-2">
+                {formatEnumLabel(movie.title)}
+              </h3>
 
-          <span className="text-xs font-bold text-white">
-            {movie.rating}/10
-          </span>
+              <p className="text-xs text-gray-200">
+                {movie.duration}h • {movie.imdbVotes}M IMDB •{" "}
+                {formatEnumLabel(movie.language)}
+              </p>
 
-          <span className="text-[11px] text-zinc-100">
-            Rating
-          </span>
+              <span className="inline-block text-xs font-medium text-white">
+                {formatEnumLabel(movie.genre)}
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="relative w-full aspect-[2/3] rounded-lg overflow-hidden bg-gray-200 shadow-md transition-all duration-300 group-hover:scale-[1.03]">
+              <Image
+                src={imgSrc}
+                alt={movie.title}
+                fill
+                sizes="(max-width: 768px) 150px, 220px"
+                className="object-cover"
+                onError={() => setImgSrc(FALLBACK_IMAGE)}
+              />
 
-          <span className="ml-auto text-[11px] text-zinc-100 font-medium">
-            {formatVotes(movie.votes)} Votes
-          </span>
-        </div>
+              <div className="absolute bottom-0 left-0 right-0 bg-stone-800/95 px-3 py-2 flex items-center gap-1">
+                {isGoodRating ? (
+                  <ThumbsUp className="w-5 h-5 text-green-400 fill-green-900" />
+                ) : (
+                  <ThumbsDown className="w-5 h-5 text-red-400 fill-red-900" />
+                )}
+
+                <span className="text-xs font-bold text-white">
+                  {movie.rating}/10
+                </span>
+
+                <span className="text-[11px] text-zinc-100">Rating</span>
+
+                <span className="ml-auto text-[11px] text-zinc-100 font-medium">
+                  {formatVotes(movie.votes)} Votes
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 space-y-1">
+              <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">
+                {formatEnumLabel(movie.title)}
+              </h3>
+
+              <p className="text-xs text-gray-500">
+                {movie.duration}h • {movie.imdbVotes}M IMDB •{" "}
+                {formatEnumLabel(movie.language)}
+              </p>
+
+              <span className="inline-block text-xs font-medium text-indigo-600">
+                {formatEnumLabel(movie.genre)}
+              </span>
+            </div>
+          </>
+        )}
       </div>
-
-      <div className="mt-3 space-y-1">
-        <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">
-          {formatEnumLabel(movie.title)}
-        </h3>
-
-        <p className="text-xs text-gray-500">
-          {movie.duration}h • {movie.imdbVotes}M IMDB • {formatEnumLabel(movie.language)}
-        </p>
-
-        <span className="inline-block text-xs font-medium text-indigo-600">
-          {formatEnumLabel(movie.genre)}
-        </span>
-      </div>
-    </div>
+    </Link>
   );
 }

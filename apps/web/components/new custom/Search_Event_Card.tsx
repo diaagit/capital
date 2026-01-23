@@ -17,6 +17,7 @@ const FALLBACK_IMAGE = "https://theposterdb.com/api/assets/9798/view";
 
 function mapEventToMovie(event: BackendEvent): Movie {
   return {
+    id: event.id,
     src:
       typeof event.banner_url === "string" && event.banner_url.length > 0
         ? event.banner_url
