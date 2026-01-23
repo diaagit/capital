@@ -682,15 +682,15 @@ validatorRouter.get("/tickets/:ticketId", validatorMiddleware, async (req, res) 
                 eventSlot: {
                     select: {
                         end_time: true,
-                        location_name: true,
-                        location_url: true,
-                        event_date: true,
                         event: {
                             select: {
                                 status: true,
                                 title: true,
                             },
                         },
+                        event_date: true,
+                        location_name: true,
+                        location_url: true,
                         price: true,
                         start_time: true,
                     },

@@ -4,33 +4,24 @@ import EventSchedule from "@/components/new custom/EventSchedule";
 import Hero from "@/components/new custom/EventHero";
 import LNavbar from "@/components/new custom/LNavbar";
 import EventHero from "@/components/new custom/EventHero";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import RightSidebarEvent from "../new custom/RightSidebarEvent";
+import getBackendUrl from "@/lib/config";
+import axios from "axios";
 
 const Page = ({id}:{id:string}) => {
   const eventId = id;
-  const [selectedSlot, setSelectedSlot] = useState<{
-      slotId: string;
-      dayId: string;
-      date?: string;
-      time?: string;
-    } | null>(null);
-
-  const handleSlotSelect = (slotId: string, dayId: string) => {
-    // In a real app, you would fetch the slot details from your data
-    // For now, we'll set some mock data based on the selection
-    setSelectedSlot({
-      slotId,
-      dayId,
-      date: "March 15, 2025",
-      time: "2:00 PM"
-    });
-  };
-
-  const handleProceedToBook = () => {
-    // Handle booking logic - would typically navigate to checkout
-    console.log("Proceeding to book:", selectedSlot);
-  };
+  const URL = getBackendUrl();
+  const token = localStorage.getItem("token");
+  const [data, setData] = useState();
+  
+  useEffect(()=>{
+    async function getData() {
+      const response = await axios.get(`${URL}/events/${eventId}/slots`,{headers: {Authorization: `Bearer ${token}`}});
+      console.log(response.data);
+    }
+    getData();
+  },[])
 
   return (
     <div className="min-h-screen bg-background text-foreground">

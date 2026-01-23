@@ -416,6 +416,9 @@ eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
         }
 
         const slots = await db.eventSlot.findMany({
+            include: {
+                event: true,
+            },
             orderBy: {
                 start_time: "asc",
             },

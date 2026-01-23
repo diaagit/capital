@@ -1,18 +1,6 @@
 "use client";
-
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { MapPin } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
 import EventScheduleCard from "./EventScheduleCard";
 import LeftSidebarHeader from "./LeftSidebarHeader";
-
-
 
 const EventSchedule = () => {
   return (
