@@ -408,7 +408,7 @@ eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
             eventId,
             ...(location && {
                 location_name: {
-                    contains: String(location),
+                    equals: String(location),
                     mode: "insensitive",
                 },
             }),
@@ -419,7 +419,8 @@ eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
             }),
             ...(event_date && {
                 event_date: {
-                    equals: new Date(String(event_date)),
+                    gte: new Date(`${event_date}T00:00:00.000Z`),
+                    lt: new Date(`${event_date}T23:59:59.999Z`),
                 },
             }),
             ...(minPrice || maxPrice
@@ -439,14 +440,11 @@ eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
         const slots = await db.eventSlot.findMany({
             orderBy: [
                 {
-                    location_name: "asc",
-                }, // group by city/venue //Dont Change without asking Ronak
-                {
                     event_date: "asc",
-                }, // date order
+                },
                 {
                     start_time: "asc",
-                }, // show timings
+                },
             ],
             where: slotWhere,
         });
@@ -462,9 +460,9 @@ eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
             price: Number(slot.price),
 
             raw: {
-                end_time: slot.end_time,
-                event_date: slot.event_date,
-                start_time: slot.start_time,
+                end_time: slot.end_time.toISOString(),
+                event_date: slot.event_date.toISOString(),
+                start_time: slot.start_time.toISOString(),
             },
             startTime: formatTime(slot.start_time),
         }));

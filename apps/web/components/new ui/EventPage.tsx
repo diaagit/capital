@@ -108,7 +108,7 @@ const Page = ({ id }: { id: string }) => {
       <div className="w-full min-h-screen bg-zinc-50 flex justify-center">
         <div className="w-full max-w-7xl flex gap-5 py-10">
           <div className="flex-1 rounded-2xl bg-white p-2 shadow-md border border-neutral-200 min-h-[400px]">
-            <EventSchedule slots={slots} meta={meta} location={location} setLocation={setLocation} />
+            <EventSchedule slots={slots} meta={meta} location={location} setLocation={setLocation} eventId={eventId}/>
           </div>
 
           <div className="w-[450px] rounded-2xl bg-white shadow-md border border-neutral-200 min-h-[400px]">

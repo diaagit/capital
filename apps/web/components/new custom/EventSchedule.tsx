@@ -3,15 +3,17 @@
 import EventScheduleCard from "./EventScheduleCard";
 import LeftSidebarHeader from "./LeftSidebarHeader";
 import { EventSlot, EventSlotsMeta } from "../new ui/EventPage";
+import MusicFestivalBanner from "./MusicFestivalBanner";
 
 interface EventScheduleProps {
   meta: EventSlotsMeta;
   slots: EventSlot[];
   location: string;
   setLocation: (location: string) => void;
+  eventId: string;
 }
 
-const EventSchedule = ({ slots, meta, location, setLocation }: EventScheduleProps) => {
+const EventSchedule = ({ slots, meta, location, setLocation, eventId }: EventScheduleProps) => {
 
   const groupedByLocation = slots.reduce((acc, slot) => {
     if (!acc[slot.location]) acc[slot.location] = [];
@@ -34,10 +36,13 @@ const EventSchedule = ({ slots, meta, location, setLocation }: EventScheduleProp
               key={loc}
               location={loc}
               slots={groupedByLocation[loc]}
+              eventId={eventId}
             />
           ))}
         </div>
+        <MusicFestivalBanner className="mt-16" />
       </div>
+
     </div>
   );
 };

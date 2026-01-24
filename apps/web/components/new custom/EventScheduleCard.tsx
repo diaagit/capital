@@ -9,9 +9,10 @@ import { EventSlot } from "@/components/new ui/EventPage";
 interface EventScheduleProps {
   location: string;
   slots: EventSlot[];
+  eventId: string;
 }
 
-const EventSchedule = ({ location, slots }: EventScheduleProps) => {
+const EventSchedule = ({ location, slots, eventId}: EventScheduleProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   // Group slots by eventDate
@@ -42,7 +43,6 @@ const EventSchedule = ({ location, slots }: EventScheduleProps) => {
 
   return (
     <section className="w-full">
-      {/* SLOTS */}
       <div className="flex flex-col gap-6">
         {dates.map((dateKey) => (
           <SlotCard
@@ -50,6 +50,7 @@ const EventSchedule = ({ location, slots }: EventScheduleProps) => {
             venue={location}
             city={location}
             slots={groupedSlots[dateKey]}
+            eventId={eventId}
           />
         ))}
       </div>

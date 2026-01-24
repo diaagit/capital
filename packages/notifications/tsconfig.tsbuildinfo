@@ -1,1 +1,1 @@
-{"root":["./src/index.ts","./src/services/emailservice.ts","./src/templates/emailtemplate.ts","./src/templates/forgetpasswordtemplate.ts","./src/templates/ticketemailtemplate.ts","./src/utils/otpgenerator.ts"],"version":"5.9.2"}
+{"root":["./src/index.ts","./src/services/emailService.ts","./src/templates/emailTemplate.ts","./src/templates/forgetPasswordTemplate.ts","./src/templates/ticketEmailTemplate.ts","./src/utils/otpGenerator.ts"],"version":"5.9.2"}

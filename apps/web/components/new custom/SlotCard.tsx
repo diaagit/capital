@@ -5,21 +5,18 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, MapPin, Users, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EventSlot } from "@/components/new ui/EventPage";
+import { useRouter } from "next/navigation";
 
 export interface SlotCardProps {
   venue: string;
   city: string;
   slots: EventSlot[];
+  eventId: string;
 }
 
-const SlotCard = ({ venue, city, slots }: SlotCardProps) => {
+const SlotCard = ({ venue, city, slots, eventId }: SlotCardProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-
-  const handleSlotClick = (slot: EventSlot) => {
-    if (slot.capacity <= 0) return;
-    setSelectedSlot(slot.id);
-  };
+  const router = useRouter();
 
   const getAvailabilityStyles = (capacity: number) => {
     if (capacity <= 0) return "bg-muted text-muted-foreground border-border";
@@ -33,7 +30,6 @@ const SlotCard = ({ venue, city, slots }: SlotCardProps) => {
     return `${capacity} left`;
   };
 
-  // Parse date safely
   const [dayOfWeek, datePart] = slots[0].eventDate.split(", ");
   const [dateNum, monthName] = datePart.split(" ").slice(0, 2);
 
@@ -86,16 +82,13 @@ const SlotCard = ({ venue, city, slots }: SlotCardProps) => {
             {slots.map(slot => (
               <button
                 key={slot.id}
-                onClick={() => handleSlotClick(slot)}
+                onClick={() => router.push(`/event/${eventId}/book/${slot.id}`)}
                 disabled={slot.capacity <= 0}
                 className={cn(
                   "relative h-[110px] px-4 py-3 rounded-xl border text-left transition-all flex flex-col justify-between overflow-hidden",
                   slot.capacity <= 0
                     ? "opacity-60 cursor-not-allowed"
                     : "hover:border-primary hover:shadow-sm",
-                  selectedSlot === slot.id
-                    ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-                    : "border-gray-200"
                 )}
               >
                 <div className="flex items-center gap-2 text-sm font-semibold">
@@ -118,10 +111,6 @@ const SlotCard = ({ venue, city, slots }: SlotCardProps) => {
                     {getAvailabilityLabel(slot.capacity)}
                   </div>
                 </div>
-
-                {selectedSlot === slot.id && (
-                  <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary" />
-                )}
               </button>
             ))}
           </div>
