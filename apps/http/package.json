@@ -1,5 +1,5 @@
 {
-    "author": "",
+    "author": "ronak",
     "dependencies": {
         "@repo/cache": "*",
         "@repo/db": "*",

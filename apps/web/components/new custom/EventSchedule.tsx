@@ -1,38 +1,41 @@
 "use client";
+
 import EventScheduleCard from "./EventScheduleCard";
 import LeftSidebarHeader from "./LeftSidebarHeader";
+import { EventSlot, EventSlotsMeta } from "../new ui/EventPage";
 
-const EventSchedule = () => {
+interface EventScheduleProps {
+  meta: EventSlotsMeta;
+  slots: EventSlot[];
+  location: string;
+  setLocation: (location: string) => void;
+}
+
+const EventSchedule = ({ slots, meta, location, setLocation }: EventScheduleProps) => {
+
+  const groupedByLocation = slots.reduce((acc, slot) => {
+    if (!acc[slot.location]) acc[slot.location] = [];
+    acc[slot.location].push(slot);
+    return acc;
+  }, {} as Record<string, EventSlot[]>);
+
   return (
     <div className="w-full h-[calc(100vh-80px)] bg-white flex flex-col">
-
-      <div>
-        <LeftSidebarHeader />
-      </div>
+      <LeftSidebarHeader
+        locations={["All", ...meta.locations]}
+        selectedLocation={location}
+        onLocationChange={setLocation}
+      />
 
       <div className="flex-1 overflow-y-auto no-scrollbar px-6 py-6">
         <div className="flex flex-col gap-4">
-          <EventScheduleCard />
-          <EventScheduleCard />
-          <EventScheduleCard />
-          <EventScheduleCard />
-        </div>
-
-        <div
-          style={{
-            backgroundImage: "url('/assets/musicbg.png')",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-          className="rounded-2xl my-16 h-[260px] flex flex-col items-center justify-center gap-3 text-center"
-        >
-          <div className="text-zinc-300 text-sm">In Las Vegas</div>
-          <div className="text-white font-bold text-4xl lg:text-5xl">
-            MUSIC FESTIVAL
-          </div>
-          <div className="text-zinc-300 text-sm">
-            MEHDI LORESTANI WITH DJ HAMED
-          </div>
+          {Object.keys(groupedByLocation).map((loc) => (
+            <EventScheduleCard
+              key={loc}
+              location={loc}
+              slots={groupedByLocation[loc]}
+            />
+          ))}
         </div>
       </div>
     </div>
