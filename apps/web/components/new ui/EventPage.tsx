@@ -1,10 +1,9 @@
 "use client"
 
 import EventSchedule from "@/components/new custom/EventSchedule";
-import Hero from "@/components/new custom/EventHero";
 import LNavbar from "@/components/new custom/LNavbar";
 import EventHero from "@/components/new custom/EventHero";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import RightSidebarEvent from "../new custom/RightSidebarEvent";
 import getBackendUrl from "@/lib/config";
 import axios from "axios";
@@ -15,25 +14,22 @@ const Page = ({id}:{id:string}) => {
   const token = localStorage.getItem("token");
   const [data, setData] = useState();
   
-  useEffect(()=>{
+  useMemo(()=>{
     async function getData() {
       const response = await axios.get(`${URL}/events/${eventId}/slots`,{headers: {Authorization: `Bearer ${token}`}});
-      console.log(response.data);
+      setData(response.data);
     }
     getData();
   },[])
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Navbar */}
       <div className="sticky top-0 z-50 bg-card border-b">
         <LNavbar type="search" />
       </div>
 
-      {/* Hero Section */}
       <EventHero />
 
-      {/* Main Content */}
         <div className="w-full min-h-screen bg-zinc-50 flex justify-center">
           <div className="w-full max-w-7xl flex gap-5 py-10">
             

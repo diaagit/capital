@@ -8,6 +8,7 @@ import db, {
 } from "@repo/db";
 import { EventSlotType, EventType } from "@repo/types";
 import express, { type Request, type Response, type Router } from "express";
+import { formatDate, formatTime } from "../helper/date";
 import { deleteCache } from "../schedule/eventCache";
 
 const eventRouter: Router = express.Router();
@@ -372,16 +373,26 @@ eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
 eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
     try {
         const { eventId } = req.params;
-        const { location, capacity, event_date, price } = req.query;
+        const { location, capacity, event_date, minPrice, maxPrice } = req.query;
 
-        const cachedKey = `eventSlots:${eventId}:${JSON.stringify(req.query)}`;
-        const cached = await redisCache.get(cachedKey);
-
+        const cacheKey = `eventSlots:${eventId}:${JSON.stringify(req.query)}`;
+        const cached = await redisCache.get(cacheKey);
         if (cached) {
             return res.status(200).json(JSON.parse(cached.toString()));
         }
 
         const event = await db.event.findUnique({
+            select: {
+                banner_url: true,
+                category: true,
+                description: true,
+                genre: true,
+                hero_image_url: true,
+                id: true,
+                is_online: true,
+                language: true,
+                title: true,
+            },
             where: {
                 id: eventId,
             },
@@ -393,47 +404,89 @@ eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
             });
         }
 
-        const filter: Record<string, any> = {
+        const slotWhere: Prisma.EventSlotWhereInput = {
             eventId,
+            ...(location && {
+                location_name: {
+                    contains: String(location),
+                    mode: "insensitive",
+                },
+            }),
+            ...(capacity && {
+                capacity: {
+                    gte: Number(capacity),
+                },
+            }),
+            ...(event_date && {
+                event_date: {
+                    equals: new Date(String(event_date)),
+                },
+            }),
+            ...(minPrice || maxPrice
+                ? {
+                      price: {
+                          ...(minPrice && {
+                              gte: Number(minPrice),
+                          }),
+                          ...(maxPrice && {
+                              lte: Number(maxPrice),
+                          }),
+                      },
+                  }
+                : {}),
         };
-
-        if (typeof location === "string" && location.trim() !== "") {
-            filter.location_name = location.trim();
-        }
-
-        const capacityNum = capacity ? Number(capacity) : undefined;
-        if (capacityNum !== undefined && !Number.isNaN(capacityNum)) {
-            filter.capacity = capacityNum;
-        }
-
-        const priceNum = price ? Number(price) : undefined;
-        if (priceNum !== undefined && !Number.isNaN(priceNum)) {
-            filter.price = priceNum;
-        }
-
-        if (typeof event_date === "string" && event_date.trim() !== "") {
-            filter.event_date = event_date.trim();
-        }
 
         const slots = await db.eventSlot.findMany({
-            include: {
-                event: true,
-            },
-            orderBy: {
-                start_time: "asc",
-            },
-            where: filter,
+            orderBy: [
+                {
+                    location_name: "asc",
+                }, // group by city/venue //Dont Change without asking Ronak
+                {
+                    event_date: "asc",
+                }, // date order
+                {
+                    start_time: "asc",
+                }, // show timings
+            ],
+            where: slotWhere,
         });
+
+        const formattedSlots = slots.map((slot) => ({
+            capacity: slot.capacity,
+            endTime: formatTime(slot.end_time),
+
+            eventDate: formatDate(slot.event_date),
+            id: slot.id,
+            location: slot.location_name,
+            locationUrl: slot.location_url,
+            price: Number(slot.price),
+
+            raw: {
+                end_time: slot.end_time,
+                event_date: slot.event_date,
+                start_time: slot.start_time,
+            },
+            startTime: formatTime(slot.start_time),
+        }));
 
         const response = {
-            slots,
+            event,
+            meta: {
+                locations: [
+                    ...new Set(slots.map((s) => s.location_name)),
+                ],
+                totalSlots: formattedSlots.length,
+            },
+            slots: formattedSlots,
         };
 
-        await redisCache.set(cachedKey, JSON.stringify(response), {
+        await redisCache.set(cacheKey, JSON.stringify(response), {
             EX: 30,
         });
+
         return res.status(200).json(response);
-    } catch (_error) {
+    } catch (error) {
+        console.error("EVENT SLOT ERROR:", error);
         return res.status(500).json({
             message: "Internal server error",
         });
