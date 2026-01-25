@@ -93,3 +93,5 @@ app.get("/metrics", async (_req: Request, res: Response) => {
         });
     }
 });
+
+app.listen(port, () => {});
