@@ -302,7 +302,6 @@ export async function generateTicketPDF(
     return pdfEndPromise;
 }
 
-// =================== Send Ticket Email ===================
 export async function sendTicketEmail(
     ticket: TicketInfo & {
         attendeeName: string;

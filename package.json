@@ -36,6 +36,7 @@
         "lint": "turbo run lint",
         "migrate:db": "cd packages/db/prisma && npx prisma migrate dev",
         "prepare": "husky",
+        "push:db": "cd packages/db/prisma && npx prisma db push",
         "reset:db": "cd packages/db/prisma && npm run db:reset",
         "seed:db": "cd packages/db/prisma && npx prisma db seed",
         "start:backend": "cd apps/http && npm run dev",

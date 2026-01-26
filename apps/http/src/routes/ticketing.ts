@@ -1,5 +1,6 @@
-import db, { type Prisma } from "@repo/db";
+import db from "@repo/db";
 import { createSignedTicket } from "@repo/keygen";
+import { AlphabeticOTP } from "@repo/notifications";
 import { type TicketPurchaseResponseType, TicketPurchaseSchema } from "@repo/types";
 import { createClient } from "@supabase/supabase-js";
 import Decimal from "decimal.js";
@@ -30,44 +31,30 @@ ticketRouter.post(
     ) => {
         try {
             const userId = req.userId;
+
             const parsedData = TicketPurchaseSchema.safeParse(req.body);
             if (!parsedData.success) {
                 return res.status(400).json({
                     errors: parsedData.error.issues,
-                    message: "userId, eventSlotId, quantity, and cardNumber are required",
+                    message: "eventSlotId, quantity, cardNumber, token are required",
                 });
             }
+
             const { token, eventSlotId, quantity, cardNumber } = parsedData.data;
 
-            if (!userId || !eventSlotId || !quantity || !cardNumber) {
-                return res.status(400).json({
-                    message: "userId, eventSlotId, quantity, and cardNumber are required",
-                });
-            }
-
-            const [user, eventDetail, eventSlotDetail, CheckCard] = await Promise.all([
+            const [user, eventSlot, card] = await Promise.all([
                 db.user.findUnique({
                     where: {
                         id: userId,
                     },
                 }),
-                await db.event.findFirst({
-                    include: {
-                        organiser: true,
-                        slots: true,
-                    },
-                    where: {
-                        slots: {
-                            some: {
-                                id: eventSlotId,
-                            },
-                        },
-                    },
-                }),
                 db.eventSlot.findUnique({
                     include: {
-                        event: true,
-                        tickets: true,
+                        event: {
+                            include: {
+                                organiser: true,
+                            },
+                        },
                     },
                     where: {
                         id: eventSlotId,
@@ -82,32 +69,138 @@ ticketRouter.post(
 
             if (
                 !user ||
-                !eventSlotDetail ||
-                eventDetail.status === "cancelled" ||
-                !CheckCard ||
-                CheckCard.userId !== userId
+                !eventSlot ||
+                !eventSlot.event ||
+                eventSlot.event.status === "cancelled" ||
+                !card ||
+                card.userId !== userId
             ) {
                 return res.status(404).json({
-                    message: "User not found or Eventslot is invalid",
+                    message: "Invalid purchase request",
                 });
             }
 
-            if (eventSlotDetail.capacity < eventSlotDetail.tickets.length + quantity) {
-                return res.status(400).json({
-                    message: "Not enough capacity in this slot",
+            const totalAmount = new Decimal(eventSlot.price).mul(quantity);
+
+            const purchasedTicket = await db.$transaction(async (tx) => {
+                if (eventSlot.capacity < quantity) {
+                    throw new Error("Not enough capacity");
+                }
+
+                if (card.balance.lt(totalAmount)) {
+                    throw new Error("Insufficient card balance");
+                }
+
+                const ticket = await tx.ticket.create({
+                    data: {
+                        eventSlotId,
+                        qr_code_data: "",
+                        signature: "",
+                        userId,
+                    },
                 });
-            }
-            const ticketPrice = new Decimal(eventSlotDetail.price);
-            const totalAmount = ticketPrice.mul(quantity);
+                const CreateWalletToken = AlphabeticOTP(6);
+                await tx.transaction.create({
+                    data: {
+                        amount: totalAmount,
+                        bank_name: card.bank_name,
+                        cardId: card.id,
+                        description: `Ticket purchase for ${eventSlot.event.title}`,
+                        ticket_count: quantity,
+                        ticketId: ticket.id,
+                        token,
+                        type: "PURCHASE",
+                        userId,
+                    },
+                });
+
+                await tx.eventSlot.update({
+                    data: {
+                        capacity: {
+                            decrement: quantity,
+                        },
+                    },
+                    where: {
+                        id: eventSlotId,
+                    },
+                });
+
+                await tx.card.update({
+                    data: {
+                        balance: {
+                            decrement: totalAmount,
+                        },
+                    },
+                    where: {
+                        id: card.id,
+                    },
+                });
+
+                const organiserWallet =
+                    (await tx.wallet.findUnique({
+                        where: {
+                            userId: eventSlot.event.organiserId,
+                        },
+                    })) ??
+                    (await tx.wallet.create({
+                        data: {
+                            balance: 0,
+                            currency: "INR",
+                            userId: eventSlot.event.organiserId,
+                        },
+                    }));
+
+                await tx.wallet.update({
+                    data: {
+                        balance: {
+                            increment: totalAmount,
+                        },
+                    },
+                    where: {
+                        id: organiserWallet.id,
+                    },
+                });
+
+                await tx.transaction.create({
+                    data: {
+                        amount: totalAmount,
+                        card: {
+                            connect: {
+                                id: card.id,
+                            },
+                        },
+                        description: `Ticket sold for ${eventSlot.event.title}`,
+                        ticket: {
+                            connect: {
+                                id: ticket.id,
+                            },
+                        },
+                        token: CreateWalletToken,
+                        type: "PAYOUT",
+                        user: {
+                            connect: {
+                                id: eventSlot.event.organiserId,
+                            },
+                        },
+                        wallet: {
+                            connect: {
+                                id: organiserWallet.id,
+                            },
+                        },
+                    },
+                });
+
+                return ticket;
+            });
 
             const ticketPayload = {
                 email: user.email,
-                eventEndTime: new Date(eventSlotDetail.end_time).toISOString(),
-                eventId: eventDetail.id,
-                eventLocation: eventSlotDetail.location_name,
-                eventSlotId: eventSlotDetail.id,
-                eventStartTime: new Date(eventSlotDetail.start_time).toISOString(),
-                eventTitle: eventDetail.title,
+                eventEndTime: new Date(eventSlot.end_time).toISOString(),
+                eventId: eventSlot.event.id,
+                eventLocation: eventSlot.location_name,
+                eventSlotId: eventSlot.id,
+                eventStartTime: new Date(eventSlot.start_time).toISOString(),
+                eventTitle: eventSlot.event.title,
                 firstName: user.first_name,
                 issuedAt: new Date().toISOString(),
                 lastName: user.last_name,
@@ -118,81 +211,56 @@ ticketRouter.post(
             };
 
             const decryptedPrivateKey = decrypt(user.encrypted_private_key);
-            const signedTicketPayload = await createSignedTicket(
-                ticketPayload,
-                decryptedPrivateKey,
-            );
-            const qrData = Buffer.from(JSON.stringify(signedTicketPayload)).toString("base64");
+            const signedPayload = await createSignedTicket(ticketPayload, decryptedPrivateKey);
+            const qrData = Buffer.from(JSON.stringify(signedPayload)).toString("base64");
             const qrBuffer = await QRCode.toBuffer(qrData);
 
             const fileName = `tickets/${userId}-${Date.now()}.png`;
-            const { error: uploadError } = await supabase.storage
-                .from("tickets")
-                .upload(fileName, qrBuffer, {
-                    contentType: "image/png",
-                });
-            if (uploadError) throw uploadError;
-
-            const { data: publicUrlData } = supabase.storage.from("tickets").getPublicUrl(fileName);
-            const qrCodeUrl = publicUrlData.publicUrl;
-
-            const _purchasedTicket = await db.$transaction(async (tx: Prisma.TransactionClient) => {
-                const TicketCreate = await tx.ticket.create({
-                    data: {
-                        eventSlotId: eventSlotDetail.id,
-                        qr_code_data: qrCodeUrl,
-                        signature: JSON.stringify(signedTicketPayload),
-                        userId,
-                    },
-                });
-
-                await tx.transaction.create({
-                    data: {
-                        amount: totalAmount.toNumber(),
-                        bank_name: CheckCard.bank_name,
-                        cardId: CheckCard.id,
-                        description: `Tickets for ${user.email} was taken place`,
-                        ticket_count: quantity,
-                        ticketId: TicketCreate.id,
-                        token,
-                        type: "PURCHASE",
-                        userId,
-                    },
-                });
+            await supabase.storage.from("tickets").upload(fileName, qrBuffer, {
+                contentType: "image/png",
             });
 
-            // added ticketId of purchased in email as purchasedTicketId = "TXN"+token;
-            // During Purchase of ticket if passing token as : TXN<ticketId> then keep just token insteal of "TXN"+token in email else it gets repeated
+            const { data } = supabase.storage.from("tickets").getPublicUrl(fileName);
+
+            await db.ticket.update({
+                data: {
+                    qr_code_data: data.publicUrl,
+                    signature: JSON.stringify(signedPayload),
+                },
+                where: {
+                    id: purchasedTicket.id,
+                },
+            });
+
             await sendTicketEmail({
-                attendeeName: `${user.first_name?.trim()} ${user.last_name?.trim()}`,
+                attendeeName: `${user.first_name} ${user.last_name}`,
                 baseAmount: totalAmount.toNumber(),
                 bookingDateTime: new Date().toISOString(),
                 convenienceFee: 0,
                 email: user.email,
-                eventDate: new Date(eventSlotDetail.start_time).toISOString(),
-                eventLocation: eventSlotDetail.location_name,
-                eventTime: `${eventSlotDetail.start_time} - ${eventSlotDetail.end_time}`,
-                eventTitle: eventDetail.title,
+                eventDate: eventSlot.start_time.toISOString(),
+                eventLocation: eventSlot.location_name,
+                eventTime: `${eventSlot.start_time} - ${eventSlot.end_time}`,
+                eventTitle: eventSlot.event.title,
                 gstAmount: 0,
                 gstRate: 0,
-                organiser: `${eventDetail.organiser.first_name}`,
+                organiser: eventSlot.event.organiser.first_name,
                 paymentType: "Card",
-                qrCodeUrl,
+                qrCodeUrl: data.publicUrl,
                 quantity,
                 seats: `General Admission x${quantity}`,
                 totalPaid: totalAmount.toNumber(),
                 transactionId: `TXN${token}`,
             });
 
-            res.status(200).json({
+            return res.status(200).json({
                 message: "Tickets purchased successfully",
-                ticketURL: qrCodeUrl,
+                ticketURL: data.publicUrl,
             });
-        } catch (error) {
-            console.error("Internal error record", error);
-            return res.status(500).json({
-                error: "Internal error occured",
-                message: "Internal error occured",
+        } catch (error: any) {
+            console.error("Purchase error:", error);
+            return res.status(400).json({
+                message: error.message || "Purchase failed",
             });
         }
     },
