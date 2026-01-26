@@ -9,6 +9,7 @@ import db, {
 import { EventSlotType, EventType } from "@repo/types";
 import express, { type Request, type Response, type Router } from "express";
 import { formatDate, formatTime } from "../helper/date";
+import userMiddleware from "../middleware";
 import { deleteCache } from "../schedule/eventCache";
 
 const eventRouter: Router = express.Router();
@@ -485,6 +486,64 @@ eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
         return res.status(200).json(response);
     } catch (error) {
         console.error("EVENT SLOT ERROR:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+});
+
+eventRouter.get("/:eventId/:slotId", userMiddleware, async (req: Request, res: Response) => {
+    try {
+        const user = req.userId;
+        if (!user) {
+            return res.status(403).json({
+                message: "Unauthorized user tried to access service",
+            });
+        }
+        const { eventId, slotId } = req.params;
+        if (!eventId || !slotId) {
+            return res.status(404).json({
+                message: `EventId or SlotID was not provided`,
+            });
+        }
+        const eventFinder = await db.event.findUnique({
+            where: {
+                id: eventId,
+                slots: {
+                    some: {
+                        id: slotId,
+                    },
+                },
+            },
+        });
+
+        if (!eventFinder) {
+            return res.status(404).json({
+                message: "Invalid EventId or SlotId was provided",
+            });
+        }
+
+        const findSlot = await db.eventSlot.findUnique({
+            include: {
+                event: true,
+            },
+            where: {
+                id: slotId,
+            },
+        });
+
+        if (!findSlot) {
+            return res.status(404).json({
+                message: "Invalid slotId was provided",
+            });
+        }
+
+        return res.status(200).json({
+            message: "Data was fetched successfully",
+            slot: findSlot,
+        });
+    } catch (error) {
+        console.error("EVENT SLOT Couldnt be found ERROR:", error);
         return res.status(500).json({
             message: "Internal server error",
         });

@@ -1,10 +1,46 @@
 "use client"
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin, Clock, Users, Ticket, CreditCard, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import axios from "axios";
+import getBackendUrl from "@/lib/config";
+
+interface EventResponse {
+  id: string;
+  organiserId: string;
+  title: string;
+  description: string;
+  banner_url: string;
+  hero_image_url: string;
+  status: string;
+  category: string;
+  genre: string;
+  language: string;
+  is_online: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface SlotResponse {
+  id: string;
+  eventId: string;
+  event_date: string;
+  start_time: string;
+  end_time: string;
+  location_name: string;
+  location_url: string;
+  capacity: number;
+  price: string;
+  event: EventResponse[]
+}
+
+interface BackendRespone {
+  message: string;
+  slot: any
+}
 
 interface TicketTier {
   id: string;
@@ -43,21 +79,40 @@ interface BookingSidebarProps {
   selectedTime?: string;
   venue?: string;
   onProceedToBook?: () => void;
+  eventId: string;
+  slotId: string;
 }
 
 const BookingSidebar = ({
   selectedDate,
   selectedTime,
   venue = "Downtown Arena",
-  onProceedToBook
+  onProceedToBook,
+  eventId,
+  slotId,
 }: BookingSidebarProps) => {
   const [selectedTier, setSelectedTier] = useState<string>("standard");
   const [quantity, setQuantity] = useState(1);
-
+  const [event, setEvent] = useState();
   const currentTier = ticketTiers.find(t => t.id === selectedTier);
   const subtotal = (currentTier?.price || 0) * quantity;
   const serviceFee = Math.round(subtotal * 0.05);
   const total = subtotal + serviceFee;
+  
+  useEffect(() => {
+    const URL = getBackendUrl();
+    const token = localStorage.getItem("token");
+
+    async function getEvent() {
+      const res = await axios.get<BackendRespone>(`${URL}/events/${eventId}/${slotId}`,{headers:{
+        Authorization: `Bearer ${token}`
+      }})
+      const data = res.data.slot
+      setEvent(data);
+    }
+
+    getEvent();
+  },[eventId, slotId])
 
   return (
     <div className="h-full bg-card rounded-xl border shadow-lg overflow-hidden flex flex-col">
@@ -73,7 +128,6 @@ const BookingSidebar = ({
       </div>
 
       <div className="p-5 space-y-5">
-        {/* Selected Show Info */}
         <div className="space-y-3 text-sm">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2 text-muted-foreground">
@@ -106,7 +160,6 @@ const BookingSidebar = ({
 
         <Separator />
 
-        {/* Ticket Tiers */}
         <div className="space-y-3">
           <label className="text-sm font-medium text-card-foreground">Select Ticket Type</label>
           <div className="space-y-2">
@@ -133,7 +186,6 @@ const BookingSidebar = ({
           </div>
         </div>
 
-        {/* Quantity */}
         <div className="space-y-3">
           <label className="text-sm font-medium text-card-foreground">Number of Tickets</label>
           <div className="flex items-center gap-3">
@@ -163,7 +215,6 @@ const BookingSidebar = ({
 
         <Separator />
 
-        {/* Price Breakdown */}
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">
@@ -181,8 +232,6 @@ const BookingSidebar = ({
             <span className="text-primary">₹{total}</span>
           </div>
         </div>
-
-        {/* CTA Button */}
         <Button
           className="w-full"
           size="lg"
@@ -192,7 +241,6 @@ const BookingSidebar = ({
           Proceed to Book
         </Button>
 
-        {/* Trust Badges */}
         <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <ShieldCheck className="w-4 h-4" />
           <span>Secure checkout • Instant confirmation</span>
