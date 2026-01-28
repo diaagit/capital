@@ -18,6 +18,7 @@ import { Eye, EyeOff, Mail, Lock, User, ArrowUpRightIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import getBackendUrl from "@/lib/config";
+import { toast } from "sonner";
 
 interface AuthProps {
   type: "signup" | "signin";
@@ -74,11 +75,12 @@ export default function AuthCard({ type }: AuthProps) {
         { firstName, lastName, email, password, token }
       );
       
-        localStorage.setItem("token", result.data.token);
-        router.push("/verify");
-      
+      localStorage.setItem("token", result.data.token);
+      toast.success("You have receieved an OTP to verify your email");
+      router.push("/verify");
     } catch (error) {
       console.log(error);
+      toast.error("Error took place:",error);
     }
   };
 
@@ -90,9 +92,11 @@ export default function AuthCard({ type }: AuthProps) {
         { firstName, lastName, email, password, token }
       );
       localStorage.setItem("token", result.data.token);
+      toast.success("You have successfully logged-In");
       router.push("/");
     } catch (error) {
       console.log(error);
+      toast.error("Error took place:",error);
     }
   };
 

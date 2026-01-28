@@ -13,6 +13,7 @@ import { CircleArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import axios from "axios";
+import { toast } from "sonner";
 
 function getBackendUrl() {
   return process.env.NEXT_PUBLIC_BACKEND_URL ?? "";
@@ -42,10 +43,12 @@ export default function Page() {
         if(response.status === 200){
             //localStorage.removeItem("token");
             localStorage.setItem("token", response.data.token);
+            toast.success("You are successfully verified with our services");
             router.push("/");
         }
     } catch (error) {
         console.log(error)
+        toast.error("Error took place:",error);
     }
   }
 

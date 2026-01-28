@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import type React from "react";
 import { capitalConfig } from "@/lib/capitalConfig";
 import Footer from "@/components/new custom/Footer";
+import { Toaster } from "sonner";
 // import LNavbar from "@/components/new custom/LNavbar";
 
 
@@ -85,6 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             >
                 {/* <LNavbar/> */}
                 <main className="min-h-screen">{children}</main>
+                <Toaster position="top-center" expand={false} richColors />
                 <Footer/>
             </body>
         </html>

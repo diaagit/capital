@@ -585,20 +585,34 @@ userRouter.get("/me", userMiddleware, async (req: Request, res: Response) => {
         const result = await db.user.findUnique({
             where: {
                 id: userId,
+                is_verified: true,
             },
         });
-        let decryptPrivateKey: string | undefined;
-        if (typeof result?.encrypted_private_key === "string") {
-            decryptPrivateKey = decrypt(result.encrypted_private_key);
+
+        if (!result) {
+            return res.status(404).json({
+                message: "Invalid UserId was provided",
+            });
+        }
+
+        let _decryptPrivateKey: string | undefined;
+        if (typeof result.encrypted_private_key === "string") {
+            _decryptPrivateKey = decrypt(result.encrypted_private_key);
         }
         return res.status(200).json({
-            email: result?.email,
-            firstName: result?.first_name,
-            lastName: result?.last_name,
+            data: {
+                city: result.city,
+                date: result.DOB,
+                email: result.email,
+                firstName: result.first_name,
+                lastName: result.last_name,
+                //privateKey: decryptPrivateKey,
+                profilePic: result.profile_image_url,
+                publicKey: result.public_key,
+                state: result.state,
+                zip_code: result.zip_code,
+            },
             message: "User was successfully retrived",
-            privateKey: decryptPrivateKey,
-            proficPic: result?.profile_image_url,
-            publicKey: result?.public_key,
         });
     } catch (_error) {
         return res.status(500).json({
@@ -615,7 +629,7 @@ userRouter.get("/me", userMiddleware, async (req: Request, res: Response) => {
 userRouter.put("/me", userMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
-        const { firstName, lastName, profileImageUrl } = req.body;
+        const { firstName, lastName, profileImageUrl, zipCode, state, city, date } = req.body;
 
         if (!firstName && !lastName && !profileImageUrl) {
             return res.status(400).json({
@@ -634,6 +648,18 @@ userRouter.put("/me", userMiddleware, async (req: Request, res: Response) => {
                 ...(profileImageUrl && {
                     profile_image_url: profileImageUrl,
                 }),
+                ...(zipCode && {
+                    zip_code: zipCode,
+                }),
+                ...(state && {
+                    state: state,
+                }),
+                ...(city && {
+                    city: city,
+                }),
+                ...(date && {
+                    DOB: date,
+                }),
             },
             where: {
                 id: userId,
@@ -644,11 +670,15 @@ userRouter.put("/me", userMiddleware, async (req: Request, res: Response) => {
         return res.status(200).json({
             message: "User updated successfully",
             user: {
+                city: updatedUser.city,
+                date: updatedUser.DOB,
                 email: updatedUser.email,
                 firstName: updatedUser.first_name,
                 id: updatedUser.id,
                 lastName: updatedUser.last_name,
                 profileImageUrl: updatedUser.profile_image_url,
+                state: updatedUser.state,
+                zipCode: updatedUser.zip_code,
             },
         });
     } catch (_error) {

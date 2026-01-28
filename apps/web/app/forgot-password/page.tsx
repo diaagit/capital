@@ -10,6 +10,7 @@ import StepEmail from "@/components/new custom/ResetP_StepEmail";
 import StepIndicator from "@/components/new custom/ResetP_StepIndicator";
 import { useRouter } from "next/navigation";
 import getBackendUrl from "@/lib/config";
+import { toast } from "sonner";
 
 const stepImageMap: Record<number, string> = {
   1: "/assets/forget-password/forgetPassword.png",
@@ -44,6 +45,7 @@ export default function Page() {
     const URL = getBackendUrl();
     const response = await axios.post(`${URL}/user/reset-password`, { email, otp, password });
     if(response.status === 200){
+        toast.success("Your password was successfully reset");
         router.push("/login");
     }
   };
