@@ -54,12 +54,10 @@ const LNavbar = ({ type }: LNavbarType) => {
   const searchRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = useCallback(async() => {
+    router.push("/login")
     const URL = getBackendUrl();
     const response = await axios.get(`${URL}/user/logout`,{headers:{Authorization:`Bearer ${localStorage.getItem("token")}`}})
-    if(response.status === 200){
-      localStorage.removeItem("token");
-      router.push("login")
-    }
+    localStorage.removeItem("token");
   }, [])
 
   useEffect(() => {

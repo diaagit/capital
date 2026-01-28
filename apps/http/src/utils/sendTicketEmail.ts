@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import fetch from "node-fetch";
 import PDFDocument from "pdfkit";
+import puppeteer from "puppeteer";
 import { Resend } from "resend";
 
 dotenv.config();
@@ -302,6 +303,321 @@ export async function generateTicketPDF(
     return pdfEndPromise;
 }
 
+export function GeneratePDF(d: any): string {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Invoice & Ticket</title>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+    background: #f8fafc;
+    color: #0f172a;
+    margin: 0;
+  }
+
+  .page {
+    padding: 48px 40px;
+    min-height: 100vh;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+
+  .card {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 32px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+  }
+
+  .muted {
+    color: #64748b;
+    font-size: 13px;
+  }
+
+  .divider {
+    height: 1px;
+    background: #e5e7eb;
+    margin: 24px 0;
+  }
+
+  /* ---------- HEADER ---------- */
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .brand {
+    font-size: 28px;
+    font-weight: 900;
+    color: #e11d48;
+    letter-spacing: -0.02em;
+  }
+
+  .header-right p {
+    margin: 2px 0;
+    text-align: right;
+  }
+
+  /* ---------- EVENT META ---------- */
+
+  .event-meta p {
+    margin: 6px 0;
+    font-size: 15px;
+  }
+
+  /* ---------- TABLE ---------- */
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 24px;
+  }
+
+  th {
+    text-align: left;
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 600;
+    padding-bottom: 10px;
+  }
+
+  td {
+    padding: 14px 0;
+    font-size: 15px;
+  }
+
+  tr + tr td {
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .right {
+    text-align: right;
+  }
+
+  .total-row td {
+    font-size: 18px;
+    font-weight: 800;
+    padding-top: 20px;
+  }
+
+  /* ---------- FOOTER ---------- */
+
+  .invoice-footer {
+    text-align: center;
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 32px;
+  }
+
+  /* ---------- TICKET ---------- */
+
+  .ticket {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 18px;
+    padding: 36px;
+    border: 1px solid #e5e7eb;
+  }
+
+  .ticket-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .event-title {
+    font-size: 30px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+  }
+
+  .ticket-meta {
+    margin-top: 6px;
+    font-size: 15px;
+    color: #475569;
+  }
+
+  .ticket-body {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 40px;
+  }
+
+  .ticket-info p {
+    margin: 10px 0;
+    font-size: 16px;
+  }
+
+  .qr {
+    padding: 16px;
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+  }
+
+  .qr img {
+    width: 220px;
+    height: 220px;
+  }
+
+  .ticket-footer {
+    margin-top: 32px;
+    text-align: center;
+    font-size: 13px;
+    color: #64748b;
+  }
+</style>
+</head>
+
+<body>
+
+<!-- ================= PAGE 1 : INVOICE ================= -->
+<div class="page">
+  <div class="card">
+
+    <div class="header">
+      <div>
+        <div class="brand">Capital/div>
+        <p class="muted">Tax Invoice</p>
+      </div>
+
+      <div class="header-right">
+        <p class="muted">Transaction ID</p>
+        <p><strong>${d.transactionId}</strong></p>
+        <p class="muted">Booked on</p>
+        <p>${d.bookingDateTime}</p>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <p><strong>Billed To</strong></p>
+    <p>${d.attendeeName}</p>
+    <p class="muted">${d.email}</p>
+    <p class="muted">Payment Method: ${d.paymentType}</p>
+
+    <div class="divider"></div>
+
+    <div class="event-meta">
+      <p><strong>Event:</strong> ${d.eventTitle}</p>
+      <p><strong>Date & Time:</strong> ${d.eventDate} • ${d.eventTime}</p>
+      <p><strong>Venue:</strong> ${d.eventLocation}</p>
+      <p><strong>Organiser:</strong> ${d.organiser ?? "-"}</p>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="right">Qty</th>
+          <th class="right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Event Ticket</td>
+          <td class="right">${d.quantity}</td>
+          <td class="right">₹${d.baseAmount}</td>
+        </tr>
+        <tr>
+          <td>Convenience Fee</td>
+          <td class="right">—</td>
+          <td class="right">₹${d.convenienceFee}</td>
+        </tr>
+        <tr>
+          <td>GST (${d.gstRate}%)</td>
+          <td class="right">—</td>
+          <td class="right">₹${d.gstAmount}</td>
+        </tr>
+        <tr class="total-row">
+          <td>Total Paid</td>
+          <td></td>
+          <td class="right">₹${d.totalPaid}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="invoice-footer">
+      This is a system generated invoice and does not require a signature.
+    </div>
+
+  </div>
+</div>
+
+<!-- ================= PAGE 2 : TICKET ================= -->
+<div class="page page-break">
+  <div class="ticket">
+
+    <div class="ticket-header">
+      <div>
+        <div class="event-title">${d.eventTitle}</div>
+        <div class="ticket-meta">${d.eventDate} • ${d.eventTime}</div>
+        <div class="ticket-meta">${d.eventLocation}</div>
+      </div>
+
+      <div class="qr">
+        <img src="${d.qrCodeUrl}" />
+      </div>
+    </div>
+
+    <div class="ticket-body">
+      <div class="ticket-info">
+        <p><strong>Name:</strong> ${d.attendeeName}</p>
+        <p><strong>Seats:</strong> ${d.seats}</p>
+        <p><strong>Quantity:</strong> ${d.quantity}</p>
+        <p><strong>Transaction ID:</strong> ${d.transactionId}</p>
+      </div>
+    </div>
+
+    <div class="ticket-footer">
+      Please carry a valid ID proof • QR code required for entry
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
+`;
+}
+
+export async function generatePDFwithPupeet(data: any): Promise<Buffer> {
+    const browser = await puppeteer.launch({
+        args: [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+        ],
+        headless: true,
+    });
+
+    const page = await browser.newPage();
+
+    await page.setContent(GeneratePDF(data), {
+        waitUntil: "networkidle0",
+    });
+
+    const pdfBuffer = await page.pdf({
+        format: "A4",
+        printBackground: true,
+    });
+
+    await browser.close();
+
+    return Buffer.from(pdfBuffer);
+}
+
 export async function sendTicketEmail(
     ticket: TicketInfo & {
         attendeeName: string;
@@ -344,7 +660,7 @@ export async function sendTicketEmail(
         ticket.eventDate = formatDateToIST(eventStart).split(",")[0] || ticket.eventDate;
         ticket.eventTime = `${startTimePart} - ${endTimePart}`;
 
-        const pdfBuffer = await generateTicketPDF(ticket);
+        const pdfBuffer = await generatePDFwithPupeet(ticket);
 
         await resend.emails.send({
             attachments: [

@@ -1,3 +1,4 @@
+import "dotenv/config";
 import db from "@repo/db";
 import { createSignedTicket } from "@repo/keygen";
 import { AlphabeticOTP } from "@repo/notifications";
@@ -11,7 +12,6 @@ import { decrypt } from "../utils/encrypter";
 import { sendTicketEmail } from "../utils/sendTicketEmail";
 
 const ticketRouter: Router = express.Router();
-
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -214,14 +214,20 @@ ticketRouter.post(
             const signedPayload = await createSignedTicket(ticketPayload, decryptedPrivateKey);
             const qrData = Buffer.from(JSON.stringify(signedPayload)).toString("base64");
             const qrBuffer = await QRCode.toBuffer(qrData);
+            const filePath = `tickets/${userId}-${Date.now()}.png`;
 
-            const fileName = `tickets/${userId}-${Date.now()}.png`;
-            await supabase.storage.from("tickets").upload(fileName, qrBuffer, {
-                contentType: "image/png",
-            });
+            const { error: uploadError } = await supabase.storage
+                .from("uploads")
+                .upload(filePath, qrBuffer, {
+                    contentType: "image/png",
+                    upsert: true,
+                });
 
-            const { data } = supabase.storage.from("tickets").getPublicUrl(fileName);
+            if (uploadError) {
+                throw uploadError;
+            }
 
+            const { data } = supabase.storage.from("uploads").getPublicUrl(filePath);
             await db.ticket.update({
                 data: {
                     qr_code_data: data.publicUrl,
