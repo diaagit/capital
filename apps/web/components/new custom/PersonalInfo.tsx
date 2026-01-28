@@ -12,6 +12,8 @@ import { cn } from "@/lib/utils";
 import { ProfileSkeleton } from "./ProfileSkeleton";
 import { DragDropAvatar } from "./DragDropAvatar";
 import { toast } from "sonner";
+import { Router } from "next/router";
+import { useRouter } from "next/navigation";
 
 /* ---------------- TYPES ---------------- */
 
@@ -33,9 +35,11 @@ interface UserResponse {
 }
 
 const PersonalInfo = () => {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [editable, setEditable] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [firstName,setFirstName] = useState("");
   const [lastName,setLastName] = useState("");
@@ -46,6 +50,9 @@ const PersonalInfo = () => {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
+    if(!token){
+      router.push("/login");
+    }
     axios
       .get<UserResponse>(`${getBackendUrl()}/user/me`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -58,13 +65,22 @@ const PersonalInfo = () => {
     try {
       const URL = getBackendUrl();
       const token = localStorage.getItem("token");
-      const res = await axios.put(`${URL}/user/me`,{
-        firstName,lastName,profileImageUrl: avatarPreview,zipCode,state,city,date: new Date(date)
-      },{
+      const formData = new FormData();
+
+      formData.append("firstName", firstName);
+      formData.append("lastName", lastName);
+      formData.append("zipCode", zipCode);
+      formData.append("state", state);
+      formData.append("city", city);
+      if (date) formData.append("date", date);
+      if (avatarFile) formData.append("file", avatarFile);
+
+      const res = await axios.put(`${URL}/user/me`,formData,{
         headers:{
           Authorization: `Bearer ${token}`,
         }
       })
+
       if(res.status === 200){
         toast.success("Your personal information was successfully updated");
         setEditable(false)
@@ -82,7 +98,11 @@ const PersonalInfo = () => {
       setCity(user.city ?? "");
       setState(user.state ?? "");
       setZipCode(user.zip_code ?? "");
-      setDate(user.date ?? "");
+      if (user.date) {
+        setDate(user.date.split("T")[0]); 
+      } else {
+        setDate("");
+      }
     }
   }, [user]);
 
@@ -101,7 +121,10 @@ const PersonalInfo = () => {
               src={avatarSrc}
               disabled={!editable}
               name={user.firstName}
-              onChange={(file) => setAvatarPreview(URL.createObjectURL(file))}
+              onChange={(file) => {
+                setAvatarFile(file);
+                setAvatarPreview(URL.createObjectURL(file));
+              }}
             />
 
             <div>

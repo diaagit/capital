@@ -10,12 +10,15 @@ import {
     SigninType,
     type SignupResponse,
     SignupType,
+    UserDetailsType,
     VerificationType,
 } from "@repo/types";
+import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import express, { type Request, type Response, type Router } from "express";
 import jwt, { type SignOptions } from "jsonwebtoken";
+import multer from "multer";
 import userMiddleware, { unVerifiedUserMiddleware } from "../middleware";
 import { createCardsForUser } from "../utils/bankCards";
 import { decrypt, encrypt } from "../utils/encrypter";
@@ -25,6 +28,10 @@ const userRouter: Router = express.Router();
 
 const jwtSecret = process.env.JWT_SECRET as string;
 const saltRounds = parseInt(process.env.SALT_ROUNDS || "10", 10);
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
+const upload = multer();
 
 const client = redisCache;
 const Queue_name = "notification:initiate";
@@ -626,67 +633,91 @@ userRouter.get("/me", userMiddleware, async (req: Request, res: Response) => {
  * @param {Express.Response} res - The HTTP response object used to return data.
  * @returns {message: string} - Responds with a messaging.
  */
-userRouter.put("/me", userMiddleware, async (req: Request, res: Response) => {
-    try {
-        const userId = req.userId;
-        const { firstName, lastName, profileImageUrl, zipCode, state, city, date } = req.body;
+userRouter.put(
+    "/me",
+    userMiddleware,
+    upload.single("file"),
+    async (req: Request, res: Response) => {
+        try {
+            const userId = req.userId;
+            const file = req.file as Express.Multer.File;
+            const parsed = UserDetailsType.safeParse(req.body);
+            if (!parsed.success) {
+                const err = parsed.error.format();
+                return res.status(401).json({
+                    error: err,
+                    message: "Invalid data was provided",
+                });
+            }
+            const { firstName, lastName, zipCode, state, city, date } = parsed.data;
+            let publicUrl = "";
+            if (file) {
+                const key = `avatar/${userId}-${Date.now()}.png`;
 
-        if (!firstName && !lastName && !profileImageUrl) {
-            return res.status(400).json({
-                message: "At least one field must be provided",
+                const { error: uploadError } = await supabase.storage
+                    .from("uploads")
+                    .upload(key, file.buffer, {
+                        contentType: file.mimetype,
+                        upsert: true,
+                    });
+
+                if (uploadError) throw uploadError;
+
+                const { data } = supabase.storage.from("uploads").getPublicUrl(key);
+                publicUrl = data.publicUrl;
+            }
+
+            const updatedUser = await db.user.update({
+                data: {
+                    ...(firstName && {
+                        first_name: firstName,
+                    }),
+                    ...(lastName && {
+                        last_name: lastName,
+                    }),
+                    ...(file && {
+                        profile_image_url: publicUrl,
+                    }),
+                    ...(zipCode && {
+                        zip_code: zipCode,
+                    }),
+                    ...(state && {
+                        state: state,
+                    }),
+                    ...(city && {
+                        city: city,
+                    }),
+                    ...(date && {
+                        DOB: date,
+                    }),
+                },
+                where: {
+                    id: userId,
+                    is_verified: true,
+                },
+            });
+
+            return res.status(200).json({
+                message: "User updated successfully",
+                user: {
+                    city: updatedUser.city,
+                    date: updatedUser.DOB,
+                    email: updatedUser.email,
+                    firstName: updatedUser.first_name,
+                    id: updatedUser.id,
+                    lastName: updatedUser.last_name,
+                    profileImageUrl: updatedUser.profile_image_url,
+                    state: updatedUser.state,
+                    zipCode: updatedUser.zip_code,
+                },
+            });
+        } catch (_error) {
+            return res.status(500).json({
+                message: "Internal server error",
             });
         }
-
-        const updatedUser = await db.user.update({
-            data: {
-                ...(firstName && {
-                    first_name: firstName,
-                }),
-                ...(lastName && {
-                    last_name: lastName,
-                }),
-                ...(profileImageUrl && {
-                    profile_image_url: profileImageUrl,
-                }),
-                ...(zipCode && {
-                    zip_code: zipCode,
-                }),
-                ...(state && {
-                    state: state,
-                }),
-                ...(city && {
-                    city: city,
-                }),
-                ...(date && {
-                    DOB: date,
-                }),
-            },
-            where: {
-                id: userId,
-                is_verified: true,
-            },
-        });
-
-        return res.status(200).json({
-            message: "User updated successfully",
-            user: {
-                city: updatedUser.city,
-                date: updatedUser.DOB,
-                email: updatedUser.email,
-                firstName: updatedUser.first_name,
-                id: updatedUser.id,
-                lastName: updatedUser.last_name,
-                profileImageUrl: updatedUser.profile_image_url,
-                state: updatedUser.state,
-                zipCode: updatedUser.zip_code,
-            },
-        });
-    } catch (_error) {
-        return res.status(500).json({
-            message: "Internal server error",
-        });
-    }
-});
+    },
+);
 
 /**
  * Deletes the User after signup/signin

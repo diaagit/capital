@@ -60,6 +60,69 @@ export const ResetType = z.object({
         .min(6, "Password must be at least 6 characters long"),
 });
 
+export const UserDetailsType = z.object({
+    city: z
+        .string({
+            error: "Invalid City Name was provided",
+        })
+        .min(3, {
+            error: "City Name must atleast be 3 letters long",
+        })
+        .max(20, {
+            error: "City Name must be less than 20 letters",
+        })
+        .optional(),
+    date: z.coerce
+        .date({
+            error: "Invalid date of birth was provided",
+        })
+        .optional(),
+    firstName: z
+        .string({
+            error: "Invalid First Name was provided",
+        })
+        .min(3, {
+            error: "First Name must atleast be 3 letters long",
+        })
+        .max(24, {
+            error: "First Name must be less than 24 letters",
+        })
+        .optional(),
+    lastName: z
+        .string({
+            error: "Invalid Last Name was provided",
+        })
+        .min(3, {
+            error: "Last Name must atleast be 3 letters long",
+        })
+        .max(24, {
+            error: "Last Name must be less than 24 letters",
+        })
+        .optional(),
+    state: z
+        .string({
+            error: "Invalid State Name was provided",
+        })
+        .min(3, {
+            error: "State Name must atleast be 3 letters long",
+        })
+        .max(20, {
+            error: "State Name must be less than 20 letters",
+        })
+        .optional(),
+    zipCode: z
+        .string({
+            error: "Invalid Zip-Code was provided",
+        })
+        .min(6, {
+            error: "Zip-Code must atleast be 6 letters long",
+        })
+        .max(10, {
+            error: "Zip-Code must be less than 10 letters",
+        })
+        .optional(),
+});
+
 export const SignupResponseSchema = z.object({
     message: z.string(),
     token: z.string(),

@@ -275,25 +275,90 @@ ticketRouter.post(
 ticketRouter.get("/my", userMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
-        const ticketRecords = await db.ticket.findMany({
-            where: {
-                userId: userId,
-            },
-        });
+
+        const { issue, cancel, use, expired } = req.query;
+
+        const filter: Record<string, any> = {
+            userId,
+        };
+
+        const statuses: string[] = [];
+
+        if (typeof issue === "string") statuses.push("ISSUED");
+        if (typeof cancel === "string") statuses.push("CANCELLED");
+        if (typeof use === "string") statuses.push("USED");
+        if (typeof expired === "string") statuses.push("EXPIRED");
+
+        if (statuses.length > 0) {
+            filter.status = {
+                in: statuses,
+            };
+        }
+
+        const [issuedCount, cancelledCount, usedCount, expiredCount, totalCount, ticketRecords] =
+            await Promise.all([
+                db.ticket.count({
+                    where: {
+                        status: "ISSUED",
+                        userId,
+                    },
+                }),
+                db.ticket.count({
+                    where: {
+                        status: "CANCELLED",
+                        userId,
+                    },
+                }),
+                db.ticket.count({
+                    where: {
+                        status: "USED",
+                        userId,
+                    },
+                }),
+                db.ticket.count({
+                    where: {
+                        status: "EXPIRED",
+                        userId,
+                    },
+                }),
+                db.ticket.count({
+                    where: filter,
+                }),
+                db.ticket.findMany({
+                    where: filter,
+                }),
+            ]);
+
         if (ticketRecords.length === 0) {
             return res.status(200).json({
-                message: "You dont have any tickets",
+                message: "No tickets found for the selected filters",
+                meta: {
+                    cancelled: cancelledCount,
+                    expired: expiredCount,
+                    issued: issuedCount,
+                    total: totalCount,
+                    used: usedCount,
+                },
+                ticketRecords: [],
             });
         }
+
         return res.status(200).json({
-            message: "Successfully retrieved the ticket-records",
+            message: "Successfully retrieved ticket records",
+            meta: {
+                cancelled: cancelledCount,
+                expired: expiredCount,
+                issued: issuedCount,
+                total: totalCount,
+                used: usedCount,
+            },
             ticketRecords: ticketRecords,
         });
     } catch (error) {
-        console.error("Internal error record", error);
+        console.error("Internal error retrieving tickets", error);
         return res.status(500).json({
-            error: "Internal error occured",
-            message: "Internal error occured",
+            error: "Internal server error",
+            message: "Internal server error",
         });
     }
 });
