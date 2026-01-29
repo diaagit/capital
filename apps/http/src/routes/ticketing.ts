@@ -325,6 +325,24 @@ ticketRouter.get("/my", userMiddleware, async (req: Request, res: Response) => {
                     where: filter,
                 }),
                 db.ticket.findMany({
+                    select: {
+                        eventSlot: {
+                            select: {
+                                event: {
+                                    select: {
+                                        category: true,
+                                        title: true,
+                                    },
+                                },
+                                location_name: true,
+                                location_url: true,
+                                price: true,
+                            },
+                        },
+                        id: true,
+                        issued_at: true,
+                        status: true,
+                    },
                     where: filter,
                 }),
             ]);
