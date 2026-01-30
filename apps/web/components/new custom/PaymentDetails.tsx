@@ -30,7 +30,6 @@ const PaymentDetails = () => {
                             This credit card will be used by default for billing.
                         </p>
 
-                        {/* Name on Card */}
                         <div className="space-y-1">
                             <Label className="text-muted-foreground text-xs">Name on card</Label>
                             <Input placeholder="Enter cardholder name" />

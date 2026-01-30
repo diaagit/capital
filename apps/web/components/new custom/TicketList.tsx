@@ -82,7 +82,7 @@ const TicketList = () => {
   }, [activeFilter]);
 
   return (
-    <div className="w-full h-[640px] flex flex-col bg-white border rounded-xl">
+    <div className="w-full h-[730px] max-h-[730px] flex flex-col bg-white border rounded-xl">
       <div className="sticky top-0 z-10 bg-white p-3 border-b flex gap-2">
         {activeFilter === "ALL" ? (
           <>

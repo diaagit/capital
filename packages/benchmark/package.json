@@ -4,6 +4,9 @@
         "autocannon": "^8.0.0"
     },
     "description": "",
+    "devDependencies": {
+        "@types/k6": "^1.5.0"
+    },
     "keywords": [],
     "license": "ISC",
     "main": "index.js",

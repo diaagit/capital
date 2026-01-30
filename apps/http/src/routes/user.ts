@@ -627,6 +627,37 @@ userRouter.get("/me", userMiddleware, async (req: Request, res: Response) => {
         });
     }
 });
+
+userRouter.get("/profile", userMiddleware, async (req: Request, res: Response) => {
+    try {
+        const user = req.userId;
+        const findUser = await db.user.findUnique({
+            select: {
+                first_name: true,
+                profile_image_url: true,
+            },
+            where: {
+                id: user,
+            },
+        });
+        if (!findUser) {
+            return res.status(404).json({
+                message: "Invalid data was provided",
+            });
+        }
+        return res.status(200).json({
+            data: {
+                firstName: findUser.first_name,
+                proficPic: findUser.profile_image_url,
+            },
+            message: "Data was retrieved successfully",
+        });
+    } catch (_error) {
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+});
 /**
  * Patch the User details after signup/signin
  * @param {Express.Request} req - The HTTP request object containing user details.

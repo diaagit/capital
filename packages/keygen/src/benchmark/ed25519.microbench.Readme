@@ -1,0 +1,28 @@
+Ed25519 microbenchmark (libsodium)
+Iterations: 1000000
+Message size: 512 bytes
+
+Signature Generation
+  Avg: 71.08 µs
+  p50: 67.51 µs
+  p95: 96.53 µs
+  p99: 118.61 µs
+
+Signature Verification
+  Avg: 160.07 µs
+  p50: 154.94 µs
+  p95: 175.38 µs
+  p99: 271.57 µs
+
+node '/home/ronak/Documents/Projects/capital/packages/keygen/src/benchmark/ed25519.system.microbench.ts'
+Ed25519 Sign (system payload)
+Avg: 72.29 µs
+p50: 66.86 µs
+p95: 105.87 µs
+p99: 121.86 µs
+
+Ed25519 Verify (system payload)
+Avg: 163.01 µs
+p50: 154.94 µs
+p95: 227.37 µs
+p99: 277.49 µs

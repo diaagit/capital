@@ -13,7 +13,7 @@ interface PageProps {
 }
 
 export default function Page({ params }: PageProps) {
-  const { tab } = use(params); // ✅ unwrap params
+  const { tab } = use(params);
 
   switch (tab) {
     case "payment":
