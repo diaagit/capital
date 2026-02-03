@@ -1,0 +1,56 @@
+
+Preparing test data...
+
+===== RUN 1 =====
+JSON serialize             | p50=15.87µs | p95=26.55µs | p99=41.08µs | avg=17.61µs
+Ed25519 verify             | p50=240.26µs | p95=375.02µs | p99=442.55µs | avg=262.67µs
+Redis GET                  | p50=320.60µs | p95=465.32µs | p99=777.31µs | avg=338.37µs
+PostgreSQL SELECT          | p50=643.12µs | p95=891.19µs | p99=1462.58µs | avg=671.83µs
+OTP SELECT                 | p50=567.05µs | p95=834.86µs | p99=1365.32µs | avg=603.07µs
+DB write (txn)             | p50=620.70µs | p95=889.16µs | p99=1410.05µs | avg=650.15µs
+Network RTT                | p50=20.07µs | p95=33.69µs | p99=46.60µs | avg=22.23µs
+
+===== RUN 2 =====
+JSON serialize             | p50=16.92µs | p95=28.30µs | p99=40.73µs | avg=18.63µs
+Ed25519 verify             | p50=228.73µs | p95=352.98µs | p99=413.55µs | avg=249.80µs
+Redis GET                  | p50=296.05µs | p95=476.91µs | p99=875.62µs | avg=322.42µs
+PostgreSQL SELECT          | p50=605.68µs | p95=931.50µs | p99=1679.83µs | avg=651.22µs
+OTP SELECT                 | p50=528.87µs | p95=852.34µs | p99=1606.06µs | avg=573.09µs
+DB write (txn)             | p50=578.51µs | p95=928.62µs | p99=1667.93µs | avg=624.35µs
+Network RTT                | p50=19.68µs | p95=34.08µs | p99=47.86µs | avg=21.87µs
+
+===== RUN 3 =====
+JSON serialize             | p50=17.60µs | p95=29.09µs | p99=42.85µs | avg=19.42µs
+Ed25519 verify             | p50=224.56µs | p95=347.53µs | p99=403.94µs | avg=245.30µs
+Redis GET                  | p50=284.67µs | p95=466.87µs | p99=836.30µs | avg=312.52µs
+PostgreSQL SELECT          | p50=612.67µs | p95=951.11µs | p99=1680.75µs | avg=659.09µs
+OTP SELECT                 | p50=538.29µs | p95=907.07µs | p99=1690.17µs | avg=588.02µs
+DB write (txn)             | p50=580.78µs | p95=977.12µs | p99=1665.39µs | avg=630.95µs
+Network RTT                | p50=19.91µs | p95=34.77µs | p99=53.30µs | avg=22.19µs
+
+===== RUN 4 =====
+JSON serialize             | p50=19.10µs | p95=37.35µs | p99=61.61µs | avg=21.94µs
+Ed25519 verify             | p50=229.38µs | p95=360.88µs | p99=442.13µs | avg=255.91µs
+Redis GET                  | p50=293.87µs | p95=684.93µs | p99=1596.37µs | avg=365.14µs
+PostgreSQL SELECT          | p50=649.79µs | p95=1438.56µs | p99=2502.93µs | avg=771.77µs
+OTP SELECT                 | p50=569.18µs | p95=1346.79µs | p99=2356.09µs | avg=693.07µs
+DB write (txn)             | p50=614.88µs | p95=1446.22µs | p99=2662.28µs | avg=752.38µs
+Network RTT                | p50=23.56µs | p95=48.61µs | p99=70.61µs | avg=26.93µs
+
+===== RUN 5 =====
+JSON serialize             | p50=17.41µs | p95=30.20µs | p99=44.83µs | avg=19.85µs
+Ed25519 verify             | p50=226.46µs | p95=364.79µs | p99=423.29µs | avg=258.35µs
+Redis GET                  | p50=278.50µs | p95=617.44µs | p99=1267.95µs | avg=333.72µs
+PostgreSQL SELECT          | p50=621.23µs | p95=1309.99µs | p99=2448.97µs | avg=721.97µs
+OTP SELECT                 | p50=541.25µs | p95=1209.99µs | p99=2070.23µs | avg=638.27µs
+DB write (txn)             | p50=579.44µs | p95=1283.13µs | p99=2208.62µs | avg=682.96µs
+Network RTT                | p50=18.52µs | p95=37.30µs | p99=58.60µs | avg=20.88µs
+
+===== STEADY STATE (avg runs 2–5) =====
+JSON serialize             | p50=17.60µs | p95=31.58µs | p99=48.99µs | avg=19.96µs
+Ed25519 verify             | p50=227.34µs | p95=356.80µs | p99=420.06µs | avg=252.34µs
+Redis GET                  | p50=288.66µs | p95=577.66µs | p99=1173.39µs | avg=333.45µs
+PostgreSQL SELECT          | p50=620.22µs | p95=1197.28µs | p99=2136.24µs | avg=701.01µs
+OTP SELECT                 | p50=542.90µs | p95=1127.12µs | p99=1966.06µs | avg=623.11µs
+DB write (txn)             | p50=585.60µs | p95=1212.37µs | p99=2051.71µs | avg=672.66µs
+Network RTT                | p50=20.28µs | p95=39.55µs | p99=59.60µs | avg=22.97µs

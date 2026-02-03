@@ -1,6 +1,8 @@
 {
     "author": "",
     "dependencies": {
+        "@repo/cache": "*",
+        "@repo/db": "*",
         "dotenv": "^16.6.1",
         "libsodium-wrappers": "^0.7.15"
     },

@@ -33,7 +33,7 @@ type PayloadType =
 /**
  * Helper: Canonical JSON stringify (keys sorted)
  */
-function canonicalStringify(obj: Record<string, any>): string {
+export function canonicalStringify(obj: Record<string, any>): string {
     if (obj === null || typeof obj !== "object") {
         return JSON.stringify(obj);
     }
