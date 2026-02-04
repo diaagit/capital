@@ -164,6 +164,7 @@
     token      String
     expires_at DateTime
     created_at DateTime     @default(now())
+    @@index([token])
   }
 
   model JwtToken {
@@ -174,6 +175,7 @@
     issued_at  DateTime
     expires_at DateTime
     is_revoked Boolean      @default(false)
+    @@index([token])
   }
 
   model Event {

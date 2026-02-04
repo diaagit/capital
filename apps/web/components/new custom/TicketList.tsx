@@ -82,7 +82,20 @@ const TicketList = () => {
   }, [activeFilter]);
 
   return (
-    <div className="w-full h-[730px] max-h-[730px] flex flex-col bg-white border rounded-xl">
+    <div className="w-full min-h-full flex flex-col bg-white rounded-xl">
+      <div className="sticky top-0 z-10 bg-white">
+        <div className="px-6 py-4 flex items-center justify-between">
+          <div className="flex flex-col justify-center mb-1">
+            <h1 className="text-3xl font-semibold tracking-tight">Tickets</h1>
+            <p className="text-muted-foreground text-sm">
+              View, track and manage all your tickets in one place
+            </p>
+          </div>
+        </div>
+
+        <Separator />
+      </div>
+
       <div className="sticky top-0 z-10 bg-white p-3 border-b flex gap-2">
         {activeFilter === "ALL" ? (
           <>

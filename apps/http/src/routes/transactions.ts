@@ -1,6 +1,7 @@
 // Transaction routes
 
 import db, { type Prisma } from "@repo/db";
+import { AlphanumericOTP } from "@repo/notifications";
 import { InitiateSchema } from "@repo/types";
 import Decimal from "decimal.js";
 import express, { type Request, type Response, type Router } from "express";
@@ -72,6 +73,26 @@ transactionRouter.get("/my", userMiddleware, async (req: Request, res: Response)
 
         return res.status(200).json({
             transactions,
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+});
+
+transactionRouter.get("/token", userMiddleware, async (req: Request, res: Response) => {
+    try {
+        const user = req.userId;
+        if (!user) {
+            return res.status(401).json({
+                message: "Unauthorized user tried to access services",
+            });
+        }
+        const token = AlphanumericOTP(6);
+        return res.status(200).json({
+            token,
         });
     } catch (error) {
         console.error(error);

@@ -113,7 +113,7 @@ const PersonalInfo = () => {
   const avatarSrc = avatarPreview || user.profilePic || "https://i.pravatar.cc/300";
 
   return (
-    <div className="bg-white rounded-2xl p-10 h-[730px]  max-h-[730px] shadow-[0_0_0_1px_rgba(0,0,0,0.06)]">
+    <div className="bg-white rounded-2xl p-10 min-h-full">
       <div className="max-w-4xl mx-auto space-y-10">
         <div className="flex justify-between items-center">
           <div className="flex gap-6 items-center">

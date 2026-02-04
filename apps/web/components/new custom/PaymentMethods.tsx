@@ -28,7 +28,7 @@ interface Props {
   setCard: (card: string) => void;
 }
 
-const getCardBrand = (cardNumber: string) => {
+export const getCardBrand = (cardNumber: string) => {
   if (cardNumber.startsWith("3"))
     return <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
               <g className="nc-icon-wrapper">

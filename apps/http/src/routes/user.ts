@@ -844,6 +844,12 @@ userRouter.get("/my/cards", userMiddleware, async (req: Request, res: Response) 
                 card_number: true,
                 created_at: true,
                 id: true,
+                user: {
+                    select: {
+                        first_name: true,
+                        last_name: true,
+                    },
+                },
             },
             where: {
                 userId,
@@ -857,8 +863,17 @@ userRouter.get("/my/cards", userMiddleware, async (req: Request, res: Response) 
             });
         }
 
+        const formatedData = cards.map((x) => ({
+            balance: x.balance,
+            bank_name: x.bank_name,
+            card_number: x.card_number,
+            created_at: x.created_at,
+            id: x.id,
+            name: `${x.user.first_name} ${x.user.last_name}`.toUpperCase(),
+        }));
+
         return res.status(200).json({
-            cards,
+            data: formatedData,
             message: "Cards retrieved successfully",
         });
     } catch (error) {

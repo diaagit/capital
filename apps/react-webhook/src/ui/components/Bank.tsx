@@ -1,9 +1,9 @@
 import type { BankName } from "@repo/db";
 import axios from "axios";
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useCallback, useState } from "react";
+import { useParams } from "react-router-dom";
 
-const baseUrl = "http://localhost:3002/api/v1/webhook/transaction/";
+const baseUrl = "http://localhost:3002/api/v1/webhook/transaction";
 
 const transactionMap: Record<string, string> = {
   withdraw: `${baseUrl}/withdraw`,
@@ -21,24 +21,19 @@ const providerMap: Record<BankName, string> = {
 };
 
 export default function Bank() {
-  const { provider, type, token } = useParams<{
+  const { provider, type, token, amount } = useParams<{
     provider: BankName;
     type: keyof typeof transactionMap;
     token: string;
     amount: string;
   }>();
 
-  const [searchParams] = useSearchParams();
-  const [amount, setAmount] = useState("");
+  //const [searchParams] = useSearchParams();
+  //const amount = amountFromParams;
   const [status, setStatus] = useState<"idle" | "success" | "error" | "loading">("idle");
 
   const transactionType = transactionMap[type ?? "deposit"];
   const providerLogo = provider ? providerMap[provider] : "";
-
-  useEffect(() => {
-    const amt = searchParams.get("amount");
-    if (amt) setAmount(amt);
-  }, [searchParams]);
 
   const handleSubmit = useCallback(async () => {
     if (!provider || !amount || !token || !type || !transactionType) return;
@@ -46,9 +41,11 @@ export default function Bank() {
 
     try {
       const result = await axios.post(transactionType, { token });
-      if (result.status === 200) {
+      if (result.status === 201) {
         setStatus("success");
-        setTimeout(() => window.close(), 5000);
+        setTimeout(() => {
+          window.parent.postMessage("PAYMENT_SUCCESS", "*");
+        }, 3000);
       }
     } catch (error) {
       console.error("Webhook error:", error);
@@ -119,12 +116,12 @@ export default function Bank() {
 
         {status === "success" && (
           <p className="text-center text-green-600 mt-4 text-sm">
-            ✅ Transaction authorized successfully. Closing in 5 seconds...
+            Transaction authorized successfully. Closing in 3 seconds...
           </p>
         )}
         {status === "error" && (
           <p className="text-center text-red-600 mt-4 text-sm">
-            ❌ Something went wrong. Please try again.
+            Something went wrong. Please try again.
           </p>
         )}
 
