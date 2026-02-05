@@ -5,7 +5,7 @@ import PaymentDetails from "@/components/new custom/PaymentDetails";
 import PersonalInfo from "@/components/new custom/PersonalInfo";
 import TicketList from "@/components/new custom/TicketList";
 import { notFound } from "next/navigation";
-import Transaction from "@/components/new custom/Transactions";
+import TransactionsList from "@/components/new custom/Transactions";
 
 interface PageProps {
   params: Promise<{
@@ -24,7 +24,7 @@ export default function Page({ params }: PageProps) {
     case "tickets":
       return <TicketList />;
     case "transactions":
-      return <Transaction />;
+      return <TransactionsList />;
     default:
       return notFound();
   }

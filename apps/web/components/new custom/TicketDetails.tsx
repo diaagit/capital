@@ -8,7 +8,7 @@ import Link from "next/link";
 const TicketDetails = () => {
     return (
         <div className="flex flex-col gap-5 bg-white h-[79vh] rounded-2xl px-10 py-5 shadow-[0_0_0_1px_rgba(0,0,0,0.05)]">
-            <Link href="/newdashboard">
+            <Link href="/dashboard">
                 <Button
                     className="flex justify-start transition-colors hover:text-[#C251E6] hover:cursor-pointer"
                     variant="link"
@@ -70,7 +70,6 @@ const TicketDetails = () => {
             </div>
 
             <Separator />
-            {/* Event Details */}
             <div className="p-0">
                 <h2 className="text-[#482C52] text-xl font-bold mb-4">Event Details</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

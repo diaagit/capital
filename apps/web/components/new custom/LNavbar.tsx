@@ -11,6 +11,7 @@ import {
   LogOutIcon,
   Wallet,
   Ticket,
+  HandCoins,
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -262,10 +263,17 @@ const LNavbar = ({ type }: LNavbarType) => {
                   </DropdownMenuItem>
 
                   <DropdownMenuItem onClick={() => {
-                    router.push("/dashboard/payment")
+                    router.push("/dashboard/cards")
                   }}>
                     <Wallet className="mr-2 h-4 w-4" />
-                    Wallet
+                    Cards
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onClick={() => {
+                    router.push("/dashboard/transactions")
+                  }}>
+                    <HandCoins className="mr-2 h-4 w-4" />
+                    Transactions
                   </DropdownMenuItem>
 
                   <DropdownMenuSeparator />

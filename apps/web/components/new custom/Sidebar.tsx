@@ -83,17 +83,19 @@ export default function Sidebar() {
 
     return (
         <div className="w-64 bg-white min-h-[900px] p-5 rounded-2xl flex flex-col gap-8 shadow-[0_0_0_1px_rgba(0,0,0,0.05)]">
-            <div className="flex justify-center gap-3 rounded-sm items-center w-full h-16 bg-[#1f2533]">
-                <Image
-                    src="/assets/forget-password/Capital-White.svg"
-                    alt="Capital"
-                    width={32}
-                    height={32}
-                />
-                <span className="text-white text-xl font-semibold">
-                    Capital
-                </span>
-            </div>
+            <Link href={"/home"}>
+                <div className="flex justify-center gap-3 rounded-sm items-center w-full h-16 bg-[#1f2533]">
+                    <Image
+                        src="/assets/forget-password/Capital-White.svg"
+                        alt="Capital"
+                        width={32}
+                        height={32}
+                    />
+                    <span className="text-white text-xl font-semibold">
+                        Capital
+                    </span>
+                </div>
+            </Link>
 
             <Separator />
 
