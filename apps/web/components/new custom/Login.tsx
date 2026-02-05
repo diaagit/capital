@@ -22,6 +22,7 @@ import { toast } from "sonner";
 
 interface AuthProps {
   type: "signup" | "signin";
+  usage: "user" | "organizer";
 }
 
 interface IconInputProps {
@@ -56,7 +57,7 @@ export const IconInput = React.memo(function IconInput({
   );
 });
 
-export default function AuthCard({ type }: AuthProps) {
+export default function AuthCard({ type, usage }: AuthProps) {
   const router = useRouter();
   const key = process.env.CLOUDFLARE_SITEKEY ?? "0x4AAAAAAB566d0mI8Oj-zyL";
 
@@ -66,21 +67,21 @@ export default function AuthCard({ type }: AuthProps) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [token, setToken] = useState("");
-
+  const submitRef = React.useRef<HTMLButtonElement>(null)
   const handleSignup = async () => {
     try {
       const URL = getBackendUrl();
       const result = await axios.post(
-        `${URL}/user/signup`,
+        usage === "user" ? `${URL}/user/signup` : `${URL}/organiser/signup`,
         { firstName, lastName, email, password, token }
       );
       
       localStorage.setItem("token", result.data.token);
       toast.success("You have receieved an OTP to verify your email");
-      router.push("/verify");
+      usage === "user" ? router.push("/verify") : router.push("/organiser/verify");
     } catch (error) {
       console.log(error);
-      toast.error("Error took place:",error);
+      toast.error(error?.response?.data?.message || "Signup did fail due to some error");
     }
   };
 
@@ -88,15 +89,15 @@ export default function AuthCard({ type }: AuthProps) {
     try {
       const URL = getBackendUrl();
       const result = await axios.post(
-        `${URL}/user/signin`,
+        usage === "user" ? `${URL}/user/signin` : `${URL}/organiser/signin`,
         { firstName, lastName, email, password, token }
       );
       localStorage.setItem("token", result.data.token);
       toast.success("You have successfully logged-In");
-      router.push("/");
+      usage === "user" ? router.push("/") : router.push("/organiser/dashboard");
     } catch (error) {
       console.log(error);
-      toast.error("Error took place:",error);
+      toast.error(error?.response?.data?.message || "Signin did fail due to some error");
     }
   };
 
@@ -121,9 +122,14 @@ export default function AuthCard({ type }: AuthProps) {
               Capital
             </h1>
             <p className="text-lg text-gray-100 leading-relaxed">
-              {type === "signup"
-                ? "Your gateway to hosting and discovering unforgettable events. Create an account and join the community today."
-                : "Welcome back! Log in to manage your bookings, host new events, and connect with others."}
+              {usage === "organizer"
+                ? type === "signup"
+                  ? "Launch and manage your events with ease. Create your organizer account to host, sell tickets, and grow your audience."
+                  : "Welcome back! Access your dashboard to manage events, track sales, and engage your attendees."
+                : type === "signup"
+                  ? "Your gateway to hosting and discovering unforgettable events. Create an account and join the community today."
+                  : "Welcome back! Log in to manage your bookings, host new events, and connect with others."
+              }
             </p>
           </div>
         </div>
@@ -136,16 +142,28 @@ export default function AuthCard({ type }: AuthProps) {
                 {type === "signup" ? "Create your account" : "Welcome back"}
               </CardTitle>
               <CardDescription className="text-gray-500">
-                {type === "signup"
+                {usage === "organizer"
+                ? type === "signup"
+                  ? "Sign up to create events, sell tickets, and manage your audience effortlessly."
+                  : "Sign in to access your organizer dashboard and manage your events."
+                : type === "signup"
                   ? "Sign up to start exploring live events, venues, and communities."
-                  : "Sign in to continue to your dashboard."}
+                  : "Sign in to continue to exploring events in your city."}
               </CardDescription>
             </CardHeader>
 
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}>
+            <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    submitRef.current?.click();
+                  }
+                }}
+              >
               <CardContent className="grid gap-4 mt-2">
 
                 {type === "signup" && (
@@ -221,6 +239,7 @@ export default function AuthCard({ type }: AuthProps) {
 
                 <Button
                   type="button"
+                  ref={submitRef}
                   className="w-full text-lg p-7 bg-black text-white"
                   onClick={type === "signup" ? handleSignup : handleSignin}
                 >
@@ -246,18 +265,43 @@ export default function AuthCard({ type }: AuthProps) {
                 {type === "signup" ? (
                   <>
                     Already have an account?{" "}
-                    <Link href="/login" className="text-indigo-600 font-medium">
+                    <Link href={usage === "user" ? "/login" : "/organizer/login"} className="text-indigo-600 font-medium">
                       Sign in
                     </Link>
                   </>
                 ) : (
                   <>
                     Don’t have an account?{" "}
-                    <Link href="/signup" className="text-indigo-600 font-medium">
+                    <Link href={usage === "user" ? "/signup" : "/organizer/signup"} className="text-indigo-600 font-medium">
                       Sign up
                     </Link>
                   </>
                 )}
+              </p>
+
+              <p className="text-xs text-gray-400 text-center">
+                {usage === "user" ? (
+                  <>
+                    Want to publish events or movies?{" "}
+                    <Link
+                      href="/organizer/signup"
+                      className="text-indigo-600 font-medium hover:underline"
+                    >
+                      Become an organizer
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    Want to get tickets for events or movies?{" "}
+                    <Link
+                      href="/signup"
+                      className="text-indigo-600 font-medium hover:underline"
+                    >
+                      Become an user
+                    </Link>
+                  </>
+                )
+                }
               </p>
             </CardFooter>
 

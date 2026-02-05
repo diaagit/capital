@@ -78,6 +78,7 @@ organiserRouter.post("/signup", async (req: Request, res: Response) => {
         const existingUser = await db.user.findUnique({
             where: {
                 email,
+                role: "organiser",
             },
         });
 
@@ -166,6 +167,7 @@ organiserRouter.post("/signin", async (req: Request, res: Response) => {
         const existingUser = await db.user.findUnique({
             where: {
                 email,
+                role: "organiser",
             },
         });
 

@@ -87,7 +87,7 @@ const Page = () => {
     //     </div>
     //   </div>
     // </div>
-    <Login type="signin"/>
+    <Login type="signin" usage="user" />
   );
 };
 

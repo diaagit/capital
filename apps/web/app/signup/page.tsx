@@ -93,7 +93,7 @@ const Page = () => {
     //     </div>
     //   </div>
     // </div>
-    <Login type="signup"/>
+    <Login type="signup" usage="user" />
   );
 };
 

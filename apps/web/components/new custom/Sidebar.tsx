@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Button } from "../ui/button";
 
 interface DataProps{
     firstName: string;
@@ -75,10 +76,10 @@ export default function Sidebar() {
     }
     const linkClass =
         "text-md p-3 rounded-sm flex items-center gap-2 py-2 transition-colors hover:border-gray-300 hover:bg-red-50  hover:text-red-600";
-    const formatName = (name = "Ronak") =>
+    const formatName = (name:string) =>
     name.charAt(0).toUpperCase() + name.slice(1);
 
-    const getInitial = (name = "R") =>
+    const getInitial = (name:string) =>
     name.charAt(0).toUpperCase();
 
     return (
@@ -128,14 +129,16 @@ export default function Sidebar() {
                     <Settings className="w-5 h-5" />
                     Settings
                 </Link> */}
-                <Link href="/logout" className={linkClass}>
+                <Button onClick={removeToken} className={linkClass}>
                     <LogOut className="w-5 h-5" />
                     Logout
-                </Link>
+                </Button>
                 <div className="flex items-center justify-between rounded-md bg-neutral-800 px-3 py-2 text-white">
-                    <p className="text-sm font-medium truncate">
-                    {formatName(data.firstName)}
-                    </p>
+                    <div className="flex justify-center items-center w-16 h-8">
+                        <p className="text-lg text-center font-medium truncate">
+                            {formatName(data.firstName)}
+                        </p>
+                    </div>
 
                     <Avatar className="h-10 w-10 rounded-full">
                     <AvatarImage
