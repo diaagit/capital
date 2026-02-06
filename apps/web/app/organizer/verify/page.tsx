@@ -31,7 +31,7 @@ export default function Page() {
         }
         const URL = getBackendUrl();
         const token = localStorage.getItem("token");
-        const response = await axios.post(`${URL}/user/verify`,
+        const response = await axios.post(`${URL}/organiser/verify`,
         {
             otp: otp
         },
@@ -44,7 +44,7 @@ export default function Page() {
             //localStorage.removeItem("token");
             localStorage.setItem("token", response.data.token);
             toast.success("You are successfully verified with our services");
-            router.push("/");
+            router.push("/organizer/dashboard");
         }
     } catch (error) {
         console.log(error)
@@ -72,7 +72,7 @@ export default function Page() {
           <p className="text-sm text-gray-600">
             Have an account?{" "}
             <Link
-              href="/login"
+              href="/organizer/login"
               className="text-indigo-600 font-medium hover:text-indigo-700 transition"
             >
               Login
@@ -133,7 +133,7 @@ export default function Page() {
           </Button>
 
           <Link
-            href="/login"
+            href="/organizer/login"
             className="mt-3 text-sm text-gray-600 hover:text-indigo-600 flex items-center gap-1 transition"
           >
             <CircleArrowLeft className="h-4 w-4" />

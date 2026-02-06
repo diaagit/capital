@@ -67,6 +67,7 @@ userRouter.post(
     async (req: Request, res: Response<SignupResponse | SignupErrorResponse>) => {
         try {
             const parsed = SignupType.safeParse(req.body);
+
             if (!parsed.success) {
                 return res.status(400).json({
                     errors: parsed.error.format(),
@@ -75,82 +76,84 @@ userRouter.post(
             }
 
             const { firstName, lastName, email, password } = parsed.data;
+
             const existingUser = await db.user.findUnique({
                 where: {
                     email,
                 },
             });
+
+            let user: any;
+
             if (existingUser) {
-                return res.status(400).json({
-                    message: "User already registered",
-                });
-            }
+                if (existingUser.is_verified) {
+                    return res.status(409).json({
+                        message: "Account already exists. Please login.",
+                    });
+                }
 
-            const hashedPassword = await bcrypt.hash(password, saltRounds);
+                user = existingUser;
+            } else {
+                const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-            if (!firstName || !lastName) {
-                throw new Error("First name and last name are required");
-            }
-
-            const newUser = await db.user.create({
-                data: {
-                    email,
-                    first_name: firstName,
-                    is_verified: false,
-                    last_name: lastName,
-                    password: hashedPassword,
-                    role: "user",
-                },
-            });
-
-            if (typeof newUser.id !== "string") {
-                return res.status(500).json({
-                    message: "User ID is invalid",
+                user = await db.user.create({
+                    data: {
+                        email,
+                        first_name: firstName,
+                        is_verified: false,
+                        last_name: lastName,
+                        password: hashedPassword,
+                        role: "user",
+                    },
                 });
             }
 
             const otp = AlphabeticOTP(6);
+
             await db.otp.create({
                 data: {
                     expires_at: new Date(Date.now() + 10 * 60 * 1000),
                     otp_code: otp,
                     purpose: "signup",
-                    userId: newUser.id,
+                    userId: user.id,
                 },
             });
 
-            const _checkEmail = await client.rPush(
+            await client.rPush(
                 Queue_name,
                 JSON.stringify({
-                    email: newUser.email,
-                    otp: otp,
+                    email: user.email,
+                    otp,
                     type: "email",
                 }),
             );
-            // await sendEmailOtp(newUser.email, otp);
 
-            const token = generateToken(newUser.id, "10m");
+            const token = generateToken(user.id, "10m");
+
             await db.jwtToken.create({
                 data: {
                     expires_at: new Date(Date.now() + 10 * 60 * 1000),
                     issued_at: new Date(),
                     token,
-                    userId: newUser.id,
+                    userId: user.id,
                 },
             });
 
-            return res.status(201).json({
-                message: "User successfully registered",
-                token: token,
+            return res.status(existingUser ? 200 : 201).json({
+                message: existingUser
+                    ? "OTP resent. Please verify your email."
+                    : "User successfully registered",
+                token,
                 user: {
-                    email: newUser.email,
-                    firstName: newUser.first_name,
-                    id: newUser.id,
-                    lastName: newUser.last_name,
+                    email: user.email,
+                    firstName: user.first_name,
+                    id: user.id,
+                    lastName: user.last_name,
                 },
             });
         } catch (error) {
             console.error(error);
+
             return res.status(500).json({
                 message: "Internal server error",
             });
@@ -169,6 +172,7 @@ userRouter.post(
     async (req: Request, res: Response<SignupResponse | SignupErrorResponse>) => {
         try {
             const parsed = SigninType.safeParse(req.body);
+
             if (!parsed.success) {
                 return res.status(400).json({
                     errors: parsed.error.format(),
@@ -178,62 +182,70 @@ userRouter.post(
 
             const { email, password } = parsed.data;
 
-            const existingUser = await db.user.findUnique({
+            const user = await db.user.findUnique({
                 where: {
                     email,
-                    is_verified: true,
                 },
             });
 
-            if (!existingUser) {
-                return res.status(400).json({
-                    message: "Invalid email or password",
-                });
-            }
-
-            const isPasswordCorrect = await bcrypt.compare(
-                password,
-                existingUser.password as string,
-            );
-            if (!isPasswordCorrect) {
+            if (!user) {
                 return res.status(401).json({
                     message: "Invalid email or password",
                 });
             }
 
-            if (typeof existingUser.id !== "string") {
-                return res.status(500).json({
-                    message: "User ID is invalid",
+            if (user.role !== "user") {
+                return res.status(403).json({
+                    message: "Access denied",
                 });
             }
-            const token = generateToken(existingUser.id, "1d");
+
+            if (!user.is_verified) {
+                return res.status(403).json({
+                    message: "Please verify your email before signing in",
+                });
+            }
+
+            const isValid = await bcrypt.compare(password, user.password);
+
+            if (!isValid) {
+                return res.status(401).json({
+                    message: "Invalid email or password",
+                });
+            }
+
+            const token = generateToken(user.id, "1d");
+
             await db.$transaction(async (tx: Prisma.TransactionClient) => {
                 await tx.jwtToken.deleteMany({
                     where: {
-                        userId: existingUser.id,
+                        userId: user.id,
                     },
                 });
+
                 await tx.jwtToken.create({
                     data: {
                         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
                         issued_at: new Date(),
                         token,
-                        userId: existingUser.id,
+                        userId: user.id,
                     },
                 });
             });
 
             return res.status(200).json({
                 message: "Signin successful",
-                token: token,
+                token,
                 user: {
-                    email: existingUser.email,
-                    firstName: existingUser.first_name,
-                    id: existingUser.id,
-                    lastName: existingUser.last_name,
+                    email: user.email,
+                    firstName: user.first_name,
+                    id: user.id,
+                    lastName: user.last_name,
                 },
             });
-        } catch (_error) {
+        } catch (error) {
+            console.error(error);
+
             return res.status(500).json({
                 message: "Internal server error",
             });

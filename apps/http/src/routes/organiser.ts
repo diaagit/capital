@@ -1,6 +1,7 @@
 import redisCache from "@repo/cache";
 import db, { type Prisma } from "@repo/db";
 import { AlphanumericOTP } from "@repo/notifications";
+import { otpLimits } from "@repo/ratelimit";
 import {
     allowedStatuses,
     InitiateSchema,
@@ -13,7 +14,7 @@ import Decimal from "decimal.js";
 import dotenv from "dotenv";
 import express, { type Request, type Response, type Router } from "express";
 import jwt, { type SignOptions } from "jsonwebtoken";
-import { organiserMiddleware } from "../middleware";
+import { organiserMiddleware, unVerifiedOrganiserMiddleware } from "../middleware";
 import { createCardForOrganiser } from "../utils/bankCards";
 
 dotenv.config();
@@ -32,6 +33,7 @@ const generateToken = (id: string, expire?: string) =>
     jwt.sign(
         {
             organiserId: id,
+            role: "organiser",
         },
         jwtSecret,
         {
@@ -67,84 +69,91 @@ function _filterEvents(
 organiserRouter.post("/signup", async (req: Request, res: Response) => {
     try {
         const parsedData = SignupType.safeParse(req.body);
+
         if (!parsedData.success) {
             return res.status(400).json({
                 errors: parsedData.error.issues,
-                message: "Invalid data was provided",
+                message: "Invalid data provided",
             });
         }
 
         const { firstName, lastName, email, password } = parsedData.data;
+
         const existingUser = await db.user.findUnique({
             where: {
                 email,
-                role: "organiser",
             },
         });
+
+        let user: any;
 
         if (existingUser) {
-            return res.status(400).json({
-                message: `User with email ${email} already exists`,
+            if (existingUser.is_verified) {
+                return res.status(409).json({
+                    message: "Account already exists. Please login.",
+                });
+            }
+            user = existingUser;
+        } else {
+            const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+            user = await db.user.create({
+                data: {
+                    email,
+                    first_name: firstName,
+                    last_name: lastName,
+                    password: hashedPassword,
+                    role: "organiser",
+                },
             });
         }
-
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-        const newUser = await db.user.create({
-            data: {
-                email,
-                first_name: firstName,
-                last_name: lastName,
-                password: hashedPassword,
-                role: "organiser",
-            },
-        });
-
         const otp = AlphanumericOTP(6);
+
         await db.otp.create({
             data: {
                 expires_at: new Date(Date.now() + 10 * 60 * 1000),
                 otp_code: otp,
                 purpose: "signup",
-                userId: newUser.id,
+                userId: user.id,
             },
         });
 
         await _client.rPush(
             Queue_name,
             JSON.stringify({
-                email: newUser.email,
-                otp: otp,
+                email: user.email,
+                otp,
                 type: "email",
             }),
         );
 
-        // await sendEmailOtp(newUser.email, otp);
+        const token = generateToken(user.id, "10m");
 
-        const token = generateToken(newUser.id, "10m");
         await db.jwtToken.create({
             data: {
                 expires_at: new Date(Date.now() + 10 * 60 * 1000),
                 issued_at: new Date(),
                 token,
-                userId: newUser.id,
+                userId: user.id,
             },
         });
 
-        return res.status(201).json({
-            message: "User successfully registered",
+        return res.status(existingUser ? 200 : 201).json({
+            message: existingUser
+                ? "OTP resent. Please verify your email."
+                : "User successfully registered",
             token,
             user: {
-                email: newUser.email,
-                firstName: newUser.first_name,
-                id: newUser.id,
-                lastName: newUser.last_name,
+                email: user.email,
+                firstName: user.first_name,
+                id: user.id,
+                lastName: user.last_name,
             },
         });
     } catch (error) {
         console.error(error);
         return res.status(500).json({
-            error: "Internal error occured",
+            message: "Internal server error",
         });
     }
 });
@@ -156,48 +165,62 @@ organiserRouter.post("/signup", async (req: Request, res: Response) => {
 organiserRouter.post("/signin", async (req: Request, res: Response) => {
     try {
         const parsedData = SigninType.safeParse(req.body);
+
         if (!parsedData.success) {
             return res.status(400).json({
                 errors: parsedData.error.issues,
-                message: "Invalid data was provided",
+                message: "Invalid data provided",
             });
         }
 
         const { email, password } = parsedData.data;
-        const existingUser = await db.user.findUnique({
+        const user = await db.user.findUnique({
             where: {
                 email,
-                role: "organiser",
             },
         });
 
-        if (!existingUser) {
-            return res.status(400).json({
-                message: `User with email ${email} doesn't exist`,
-            });
-        }
-
-        const checkPassword = await bcrypt.compare(password, existingUser.password);
-        if (!checkPassword) {
+        if (!user) {
             return res.status(401).json({
-                message: "Invalid password was provided",
+                message: "Invalid email or password",
             });
         }
 
-        const token = generateToken(existingUser.id, "1d");
+        if (user.role !== "organiser") {
+            return res.status(403).json({
+                message: "Access denied",
+            });
+        }
+
+        if (!user.is_verified) {
+            return res.status(403).json({
+                message: "Please verify your email before signing in",
+            });
+        }
+
+        const isValid = await bcrypt.compare(password, user.password);
+
+        if (!isValid) {
+            return res.status(401).json({
+                message: "Invalid email or password",
+            });
+        }
+
+        const token = generateToken(user.id, "1d");
 
         await db.$transaction(async (tx: Prisma.TransactionClient) => {
             await tx.jwtToken.deleteMany({
                 where: {
-                    userId: existingUser.id,
+                    userId: user.id,
                 },
             });
+
             await tx.jwtToken.create({
                 data: {
                     expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
                     issued_at: new Date(),
                     token,
-                    userId: existingUser.id,
+                    userId: user.id,
                 },
             });
         });
@@ -206,17 +229,17 @@ organiserRouter.post("/signin", async (req: Request, res: Response) => {
             message: "Signin successful",
             token,
             user: {
-                email: existingUser.email,
-                firstName: existingUser.first_name,
-                id: existingUser.id,
-                lastName: existingUser.last_name,
+                email: user.email,
+                firstName: user.first_name,
+                id: user.id,
+                lastName: user.last_name,
             },
         });
     } catch (error) {
         console.error(error);
+
         return res.status(500).json({
-            error: "Internal error occured",
-            message: "Internal error occured",
+            message: "Internal server error",
         });
     }
 });
@@ -228,65 +251,78 @@ organiserRouter.post("/signin", async (req: Request, res: Response) => {
  * @returns {Promise<void>} - Responds with a JSON object containing user info and JWT token.
  * @route POST /verify
  */
-organiserRouter.post("/verify", organiserMiddleware, async (req: Request, res: Response) => {
-    try {
-        const organiserId = req.organiserId as string | undefined;
-        const parsedData = VerificationType.safeParse(req.body);
-        if (!parsedData.success || !organiserId) {
-            return res.status(400).json({
-                message: "Invalid userId or OTP format",
-            });
-        }
+organiserRouter.post(
+    "/verify",
+    otpLimits,
+    unVerifiedOrganiserMiddleware,
+    async (req: Request, res: Response) => {
+        try {
+            const organiserId = req.organiserId as string | undefined;
+            const parsedData = VerificationType.safeParse(req.body);
+            if (!parsedData.success || !organiserId) {
+                return res.status(400).json({
+                    message: "Invalid userId or OTP format",
+                });
+            }
 
-        const { otp } = parsedData.data;
-        const checkOTP = await db.otp.findFirst({
-            where: {
-                expires_at: {
-                    gt: new Date(),
-                },
-                is_used: false,
-                otp_code: otp,
-                userId: organiserId,
-            },
-        });
-
-        if (!checkOTP) {
-            return res.status(400).json({
-                message: "Invalid or expired OTP",
-            });
-        }
-
-        await db.$transaction(async (tx: Prisma.TransactionClient) => {
-            await tx.otp.update({
-                data: {
-                    is_used: true,
-                },
+            const { otp } = parsedData.data;
+            const checkOTP = await db.otp.findFirst({
                 where: {
-                    id: checkOTP.id,
+                    expires_at: {
+                        gt: new Date(),
+                    },
+                    is_used: false,
+                    otp_code: otp,
+                    userId: organiserId,
                 },
             });
-            await createCardForOrganiser(checkOTP.userId);
 
-            await tx.wallet.create({
-                data: {
-                    balance: 1000.0,
-                    status: "active",
-                    userId: checkOTP.userId,
-                },
+            if (!checkOTP) {
+                return res.status(400).json({
+                    message: "Invalid or expired OTP",
+                });
+            }
+
+            await db.$transaction(async (tx: Prisma.TransactionClient) => {
+                await tx.otp.update({
+                    data: {
+                        is_used: true,
+                    },
+                    where: {
+                        id: checkOTP.id,
+                    },
+                });
+                await tx.user.update({
+                    data: {
+                        is_verified: true,
+                    },
+                    where: {
+                        id: organiserId,
+                    },
+                });
+                await createCardForOrganiser(checkOTP.userId);
+
+                await tx.wallet.create({
+                    data: {
+                        balance: 3000.0,
+                        status: "active",
+                        userId: checkOTP.userId,
+                    },
+                });
             });
-        });
 
-        return res.status(200).json({
-            message: "OTP verified successfully",
-        });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({
-            error: "Internal error occured",
-            message: "Internal error occured",
-        });
-    }
-});
+            return res.status(200).json({
+                message: "OTP verified successfully",
+            });
+        } catch (error) {
+            console.error(error);
+            return res.status(500).json({
+                error: "Internal error occured",
+                message: "Internal error occured",
+            });
+        }
+    },
+);
 
 /**
  * Initiate a payment from wallet to cardNumber

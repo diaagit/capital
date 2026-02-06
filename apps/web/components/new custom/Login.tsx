@@ -78,7 +78,7 @@ export default function AuthCard({ type, usage }: AuthProps) {
       
       localStorage.setItem("token", result.data.token);
       toast.success("You have receieved an OTP to verify your email");
-      usage === "user" ? router.push("/verify") : router.push("/organiser/verify");
+      usage === "user" ? router.push("/verify") : router.push("/organizer/verify");
     } catch (error) {
       console.log(error);
       toast.error(error?.response?.data?.message || "Signup did fail due to some error");
