@@ -443,7 +443,7 @@ userRouter.post("/forget-password", resetPasswordLimits, async (req: Request, re
         const parsed = ForgetType.safeParse(req.body);
         if (!parsed.success) {
             const error = parsed.error.format();
-            return res.status(400).json({
+            return res.status(422).json({
                 error: error,
                 message: "Invalid Data format was provided",
             });
@@ -508,7 +508,6 @@ userRouter.post("/forget-password", resetPasswordLimits, async (req: Request, re
                 },
             });
         });
-
         return res.status(200).json({
             message: "Password reset successfully",
         });

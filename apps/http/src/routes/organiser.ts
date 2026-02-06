@@ -1,10 +1,12 @@
 import redisCache from "@repo/cache";
 import db, { type Prisma } from "@repo/db";
 import { AlphanumericOTP } from "@repo/notifications";
-import { otpLimits } from "@repo/ratelimit";
+import { otpLimits, resetPasswordLimits } from "@repo/ratelimit";
 import {
     allowedStatuses,
+    ForgetType,
     InitiateSchema,
+    OtpType,
     SigninType,
     SignupType,
     VerificationType,
@@ -22,7 +24,7 @@ const organiserRouter: Router = express.Router();
 
 const jwtSecret = process.env.JWT_SECRET as string;
 const saltRounds = parseInt(process.env.SALT_ROUNDS || "10", 10);
-const _client = redisCache;
+const client = redisCache;
 const Queue_name = "notification:initiate";
 
 if (!jwtSecret) {
@@ -118,7 +120,7 @@ organiserRouter.post("/signup", async (req: Request, res: Response) => {
             },
         });
 
-        await _client.rPush(
+        await client.rPush(
             Queue_name,
             JSON.stringify({
                 email: user.email,
@@ -319,6 +321,147 @@ organiserRouter.post(
             return res.status(500).json({
                 error: "Internal error occured",
                 message: "Internal error occured",
+            });
+        }
+    },
+);
+
+organiserRouter.post("/otp", otpLimits, async (req: Request, res: Response) => {
+    try {
+        const parsed = OtpType.safeParse(req.body);
+        if (!parsed.success) {
+            const _error = parsed.error.format();
+            return res.status(401).json({
+                message: "No Email was provided",
+            });
+        }
+        const { email } = parsed.data;
+
+        const findEmail = await db.user.findUnique({
+            where: {
+                email,
+            },
+        });
+
+        if (!findEmail) {
+            return res.status(404).json({
+                message: `No ${email} was found with our services`,
+            });
+        }
+
+        if (!findEmail.is_verified) {
+            return res.status(404).json({
+                message: `Your email is not verified with our services.Please signup`,
+            });
+        }
+        const otp = AlphanumericOTP(6);
+        const _createOTP = await db.otp.create({
+            data: {
+                expires_at: new Date(Date.now() + 15 * 60 * 1000),
+                otp_code: otp,
+                purpose: "forgot_password",
+                userId: findEmail.id,
+            },
+        });
+        await client.rPush(
+            Queue_name,
+            JSON.stringify({
+                email: findEmail.email,
+                otp: otp,
+                reason: "forget-password",
+                type: "email",
+            }),
+        );
+
+        return res.status(200).json({
+            message: `If your ${email} exists, a reset link will be sent`,
+        });
+    } catch (_error) {
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+});
+
+organiserRouter.post(
+    "/forget-password",
+    resetPasswordLimits,
+    async (req: Request, res: Response) => {
+        try {
+            const parsed = ForgetType.safeParse(req.body);
+            if (!parsed.success) {
+                const error = parsed.error.format();
+                return res.status(422).json({
+                    error: error,
+                    messsage: "Invalid data format was provided",
+                });
+            }
+            const { email, otp, newpassword } = parsed.data;
+            const findEmail = await db.user.findUnique({
+                where: {
+                    email,
+                },
+            });
+            if (!findEmail) {
+                return res.status(404).json({
+                    message: `No email ${email} was found`,
+                });
+            }
+            if (!findEmail.is_verified) {
+                return res.status(403).json({
+                    message: `Your email is not verified with our services`,
+                });
+            }
+
+            const findOtp = await db.otp.findFirst({
+                where: {
+                    otp_code: otp,
+                    userId: findEmail.id,
+                },
+            });
+
+            if (!findOtp) {
+                return res.status(404).json({
+                    message: "OTP record not found",
+                });
+            }
+
+            if (findOtp.is_used) {
+                return res.status(400).json({
+                    message: "OTP already used",
+                });
+            }
+
+            if (findOtp.expires_at < new Date(Date.now())) {
+                return res.status(400).json({
+                    message: "OTP was already expired",
+                });
+            }
+            const hashedPassword = await bcrypt.hash(newpassword, saltRounds);
+            await db.$transaction(async (tx: Prisma.TransactionClient) => {
+                await tx.otp.update({
+                    data: {
+                        is_used: true,
+                    },
+                    where: {
+                        id: findOtp.id,
+                    },
+                });
+                await tx.user.update({
+                    data: {
+                        password: hashedPassword,
+                    },
+                    where: {
+                        id: findEmail.id,
+                    },
+                });
+            });
+            return res.status(200).json({
+                message: "Password reset successfully",
+            });
+        } catch (_error) {
+            return res.status(500).json({
+                message: "Internal server error",
             });
         }
     },
