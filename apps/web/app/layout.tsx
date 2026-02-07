@@ -87,7 +87,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {/* <LNavbar/> */}
                 <main className="min-h-screen">{children}</main>
                 <Toaster position="top-center" expand={false} richColors />
-                <Footer/>
+                {/* <Footer/> */}
             </body>
         </html>
     );

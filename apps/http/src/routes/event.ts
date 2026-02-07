@@ -9,7 +9,7 @@ import db, {
 import { EventSlotType, EventType } from "@repo/types";
 import express, { type Request, type Response, type Router } from "express";
 import { formatDate, formatTime } from "../helper/date";
-import userMiddleware from "../middleware";
+import userMiddleware, { organiserMiddleware } from "../middleware";
 import { deleteCache } from "../schedule/eventCache";
 
 const eventRouter: Router = express.Router();
@@ -17,8 +17,9 @@ const eventRouter: Router = express.Router();
 /**
  * Create a new event
  */
-eventRouter.post("/", async (req: Request, res: Response) => {
+eventRouter.post("/", organiserMiddleware, async (req: Request, res: Response) => {
     try {
+        const organiserId = req.organiserId;
         const parsed = EventType.safeParse(req.body);
         if (!parsed.success) {
             return res.status(400).json({
@@ -28,7 +29,6 @@ eventRouter.post("/", async (req: Request, res: Response) => {
         }
 
         const {
-            organiserId,
             title,
             description,
             banner_url,

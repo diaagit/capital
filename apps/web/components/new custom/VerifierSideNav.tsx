@@ -1,55 +1,88 @@
-import { Bell, LogOut, Settings, Ticket, UserRound, Wallet,LayoutDashboard,Tickets  ,SquareCheckBig  ,ReceiptIndianRupee } from "lucide-react";
+"use client";
+
+import {
+  LayoutDashboard,
+  Tickets,
+  SquareCheckBig,
+  ReceiptIndianRupee,
+  Settings,
+  LogOut,
+} from "lucide-react";
+
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
 
 export default function VerifierSideNav() {
-    const linkClass =
-        "text-md flex items-center gap-2 py-2 transition-colors hover:text-[#C251E6]";
+  const pathname = usePathname();
 
-    return (
-        <div className="w-1/4 bg-white h-[90vh] p-10 mr-10 mt-10 rounded-2xl flex flex-col gap-5 shadow-[0_0_0_1px_rgba(0,0,0,0.05)]">
+  const linkBase =
+    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors";
 
-            {/* Logo */}
-            <div className="flex justify-center items-center w-full">
-                <Image alt="Logo" height={50} src="/assets/Eventique.png" width={180} />
-            </div>
+  const linkInactive =
+    "text-muted-foreground hover:text-foreground hover:bg-muted";
 
-            <Separator />
+  const linkActive =
+    "bg-muted text-foreground";
 
-            {/* Main Links */}
-            <nav className="flex flex-col gap-2">
-                <Link href="/newverifierdashboard" className={linkClass}>
-                    <LayoutDashboard  className="w-5 h-5" />
-                    Dashboard
-                </Link>
-                <Link href="/newverifierdashboard/events" className={linkClass}>
-                    <Tickets  className="w-5 h-5" />
-                    Events
-                </Link>
-                <Link href="/newverifierdashboard/bookings" className={linkClass}>
-                    <SquareCheckBig  className="w-5 h-5" />
-                    Bookings
-                </Link>
-                <Link href="/newverifierdashboard/invoices" className={linkClass}>
-                    <ReceiptIndianRupee  className="w-5 h-5" />
-                    Invoices
-                </Link>
-            </nav>
+  const link = (href: string) =>
+    `${linkBase} ${
+      pathname === href ? linkActive : linkInactive
+    }`;
 
-            <Separator />
+  return (
+    <aside className="flex h-full w-full flex-col bg-background">
 
-            {/* Settings & Logout */}
-            <nav className="flex flex-col gap-2">
-                <Link href="/newdashboard/settings" className={linkClass}>
-                    <Settings className="w-5 h-5" />
-                    Settings
-                </Link>
-                <Link href="/logout" className={linkClass}>
-                    <LogOut className="w-5 h-5" />
-                    Logout
-                </Link>
-            </nav>
-        </div>
-    );
+      <div className="h-16 flex items-center px-6 border-b">
+        <Link href="/home" className="flex items-center gap-2">
+          <Image
+            src="/assets/forget-password/Capital-White.svg"
+            alt="Capital"
+            width={26}
+            height={26}
+            className="invert"
+          />
+          <span className="text-base font-semibold tracking-tight">
+            Capital
+          </span>
+        </Link>
+      </div>
+
+      <nav className="flex-1 px-3 py-6 space-y-1">
+
+        <Link href="/newverifierdashboard" className={link("/newverifierdashboard")}>
+          <LayoutDashboard size={18} />
+          Dashboard
+        </Link>
+
+        <Link href="/newverifierdashboard/events" className={link("/newverifierdashboard/events")}>
+          <Tickets size={18} />
+          Events
+        </Link>
+
+        <Link href="/newverifierdashboard/bookings" className={link("/newverifierdashboard/bookings")}>
+          <SquareCheckBig size={18} />
+          Bookings
+        </Link>
+
+        <Link href="/newverifierdashboard/invoices" className={link("/newverifierdashboard/invoices")}>
+          <ReceiptIndianRupee size={18} />
+          Invoices
+        </Link>
+
+        <Separator className="my-4" />
+
+        <Link href="/newdashboard/settings" className={link("/newdashboard/settings")}>
+          <Settings size={18} />
+          Settings
+        </Link>
+
+        <Link href="/logout" className={`${linkBase} text-red-500 hover:bg-red-50`}>
+          <LogOut size={18} />
+          Logout
+        </Link>
+      </nav>
+    </aside>
+  );
 }

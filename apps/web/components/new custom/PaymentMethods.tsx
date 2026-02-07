@@ -11,7 +11,7 @@ import getBackendUrl from "@/lib/config";
 import Image from "next/image";
 
 interface BackendResponse {
-  cards: CardProps[];
+  data: CardProps[];
   message: string;
 }
 
@@ -92,7 +92,7 @@ const PaymentMethods = ({card,setCard}: Props) => {
         const res = await axios.get<BackendResponse>(`${URL}/user/my/cards`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setCards(res.data.cards);
+        setCards(res.data.data ?? []);
       } catch {
         setCards([]);
       } finally {
