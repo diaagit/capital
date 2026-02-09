@@ -22,6 +22,10 @@ const nextConfig = {
         hostname: "theposterdb.com",
         pathname: "/**",
       },
+      {
+        protocol: 'https',
+        hostname: 'i.pinimg.com',
+      },
     ],
   },
 };

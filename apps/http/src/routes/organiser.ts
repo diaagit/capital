@@ -991,6 +991,7 @@ organiserRouter.get(
                     title: event.title,
                 },
                 message: "Event fetched",
+                slots: event.slots,
             });
         } catch (error) {
             console.error(error);

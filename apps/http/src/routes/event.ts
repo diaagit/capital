@@ -377,6 +377,7 @@ eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
         const { location, capacity, event_date, minPrice, maxPrice } = req.query;
 
         const cacheKey = `eventSlots:${eventId}:${JSON.stringify(req.query)}`;
+
         const cached = await redisCache.get(cacheKey);
         if (cached) {
             return res.status(200).json(JSON.parse(cached.toString()));
@@ -405,25 +406,48 @@ eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
             });
         }
 
+        const [allLocations, totalSlots] = await Promise.all([
+            db.eventSlot.findMany({
+                distinct: [
+                    "location_name",
+                ],
+                select: {
+                    location_name: true,
+                },
+                where: {
+                    eventId,
+                },
+            }),
+            db.eventSlot.count({
+                where: {
+                    eventId,
+                },
+            }),
+        ]);
+
         const slotWhere: Prisma.EventSlotWhereInput = {
             eventId,
+
             ...(location && {
                 location_name: {
                     equals: String(location),
                     mode: "insensitive",
                 },
             }),
+
             ...(capacity && {
                 capacity: {
                     gte: Number(capacity),
                 },
             }),
+
             ...(event_date && {
                 event_date: {
                     gte: new Date(`${event_date}T00:00:00.000Z`),
                     lt: new Date(`${event_date}T23:59:59.999Z`),
                 },
             }),
+
             ...(minPrice || maxPrice
                 ? {
                       price: {
@@ -471,10 +495,9 @@ eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
         const response = {
             event,
             meta: {
-                locations: [
-                    ...new Set(slots.map((s) => s.location_name)),
-                ],
-                totalSlots: formattedSlots.length,
+                filteredSlots: formattedSlots.length,
+                locations: allLocations.map((l) => l.location_name),
+                totalSlots,
             },
             slots: formattedSlots,
         };
@@ -486,6 +509,7 @@ eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
         return res.status(200).json(response);
     } catch (error) {
         console.error("EVENT SLOT ERROR:", error);
+
         return res.status(500).json({
             message: "Internal server error",
         });
