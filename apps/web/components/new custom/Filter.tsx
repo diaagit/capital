@@ -211,7 +211,6 @@ function FilterSection({
     >
       <AccordionTrigger className="group flex justify-between py-2">
         <div className="flex items-center gap-2">
-          <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
           <span className="font-medium">{title}</span>
         </div>
       </AccordionTrigger>
