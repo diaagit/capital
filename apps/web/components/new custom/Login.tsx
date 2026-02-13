@@ -19,6 +19,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import getBackendUrl from "@/lib/config";
 import { toast } from "sonner";
+import clsx from "clsx";
 
 interface AuthProps {
   type: "signup" | "signin";
@@ -32,6 +33,7 @@ interface IconInputProps {
   autoComplete?: string;
   value: string;
   setValue: (value: string) => void;
+  className?: string;
 }
 
 export const IconInput = React.memo(function IconInput({
@@ -41,10 +43,12 @@ export const IconInput = React.memo(function IconInput({
   autoComplete,
   value,
   setValue,
+  className,
 }: IconInputProps) {
   return (
-    <div className="relative">
+    <div className={clsx("relative w-full", className)}>
       <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+
       <Input
         type={type}
         placeholder={placeholder}

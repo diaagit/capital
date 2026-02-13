@@ -114,14 +114,14 @@ export default function EventForm() {
   };
 
   return (
-    <div className="max-w-8xl space-y-8">
-      <div className="w-full h-fit flex flex-col justify-center rounded-2xl border border-zinc-200 shadow-sm bg-white p-3">
+    <div className="max-w-8xl space-y-8 p-4 bg-white">
+      <div className="w-full h-fit flex flex-col justify-center rounded-2xl border border-zinc-200 shadow-sm bg-white p-6">
         <div className="flex items-center gap-2">
                 <SquarePen className="h-4 w-4 font-bold" />
                 <CardTitle className="font-heading text-lg font-semibold">Create an event</CardTitle>
         </div>
         <p className="text-muted-foreground text-sm mt-1">
-          Fill in details and publish your event
+          Fill in details and publish your event in one go
         </p>
       </div>
 

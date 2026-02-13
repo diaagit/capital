@@ -467,6 +467,37 @@ organiserRouter.post(
     },
 );
 
+organiserRouter.get("/profile", organiserMiddleware, async (req: Request, res: Response) => {
+    try {
+        const user = req.organiserId;
+        const findUser = await db.user.findUnique({
+            select: {
+                first_name: true,
+                profile_image_url: true,
+            },
+            where: {
+                id: user,
+            },
+        });
+        if (!findUser) {
+            return res.status(404).json({
+                message: "Invalid data was provided",
+            });
+        }
+        return res.status(200).json({
+            data: {
+                firstName: findUser.first_name,
+                proficPic: findUser.profile_image_url,
+            },
+            message: "Data was retrieved successfully",
+        });
+    } catch (_error) {
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+});
+
 /**
  * Initiate a payment from wallet to cardNumber
  * @route POST /initiate
@@ -546,59 +577,130 @@ organiserRouter.post("/initiate", organiserMiddleware, async (req: Request, res:
 organiserRouter.get("/events", organiserMiddleware, async (req: Request, res: Response) => {
     try {
         const organiserId = req.organiserId as string | undefined;
+
         if (!organiserId) {
             return res.status(403).json({
                 message: "Unauthenticated",
             });
         }
 
-        const { status, title, location } = req.query;
+        const {
+            status,
+            title,
+            category,
+            genre,
+            language,
+            isOnline,
+            location,
+            from,
+            to,
+            page = "1",
+            limit = "10",
+        } = req.query;
 
-        const events = await db.event.findMany({
-            orderBy: {
-                created_at: "desc",
-            },
-            where: {
-                organiserId,
-                ...(status && typeof status === "string" && allowedStatuses.includes(status as any)
-                    ? {
-                          status: status as any,
-                      }
-                    : {}),
-                ...(title
-                    ? {
-                          title: {
-                              contains: title as string,
-                              mode: "insensitive",
-                          },
-                      }
-                    : {}),
-                ...(location
-                    ? {
-                          location_name: {
-                              contains: location as string,
-                              mode: "insensitive",
-                          },
-                      }
-                    : {}),
-            },
-        });
+        const skip = (Number(page) - 1) * Number(limit);
+        const where: any = {
+            organiserId,
+        };
 
-        if (!events || events.length === 0) {
-            return res.status(404).json({
-                message: "No events found for the given filters",
-            });
+        if (status && allowedStatuses.includes(status as any)) {
+            where.status = status;
         }
+
+        if (title) {
+            where.title = {
+                contains: title as string,
+                mode: "insensitive",
+            };
+        }
+
+        if (category) where.category = category;
+        if (genre) where.genre = genre;
+        if (language) where.language = language;
+
+        if (isOnline !== undefined) {
+            where.is_online = isOnline === "true";
+        }
+
+        if (location || from || to) {
+            where.slots = {
+                some: {
+                    ...(location && {
+                        location_name: {
+                            contains: location as string,
+                            mode: "insensitive",
+                        },
+                    }),
+                    ...(from || to
+                        ? {
+                              event_date: {
+                                  ...(from && {
+                                      gte: new Date(from as string),
+                                  }),
+                                  ...(to && {
+                                      lte: new Date(to as string),
+                                  }),
+                              },
+                          }
+                        : {}),
+                },
+            };
+        }
+
+        const [events, total, statusCounts] = await Promise.all([
+            db.event.findMany({
+                include: {
+                    slots: true,
+                },
+                orderBy: {
+                    created_at: "desc",
+                },
+                skip,
+                take: Number(limit),
+                where,
+            }),
+
+            db.event.count({
+                where,
+            }),
+
+            db.event.groupBy({
+                _count: {
+                    status: true,
+                },
+                by: [
+                    "status",
+                ],
+                where: {
+                    organiserId,
+                },
+            }),
+        ]);
+
+        const byStatus = {
+            cancelled: 0,
+            draft: 0,
+            published: 0,
+        };
+
+        statusCounts.forEach((s: any) => {
+            byStatus[s.status] = s._count.status;
+        });
 
         return res.status(200).json({
             data: events,
             message: "Events fetched",
+            meta: {
+                byStatus,
+                limit: Number(limit),
+                page: Number(page),
+                total,
+            },
         });
     } catch (error) {
         console.error(error);
         return res.status(500).json({
-            error: error instanceof Error ? error.message : "Internal error",
-            message: "Internal error occured",
+            message: "Internal error occurred",
         });
     }
 });
