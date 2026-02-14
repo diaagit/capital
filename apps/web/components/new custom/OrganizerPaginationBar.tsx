@@ -1,10 +1,36 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "../ui/button";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "../ui/select";
 
-export default function OrganizerPaginationBar({ page, totalPages, setPage }: any) {
+interface OrganizerPaginationBarProps {
+  page: number;
+  totalPages: number;
+  setPage: React.Dispatch<React.SetStateAction<number>>;
+  limit: number;
+  setLimit: React.Dispatch<React.SetStateAction<number>>;
+}
+
+export default function OrganizerPaginationBar({
+  page,
+  totalPages,
+  setPage,
+  limit,
+  setLimit,
+}: OrganizerPaginationBarProps) {
   return (
     <div className="flex items-center justify-center gap-6 py-6">
-      <Button variant="outline" size="icon" disabled={page === 1} onClick={() => setPage((p: number) => p - 1)}>
+      <Button
+        variant="outline"
+        size="icon"
+        disabled={page === 1}
+        onClick={() => setPage((p) => p - 1)}
+      >
         <ChevronLeft size={16} />
       </Button>
 
@@ -12,9 +38,31 @@ export default function OrganizerPaginationBar({ page, totalPages, setPage }: an
         Page {page} of {totalPages}
       </span>
 
-      <Button variant="outline" size="icon" disabled={page === totalPages} onClick={() => setPage((p: number) => p + 1)}>
+      <Button
+        variant="outline"
+        size="icon"
+        disabled={page === totalPages}
+        onClick={() => setPage((p) => p + 1)}
+      >
         <ChevronRight size={16} />
       </Button>
+
+      <Select
+        value={limit.toString()}
+        onValueChange={(v) => {
+          setLimit(Number(v));
+          setPage(1);
+        }}
+      >
+        <SelectTrigger className="w-24">
+          <SelectValue placeholder="Limit" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="6">6</SelectItem>
+          <SelectItem value="12">12</SelectItem>
+          <SelectItem value="24">24</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
   );
 }

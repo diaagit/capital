@@ -3,7 +3,6 @@ import db, { type Prisma } from "@repo/db";
 import { AlphanumericOTP } from "@repo/notifications";
 import { otpLimits, resetPasswordLimits } from "@repo/ratelimit";
 import {
-    allowedStatuses,
     ForgetType,
     InitiateSchema,
     OtpType,
@@ -576,13 +575,7 @@ organiserRouter.post("/initiate", organiserMiddleware, async (req: Request, res:
  */
 organiserRouter.get("/events", organiserMiddleware, async (req: Request, res: Response) => {
     try {
-        const organiserId = req.organiserId as string | undefined;
-
-        if (!organiserId) {
-            return res.status(403).json({
-                message: "Unauthenticated",
-            });
-        }
+        const organiserId = req.organiserId as string;
 
         const {
             status,
@@ -599,13 +592,12 @@ organiserRouter.get("/events", organiserMiddleware, async (req: Request, res: Re
         } = req.query;
 
         const skip = (Number(page) - 1) * Number(limit);
+
         const where: any = {
             organiserId,
         };
 
-        if (status && allowedStatuses.includes(status as any)) {
-            where.status = status;
-        }
+        if (status) where.status = status;
 
         if (title) {
             where.title = {
@@ -647,35 +639,62 @@ organiserRouter.get("/events", organiserMiddleware, async (req: Request, res: Re
             };
         }
 
-        const [events, total, statusCounts] = await Promise.all([
-            db.event.findMany({
-                include: {
-                    slots: true,
+        const events = await db.event.findMany({
+            include: {
+                slots: {
+                    include: {
+                        tickets: {
+                            where: {
+                                status: "ISSUED",
+                            },
+                        },
+                    },
                 },
-                orderBy: {
-                    created_at: "desc",
-                },
-                skip,
-                take: Number(limit),
-                where,
-            }),
+            },
+            orderBy: {
+                created_at: "desc",
+            },
+            skip,
+            take: Number(limit),
+            where,
+        });
 
-            db.event.count({
-                where,
-            }),
+        let totalRevenue = 0;
 
-            db.event.groupBy({
-                _count: {
-                    status: true,
-                },
-                by: [
-                    "status",
-                ],
-                where: {
-                    organiserId,
-                },
-            }),
-        ]);
+        const enrichedEvents = events.map((event) => {
+            let revenue = 0;
+            let ticketsSold = 0;
+
+            event.slots.forEach((slot) => {
+                const sold = slot.tickets.length;
+                ticketsSold += sold;
+                revenue += Number(slot.price) * sold;
+            });
+
+            totalRevenue += revenue;
+
+            return {
+                ...event,
+                revenue,
+                ticketsSold,
+            };
+        });
+
+        const total = await db.event.count({
+            where,
+        });
+
+        const statusCounts = await db.event.groupBy({
+            _count: {
+                status: true,
+            },
+            by: [
+                "status",
+            ],
+            where: {
+                organiserId,
+            },
+        });
 
         const byStatus = {
             cancelled: 0,
@@ -683,18 +702,19 @@ organiserRouter.get("/events", organiserMiddleware, async (req: Request, res: Re
             published: 0,
         };
 
-        statusCounts.forEach((s: any) => {
+        statusCounts.forEach((s) => {
             byStatus[s.status] = s._count.status;
         });
 
         return res.status(200).json({
-            data: events,
+            data: enrichedEvents,
             message: "Events fetched",
             meta: {
                 byStatus,
                 limit: Number(limit),
                 page: Number(page),
                 total,
+                totalRevenue,
             },
         });
     } catch (error) {

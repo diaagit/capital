@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Search,
   Plus,
   MapPin,
   Pencil,
   Trash2,
-  ArrowUpDown,
   CalendarDays,
   TrendingUp,
   Ticket,
@@ -16,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectTrigger,
@@ -30,30 +30,35 @@ import getBackendUrl from "@/lib/config";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import axios from "axios";
+import EmptyState from "./EmptyState";
 
-const initialEvents = Array.from({ length: 18 }).map((_, i) => ({
-  id: i + 1,
-  title: `Event ${i + 1}`,
-  date: new Date(2024, 5, i + 1),
-  location: "City Hall",
-  image: "/assets/movie7.jpg",
-  status: i % 3 === 0 ? "Live" : i % 3 === 1 ? "Upcoming" : "Completed",
-  ticketsSold: Math.floor(Math.random() * 100),
-  revenue: Math.floor(Math.random() * 50000),
-}));
-
-const PER_PAGE = 6;
+interface BackendInterface {
+  data: any[];
+  meta: {
+    byStatus: {
+      draft: number;
+      published: number;
+      cancelled: number;
+    };
+    totalRevenue: number;
+    limit: number;
+    page: number;
+    total: number;
+    totalPages: number;
+  };
+  message: string;
+}
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    Live: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    Upcoming: "bg-amber-50 text-amber-700 border-amber-200",
-    Completed: "bg-gray-100 text-gray-600 border-gray-200",
+    published: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    draft: "bg-amber-50 text-amber-700 border-amber-200",
+    cancelled: "bg-gray-100 text-gray-600 border-gray-200",
   };
 
   return (
     <Badge variant="outline" className={styles[status]}>
-      {status === "Live" && (
+      {status === "published" && (
         <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
       )}
       {status}
@@ -63,195 +68,345 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function OrganizerEventsPage() {
   const router = useRouter();
-  const [events, setEvents] = useState(initialEvents);
+  const [events, setEvents] = useState<any[]>([]);
+  const [meta, setMeta] = useState<any>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [sort, setSort] = useState("date-desc");
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState<number>(6);
 
-  const filtered = useMemo(() => {
-    let data = [...events];
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
 
-    if (search)
-      data = data.filter((e) =>
-        e.title.toLowerCase().includes(search.toLowerCase())
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const fetchEvents = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/organizer/login");
+      return;
+    }
+
+    if (initialLoading) {
+      setInitialLoading(true);
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      const res = await axios.get<BackendInterface>(
+        `${getBackendUrl()}/organiser/events`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          params: {
+            page,
+            limit,
+            search: debouncedSearch,
+            status: filter !== "All" ? filter : undefined,
+            sort,
+          },
+        }
       );
 
-    if (filter !== "All") data = data.filter((e) => e.status === filter);
-
-    data.sort((a, b) => {
-      switch (sort) {
-        case "date-asc":
-          return a.date.getTime() - b.date.getTime();
-        case "date-desc":
-          return b.date.getTime() - a.date.getTime();
-        case "revenue":
-          return b.revenue - a.revenue;
-        case "sales":
-          return b.ticketsSold - a.ticketsSold;
-        default:
-          return 0;
-      }
-    });
-
-    return data;
-  }, [events, search, filter, sort]);
-
-  const totalPages = Math.ceil(filtered.length / PER_PAGE);
-  const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-
-  useEffect(()=>{
-    const token = localStorage.getItem("token");
-    if(!token){
-      toast.warning("You are not logged in");
-      router.push("/organizer/login")
+      setEvents(res.data.data);
+      setMeta(res.data.meta);
+    } catch {
+      toast.error("Failed to load events");
+    } finally {
+      setInitialLoading(false);
+      setLoading(false);
     }
-    const URL = getBackendUrl();
-    async function getData() {
-      try {
-        const res = await axios.get(`${URL}/organiser/events`,{headers:{
-          Authorization: `Bearer ${token}`
-        }})
-        const data = res.data.data
-      } catch (error) {
-        toast.error("Error took place: ", error)
-      }
-    }
-    getData();
-  },[])
+  }, [page, limit, debouncedSearch, filter, sort, router, initialLoading]);
 
-  const handleDelete = (id: number) =>
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+
+  const handleDelete = async (id: string) => {
+    const previous = [...events];
     setEvents((prev) => prev.filter((e) => e.id !== id));
 
-  const revenue = events.reduce((a, b) => a + b.revenue, 0);
-  const liveCount = events.filter((e) => e.status === "Live").length;
+    try {
+      await axios.delete(
+        `${getBackendUrl()}/organiser/events/${id}`
+      );
+      toast.success("Event deleted");
+    } catch {
+      setEvents(previous);
+      toast.error("Delete failed");
+    }
+  };
+
+  if (initialLoading) return <PageSkeleton />;
 
   return (
     <div className="bg-gradient-to-b from-gray-50 to-white p-2">
       <div className="mx-auto px-6 py-12 space-y-10">
+
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">All Events</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              All Events
+            </h1>
             <p className="text-sm text-gray-500 mt-1">
               Manage shows & monitor performance
             </p>
           </div>
 
-          <Button className="gap-2 shadow-md rounded-xl bg-black text-white hover:bg-black/90">
+          <Button className="gap-2 rounded-xl bg-black text-white">
             <Plus size={16} />
             Add Event
           </Button>
         </div>
-
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <OrganizerStatCard icon={CalendarDays} title="Total Events" value={events.length.toString()} />
-          <OrganizerStatCard icon={TrendingUp} title="Revenue" value={`₹${revenue.toLocaleString()}`} />
-          <OrganizerStatCard icon={Zap} title="Live Now" value={liveCount.toString()} highlight />
-        </div>
-
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 rounded-2xl border bg-white p-5 shadow-sm">
-          <OrganizerIconInput
-            placeholder="Search events..."
-            icon={Search}
-            value={search}
-            setValue={setSearch}
-            className="w-[600px]"
+          <OrganizerStatCard
+            icon={CalendarDays}
+            title="Total Events"
+            value={meta?.total?.toString() || "0"}
           />
+          <OrganizerStatCard
+            icon={TrendingUp}
+            title="Revenue"
+            value={`₹${(meta?.totalRevenue || 0).toLocaleString()}`}
+          />
+          <OrganizerStatCard
+            icon={Zap}
+            title="Live Now"
+            value={meta?.byStatus?.published?.toString() || "0"}
+            highlight
+          />
+        </div>
+        <div className="flex bg-white border shadow-sx p-3 rounded-md flex-wrap gap-3 items-center justify-between">
+          <div className="flex justify-between items-center w-full">
+            <OrganizerIconInput
+              icon={Search}
+              placeholder="Search events..."
+              value={search}
+              onChange={(e: any) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+            />
 
-          <div className="flex gap-3">
-            <Select onValueChange={setFilter} defaultValue="All">
-              <SelectTrigger className="w-36 rounded-lg bg-card border-border text-foreground">
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-
-              <SelectContent>
-                <SelectItem value="All">All Status</SelectItem>
-                <SelectItem value="Live">Live</SelectItem>
-                <SelectItem value="Upcoming">Upcoming</SelectItem>
-                <SelectItem value="Completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-
-
-            <Select onValueChange={setSort} defaultValue="date-desc">
-              <SelectTrigger className="w-44 rounded-lg">
-                <ArrowUpDown size={14} className="mr-1" />
+            <div className="flex gap-3">
+              <Select
+              value={filter}
+              onValueChange={(v) => {
+                setFilter(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-40">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="date-desc">Newest First</SelectItem>
-                <SelectItem value="date-asc">Oldest First</SelectItem>
-                <SelectItem value="revenue">By Revenue</SelectItem>
-                <SelectItem value="sales">By Sales</SelectItem>
+                <SelectItem value="All">All</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select value={sort} onValueChange={setSort}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date-desc">Newest</SelectItem>
+                <SelectItem value="date-asc">Oldest</SelectItem>
+                <SelectItem value="revenue">Revenue</SelectItem>
+                <SelectItem value="sales">Sales</SelectItem>
+              </SelectContent>
+            </Select>
+            </div>
           </div>
+
+          
         </div>
 
-        <div className="space-y-4">
-          {paginated.map((e) => (
-            <EventRow key={e.id} event={e} onDelete={() => handleDelete(e.id)} />
-          ))}
-        </div>
-
-        <OrganizerPaginationBar page={page} totalPages={totalPages} setPage={setPage} />
+        {events.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="space-y-4">
+            {events.map((e) => (
+              <EventRow
+                key={e.id}
+                event={e}
+                onClick={() =>
+                  router.push(`/organizer/dashboard/events/${e.id}`)
+                }
+                onDelete={() => handleDelete(e.id)}
+              />
+            ))}
+          </div>
+        )}
+        <OrganizerPaginationBar
+          page={meta?.page || 1}
+          totalPages={meta?.totalPages || 1}
+          setPage={setPage}
+          limit={limit}
+          setLimit={setLimit}
+        />
       </div>
     </div>
   );
 }
 
-function EventRow({ event, onDelete }: { event: any; onDelete: () => void }) {
-  return (
-    <div className="flex flex-col sm:flex-row gap-6 items-center p-5 bg-white border rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-[2px] transition-all">
+const EventRow = ({ event, onClick, onDelete }: any) => {
+  const firstSlot = event.slots?.[0];
 
-      <div className="relative h-40 sm:h-36 sm:w-60 shrink-0 overflow-hidden rounded-xl shadow">
+  return (
+    <div
+      onClick={onClick}
+      className="group cursor-pointer flex flex-col sm:flex-row gap-4 items-center p-3 bg-white border rounded-2xl shadow-sm transition-all hover:shadow-lg hover:-translate-y-[2px]"
+    >
+      <div className="relative h-28 sm:h-24 sm:w-44 shrink-0 overflow-hidden rounded-xl">
         <img
-          src={event.image}
+          src={event.banner_url}
           alt={event.title}
-          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
       </div>
 
-      <div className="flex-1 text-center sm:text-left space-y-3">
-        <h3 className="font-semibold text-lg">{event.title}</h3>
+      <div className="flex-1 space-y-2">
+        <h3 className="font-semibold">{event.title}</h3>
 
-        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-sm text-gray-500">
+        <div className="flex gap-4 text-xs text-gray-500">
           <span className="flex items-center gap-1">
-            <CalendarDays size={13} /> {event.date.toDateString()}
+            <CalendarDays size={12} />
+            {firstSlot
+              ? new Date(firstSlot.event_date).toDateString()
+              : "No Date"}
           </span>
+
           <span className="flex items-center gap-1">
-            <MapPin size={13} /> {event.location}
+            <MapPin size={12} />
+            {firstSlot?.location_name || "Online"}
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-5">
+        <div className="flex gap-4 items-center">
           <StatusBadge status={event.status} />
-          <span className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-            <Ticket size={14} />
-            {event.ticketsSold}% sold
-          </span>
-          <span className="text-sm font-semibold text-foreground">
-            ₹{event.revenue.toLocaleString()}
+          <span className="text-xs flex items-center gap-1">
+            <Ticket size={13} />
+            {event.ticketsSold || 0} sold
           </span>
         </div>
 
-        <Progress value={event.ticketsSold} className="h-2 mt-3 bg-muted" indicatorColor="bg-blue-700" />
+        <Progress
+          value={
+            firstSlot
+              ? ((event.ticketsSold || 0) / firstSlot.capacity) * 100
+              : 0
+          }
+          className="h-1.5"
+        />
       </div>
 
-      <div className="flex sm:flex-col items-center justify-end gap-2 shrink-0">
-        <Button size="sm" variant="outline" className="gap-1.5 rounded-lg text-xs">
-          <Pencil size={13} />
-          Edit
-        </Button>
+      <div className="flex sm:flex-col gap-2">
         <Button
           size="sm"
           variant="outline"
-          onClick={onDelete}
-          className="gap-1.5 rounded-lg text-xs text-destructive border-destructive/20 hover:bg-destructive/5"
+          onClick={(e) => e.stopPropagation()}
         >
-          <Trash2 size={13} />
-          Delete
+          <Pencil size={12} />
         </Button>
+
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+        >
+          <Trash2 size={12} />
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+export function PageSkeleton() {
+  return (
+    <div className="bg-gradient-to-b from-gray-50 to-white p-2">
+      <div className="mx-auto px-6 py-12 space-y-10">
+
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48 rounded-md" />
+            <Skeleton className="h-4 w-64 rounded-md" />
+          </div>
+
+          <Skeleton className="h-10 w-36 rounded-xl" />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="rounded-2xl border bg-white p-5 space-y-4"
+            >
+              <Skeleton className="h-5 w-24 rounded-md" />
+              <Skeleton className="h-8 w-20 rounded-md" />
+            </div>
+          ))}
+        </div>
+        <div className="flex bg-white border shadow-sx p-3 rounded-md flex-wrap gap-3 items-center justify-between">
+          <div className="flex justify-between items-center w-full">
+            <Skeleton className="h-9 w-64 rounded-lg" />
+
+            <div className="flex gap-3">
+              <Skeleton className="h-9 w-40 rounded-md" />
+              <Skeleton className="h-9 w-40 rounded-md" />
+            </div>
+          </div>
+        </div>
+        <div className="space-y-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex flex-col sm:flex-row gap-4 items-center p-3 bg-white border rounded-2xl shadow-sm"
+            >
+              <Skeleton className="h-28 sm:h-24 sm:w-44 w-full rounded-xl" />
+
+              <div className="flex-1 space-y-3 w-full">
+                <Skeleton className="h-5 w-48 rounded-md" />
+
+                <div className="flex gap-4">
+                  <Skeleton className="h-3 w-28 rounded-md" />
+                  <Skeleton className="h-3 w-24 rounded-md" />
+                </div>
+
+                <div className="flex gap-4 items-center">
+                  <Skeleton className="h-5 w-20 rounded-md" />
+                  <Skeleton className="h-4 w-16 rounded-md" />
+                </div>
+
+                <Skeleton className="h-1.5 w-full rounded-full" />
+              </div>
+
+              <div className="flex sm:flex-col gap-2">
+                <Skeleton className="h-8 w-8 rounded-md" />
+                <Skeleton className="h-8 w-8 rounded-md" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-center gap-6 py-6">
+          <Skeleton className="h-9 w-9 rounded-md" />
+          <Skeleton className="h-4 w-32 rounded-md" />
+          <Skeleton className="h-9 w-9 rounded-md" />
+          <Skeleton className="h-9 w-20 rounded-md" />
+        </div>
       </div>
     </div>
   );
