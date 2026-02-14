@@ -65,12 +65,12 @@ export const UserDetailsType = z.object({
         .string({
             error: "Invalid City Name was provided",
         })
-        .min(3, {
-            error: "City Name must atleast be 3 letters long",
-        })
-        .max(20, {
-            error: "City Name must be less than 20 letters",
-        })
+        // .min(3, {
+        //     error: "City Name must atleast be 3 letters long",
+        // })
+        // .max(20, {
+        //     error: "City Name must be less than 20 letters",
+        // })
         .optional(),
     date: z.coerce
         .date({
@@ -81,45 +81,45 @@ export const UserDetailsType = z.object({
         .string({
             error: "Invalid First Name was provided",
         })
-        .min(3, {
-            error: "First Name must atleast be 3 letters long",
-        })
-        .max(24, {
-            error: "First Name must be less than 24 letters",
-        })
+        // .min(3, {
+        //     error: "First Name must atleast be 3 letters long",
+        // })
+        // .max(24, {
+        //     error: "First Name must be less than 24 letters",
+        // })
         .optional(),
     lastName: z
         .string({
             error: "Invalid Last Name was provided",
         })
-        .min(3, {
-            error: "Last Name must atleast be 3 letters long",
-        })
-        .max(24, {
-            error: "Last Name must be less than 24 letters",
-        })
+        // .min(3, {
+        //     error: "Last Name must atleast be 3 letters long",
+        // })
+        // .max(24, {
+        //     error: "Last Name must be less than 24 letters",
+        // })
         .optional(),
     state: z
         .string({
             error: "Invalid State Name was provided",
         })
-        .min(3, {
-            error: "State Name must atleast be 3 letters long",
-        })
-        .max(20, {
-            error: "State Name must be less than 20 letters",
-        })
+        // .min(3, {
+        //     error: "State Name must atleast be 3 letters long",
+        // })
+        // .max(20, {
+        //     error: "State Name must be less than 20 letters",
+        // })
         .optional(),
     zipCode: z
         .string({
             error: "Invalid Zip-Code was provided",
         })
-        .min(6, {
-            error: "Zip-Code must atleast be 6 letters long",
-        })
-        .max(10, {
-            error: "Zip-Code must be less than 10 letters",
-        })
+        // .min(6, {
+        //     error: "Zip-Code must atleast be 6 letters long",
+        // })
+        // .max(10, {
+        //     error: "Zip-Code must be less than 10 letters",
+        // })
         .optional(),
 });
 
@@ -210,6 +210,78 @@ export const EventType = z.object({
     ] as const),
     title: z.string().min(3),
 });
+
+export const updateEventSchema = z
+    .object({
+        banner_url: z.string().url().optional(),
+        category: z
+            .enum([
+                "movie",
+                "concert",
+                "sports",
+                "theatre",
+                "comedy",
+                "conference",
+                "workshop",
+                "exhibition",
+                "festival",
+                "other",
+            ])
+            .optional(),
+        description: z.string().min(10).optional(),
+        genre: z
+            .enum([
+                "action",
+                "drama",
+                "comedy",
+                "romance",
+                "horror",
+                "thriller",
+                "sci_fi",
+                "fantasy",
+                "documentary",
+                "animation",
+                "classical",
+                "rock",
+                "pop",
+                "jazz",
+                "hip_hop",
+                "sports_general",
+                "other",
+            ])
+            .nullable()
+            .optional(),
+        hero_image_url: z.string().url().optional(),
+        is_online: z.boolean().optional(),
+        language: z
+            .enum([
+                "english",
+                "hindi",
+                "marathi",
+                "spanish",
+                "french",
+                "german",
+                "japanese",
+                "korean",
+                "chinese",
+                "tamil",
+                "telugu",
+                "multi_language",
+            ])
+            .nullable()
+            .optional(),
+        status: z
+            .enum([
+                "draft",
+                "published",
+                "cancelled",
+            ])
+            .optional(),
+        title: z.string().min(3).max(200).optional(),
+    })
+    .refine((data) => Object.keys(data).length > 0, {
+        message: "At least one field must be provided for update",
+    });
 
 // export const EventSlotType = z.object({
 //     capacity: z.number().positive(),

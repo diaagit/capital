@@ -11,6 +11,7 @@ import {
   TrendingUp,
   Ticket,
   Zap,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,9 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import EmptyState from "./EmptyState";
+import Link from "next/link";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import DeleteModal from "./DeletModal";
 
 interface BackendInterface {
   data: any[];
@@ -57,12 +61,32 @@ function StatusBadge({ status }: { status: string }) {
   };
 
   return (
-    <Badge variant="outline" className={styles[status]}>
-      {status === "published" && (
-        <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+    <div className="flex items-center gap-2">
+      <Badge variant="outline" className={styles[status]}>
+        {status === "published" && (
+          <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+        )}
+        {status}
+      </Badge>
+
+      {status === "draft" && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="text-muted-foreground hover:text-foreground transition"
+              >
+                <Info size={14} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              Add slots to publish the event
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       )}
-      {status}
-    </Badge>
+    </div>
   );
 }
 
@@ -78,6 +102,7 @@ export default function OrganizerEventsPage() {
   const [sort, setSort] = useState("date-desc");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState<number>(6);
+  const [isDeleteModal, setDeleteModal] = useState<boolean>(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -86,6 +111,13 @@ export default function OrganizerEventsPage() {
 
     return () => clearTimeout(timer);
   }, [search]);
+
+  useEffect(()=>{
+    const token = localStorage.getItem("token");
+    if(!token){
+      router.push("/organizer/login")
+    }
+  },[])
 
   const fetchEvents = useCallback(async () => {
     const token = localStorage.getItem("token");
@@ -130,16 +162,25 @@ export default function OrganizerEventsPage() {
   }, [fetchEvents]);
 
   const handleDelete = async (id: string) => {
-    const previous = [...events];
-    setEvents((prev) => prev.filter((e) => e.id !== id));
-
+    // const previous = [...events];
+    // setEvents((prev) => prev.filter((e) => e.id !== id));
+    const token = localStorage.getItem("token");
+    if(!token){
+      toast.warning("You are not logged in")
+      router.push("/organizer/login")
+    }
     try {
       await axios.delete(
-        `${getBackendUrl()}/organiser/events/${id}`
+        `${getBackendUrl()}/events/${id}`,{
+          headers:{
+            Authorization: `Bearer ${token}`
+          }
+        }
       );
-      toast.success("Event deleted");
+      toast.success("Event successfully deleted");
+      fetchEvents();
     } catch {
-      setEvents(previous);
+      //setEvents(previous);
       toast.error("Delete failed");
     }
   };
@@ -160,10 +201,12 @@ export default function OrganizerEventsPage() {
             </p>
           </div>
 
-          <Button className="gap-2 rounded-xl bg-black text-white">
-            <Plus size={16} />
-            Add Event
-          </Button>
+          <Link href="/organizer/dashboard/events/new-event">
+            <Button className="gap-2 rounded-xl bg-black text-white">
+              <Plus size={16} />
+              Add Event
+            </Button>
+          </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <OrganizerStatCard
@@ -242,6 +285,7 @@ export default function OrganizerEventsPage() {
                 onClick={() =>
                   router.push(`/organizer/dashboard/events/${e.id}`)
                 }
+                onEdit={()=>{router.push(`/organizer/dashboard/events/edit/${e.id}`)}}
                 onDelete={() => handleDelete(e.id)}
               />
             ))}
@@ -259,7 +303,7 @@ export default function OrganizerEventsPage() {
   );
 }
 
-const EventRow = ({ event, onClick, onDelete }: any) => {
+const EventRow = ({ event, onClick, onEdit,onDelete }: any) => {
   const firstSlot = event.slots?.[0];
 
   return (
@@ -311,24 +355,39 @@ const EventRow = ({ event, onClick, onDelete }: any) => {
       </div>
 
       <div className="flex sm:flex-col gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Pencil size={12} />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {e.stopPropagation(); onEdit()}}
+            >
+              <Pencil size={12} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+             <p>Edit Event</p>
+          </TooltipContent>
+        </Tooltip>
 
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-        >
-          <Trash2 size={12} />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div onClick={(e) => e.stopPropagation()}>
+              <DeleteModal
+                usage="event"
+                onConfirm={() => onDelete()}
+              >
+                <Button size="sm" variant="outline">
+                  <Trash2 size={12} />
+                </Button>
+              </DeleteModal>
+            </div>
+          </TooltipTrigger>
+
+          <TooltipContent>
+            <p>Delete Event</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

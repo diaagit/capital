@@ -6,7 +6,7 @@ import db, {
     type EventStatus,
     type Prisma,
 } from "@repo/db";
-import { EventSlotType, EventType } from "@repo/types";
+import { EventSlotType, EventType, updateEventSchema } from "@repo/types";
 import express, { type Request, type Response, type Router } from "express";
 import { formatDate, formatTime } from "../helper/date";
 import userMiddleware, { organiserMiddleware } from "../middleware";
@@ -273,34 +273,162 @@ eventRouter.get("/", async (req: Request, res: Response) => {
     }
 });
 
+eventRouter.get("/:id", organiserMiddleware, async (req: Request, res: Response) => {
+    try {
+        const user = req.organiserId;
+        const { id } = req.params;
+
+        const getEvent = await db.event.findUnique({
+            select: {
+                banner_url: true,
+                category: true,
+                description: true,
+                genre: true,
+                hero_image_url: true,
+                id: true,
+                is_online: true,
+                language: true,
+                organiserId: true,
+                status: true,
+                title: true,
+            },
+            where: {
+                id,
+            },
+        });
+
+        if (!getEvent) {
+            return res.status(404).json({
+                message: "Event was not found",
+            });
+        }
+
+        if (getEvent.organiserId !== user) {
+            return res.status(401).json({
+                message: "You are unauthorized to edit this event, as it doesnt belong to you",
+            });
+        }
+
+        const totalSlots = await db.eventSlot.count({
+            where: {
+                eventId: id,
+            },
+        });
+
+        return res.status(200).json({
+            data: {
+                banner_url: getEvent.banner_url,
+                category: getEvent.category,
+                description: getEvent.description,
+                genre: getEvent.genre,
+                hero_image_url: getEvent.hero_image_url,
+                id: getEvent.id,
+                is_online: getEvent.is_online,
+                language: getEvent.language,
+                status: getEvent.status,
+                title: getEvent.title,
+            },
+            message: "Data was successfully fetched",
+            meta: {
+                total: totalSlots,
+            },
+        });
+    } catch (error) {
+        console.error("EVENT ROUTE GET ID ERROR:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+});
+
+eventRouter.patch("/:id", organiserMiddleware, async (req: Request, res: Response) => {
+    try {
+        const user = req.organiserId;
+        const { id } = req.params;
+        const parsed = updateEventSchema.safeParse(req.body);
+        if (!parsed.success) {
+            return res.status(400).json({
+                errors: parsed.error.flatten(),
+                message: "Validation failed",
+            });
+        }
+        const updateBody = parsed.data;
+
+        const getEvent = await db.event.findUnique({
+            where: {
+                id: id,
+            },
+        });
+
+        if (!getEvent) {
+            return res.status(404).json({
+                message: "Event was not found",
+            });
+        }
+
+        if (getEvent.organiserId !== user) {
+            return res.status(401).json({
+                message: "You are unauthorized to edit this event, as it doesnt belong to you",
+            });
+        }
+
+        await db.event.update({
+            data: updateBody,
+            where: {
+                id,
+            },
+        });
+
+        return res.status(200).json({
+            message: "Event data updated successfully",
+        });
+    } catch (error) {
+        console.error("EVENT ROUTE EDIT ERROR:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+});
+
 /**
  * Delete an event and its slots
  */
-eventRouter.delete("/:id", async (req: Request, res: Response) => {
+eventRouter.delete("/:id", organiserMiddleware, async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
+        const user = req.organiserId;
 
         const event = await db.event.findUnique({
             where: {
                 id,
             },
         });
+
         if (!event) {
             return res.status(404).json({
                 message: "Event not found",
             });
         }
 
-        await db.eventSlot.deleteMany({
-            where: {
-                eventId: id,
-            },
-        });
-        await db.event.delete({
-            where: {
-                id,
-            },
-        });
+        if (event.organiserId !== user) {
+            return res.status(401).json({
+                message: "You are unauthorized to delete this event, as it doesnt belong to you",
+            });
+        }
+
+        await db.$transaction([
+            db.eventSlot.deleteMany({
+                where: {
+                    eventId: id,
+                },
+            }),
+            db.event.delete({
+                where: {
+                    id,
+                },
+            }),
+        ]);
+
         await deleteCache();
         return res.status(200).json({
             message: "Event deleted successfully",
