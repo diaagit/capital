@@ -34,7 +34,7 @@ function getActiveLocation(slots: EventSlot[]) {
   return null;
 }
 
-function getMapEmbedUrl(location: string) {
+export function getMapEmbedUrl(location: string) {
   return `https://www.google.com/maps?q=${encodeURIComponent(
     location
   )}&output=embed`;

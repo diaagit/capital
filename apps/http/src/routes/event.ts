@@ -202,6 +202,9 @@ eventRouter.get("/", async (req: Request, res: Response) => {
                     some: slotFilters,
                 },
             }),
+            status: {
+                not: "draft",
+            },
         };
 
         const total = await db.event.count({

@@ -13,7 +13,7 @@ function OrganizerStatCard({
 }) {
   return (
     <div className={cn(
-      "rounded-2xl border p-6 flex items-center gap-4 shadow-sm bg-white",
+      "rounded-2xl border p-6 flex items-center gap-4 shadow-sm bg-white h-20",
       highlight && "border-emerald-200 bg-emerald-50"
     )}>
       <div className="rounded-xl p-3 bg-indigo-50 text-indigo-600">

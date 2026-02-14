@@ -101,9 +101,8 @@ export default function OrganizerEventsPage() {
   const [filter, setFilter] = useState("All");
   const [sort, setSort] = useState("date-desc");
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState<number>(6);
-  const [isDeleteModal, setDeleteModal] = useState<boolean>(false);
-
+  const [limit, setLimit] = useState<number>(5);
+  
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
@@ -162,8 +161,6 @@ export default function OrganizerEventsPage() {
   }, [fetchEvents]);
 
   const handleDelete = async (id: string) => {
-    // const previous = [...events];
-    // setEvents((prev) => prev.filter((e) => e.id !== id));
     const token = localStorage.getItem("token");
     if(!token){
       toast.warning("You are not logged in")
@@ -180,7 +177,6 @@ export default function OrganizerEventsPage() {
       toast.success("Event successfully deleted");
       fetchEvents();
     } catch {
-      //setEvents(previous);
       toast.error("Delete failed");
     }
   };
@@ -197,7 +193,7 @@ export default function OrganizerEventsPage() {
               All Events
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              Manage shows & monitor performance
+              Manage your shows & monitor performance
             </p>
           </div>
 
@@ -275,7 +271,7 @@ export default function OrganizerEventsPage() {
         </div>
 
         {events.length === 0 ? (
-          <EmptyState />
+          <EmptyState type="events" />
         ) : (
           <div className="space-y-4">
             {events.map((e) => (

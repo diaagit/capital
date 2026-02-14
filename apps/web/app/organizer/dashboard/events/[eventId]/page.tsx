@@ -1,6 +1,4 @@
-import OrganizerSlotPage from "@/components/new custom/OrganizerSlotPage";
-import SlotList from "@/components/new custom/SlotList"
-import axios from "axios";
+import EventSlotsPage from "@/components/new custom/OrganizerSlotPage";
 
 type Props = {
   params: {
@@ -13,7 +11,7 @@ const page = async({params}: { params: Promise<{ eventId: string }> }) => {
 
   return (
     <div>
-        <OrganizerSlotPage eventId={eventId} />
+        <EventSlotsPage eventId={eventId} />
     </div>
   )
 }

@@ -13,6 +13,7 @@ import {
 import bcrypt from "bcrypt";
 import Decimal from "decimal.js";
 import dotenv from "dotenv";
+import excel from "exceljs";
 import express, { type Request, type Response, type Router } from "express";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { organiserMiddleware, unVerifiedOrganiserMiddleware } from "../middleware";
@@ -1014,6 +1015,204 @@ organiserRouter.get("/balance", organiserMiddleware, async (req: Request, res: R
     }
 });
 
+organiserRouter.get("/:eventId/slots", organiserMiddleware, async (req: Request, res: Response) => {
+    try {
+        const user = req.organiserId;
+        const { eventId } = req.params;
+
+        const {
+            location,
+            capacity,
+            event_date,
+            sort,
+            minPrice,
+            maxPrice,
+            page = "1",
+            limit = "5",
+        } = req.query;
+
+        const pageNumber = Number(page);
+        const pageSize = Number(limit);
+        const skip = (pageNumber - 1) * pageSize;
+
+        const event = await db.event.findUnique({
+            select: {
+                banner_url: true,
+                category: true,
+                description: true,
+                genre: true,
+                hero_image_url: true,
+                id: true,
+                is_online: true,
+                language: true,
+                organiserId: true,
+                title: true,
+            },
+            where: {
+                id: eventId,
+            },
+        });
+
+        if (!event) {
+            return res.status(404).json({
+                message: "Event not found",
+            });
+        }
+
+        if (event.organiserId !== user) {
+            return res.status(401).json({
+                message: "Unauthorized access",
+            });
+        }
+
+        const slotWhere: Prisma.EventSlotWhereInput = {
+            eventId,
+
+            ...(location && {
+                location_name: {
+                    equals: String(location),
+                    mode: "insensitive",
+                },
+            }),
+
+            ...(capacity && {
+                capacity: {
+                    gte: Number(capacity),
+                },
+            }),
+
+            ...(event_date && {
+                event_date: {
+                    gte: new Date(`${event_date}T00:00:00.000Z`),
+                    lt: new Date(`${event_date}T23:59:59.999Z`),
+                },
+            }),
+
+            ...(minPrice || maxPrice
+                ? {
+                      price: {
+                          ...(minPrice && {
+                              gte: Number(minPrice),
+                          }),
+                          ...(maxPrice && {
+                              lte: Number(maxPrice),
+                          }),
+                      },
+                  }
+                : {}),
+        };
+
+        const orderBy: Prisma.EventSlotOrderByWithRelationInput[] = [];
+
+        if (sort === "price-asc") {
+            orderBy.push({
+                price: "asc",
+            });
+        } else if (sort === "price-desc") {
+            orderBy.push({
+                price: "desc",
+            });
+        } else if (sort === "capacity-asc") {
+            orderBy.push({
+                capacity: "asc",
+            });
+        } else if (sort === "capacity-desc") {
+            orderBy.push({
+                capacity: "desc",
+            });
+        } else if (sort === "date-asc") {
+            orderBy.push({
+                event_date: "asc",
+            });
+        } else if (sort === "date-desc") {
+            orderBy.push({
+                event_date: "desc",
+            });
+        } else {
+            orderBy.push({
+                event_date: "asc",
+            });
+            orderBy.push({
+                start_time: "asc",
+            });
+        }
+
+        const [totalSlots, totalCapacity, totalBooked, filteredCount, slots] = await Promise.all([
+            db.eventSlot.count({
+                where: {
+                    eventId,
+                },
+            }),
+
+            db.eventSlot.aggregate({
+                _sum: {
+                    capacity: true,
+                },
+                where: {
+                    eventId,
+                },
+            }),
+
+            db.ticket.count({
+                where: {
+                    eventSlot: {
+                        eventId,
+                    },
+                    is_valid: true,
+                },
+            }),
+
+            db.eventSlot.count({
+                where: slotWhere,
+            }),
+
+            db.eventSlot.findMany({
+                include: {
+                    _count: {
+                        select: {
+                            tickets: true,
+                        },
+                    },
+                },
+                orderBy,
+                skip,
+                take: pageSize,
+                where: slotWhere,
+            }),
+        ]);
+
+        const formattedSlots = slots.map((slot) => ({
+            booked: slot._count.tickets,
+            capacity: slot.capacity,
+            endTime: slot.end_time,
+            eventDate: slot.event_date,
+            id: slot.id,
+            location: slot.location_name,
+            locationUrl: slot.location_url,
+            price: Number(slot.price),
+            startTime: slot.start_time,
+        }));
+
+        return res.status(200).json({
+            event,
+            meta: {
+                limit: pageSize,
+                page: pageNumber,
+                totalBooked,
+                totalCapacity: totalCapacity._sum.capacity ?? 0,
+                totalPages: Math.ceil(filteredCount / pageSize),
+                totalSlots,
+            },
+            slots: formattedSlots,
+        });
+    } catch (error) {
+        console.error("EVENT SLOT ERROR:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+});
+
 /**
  * @route GET /events/:eventId/tickets
  * @desc Number of tickets sold for a specific event (only PURCHASE transactions)
@@ -1115,6 +1314,332 @@ organiserRouter.get(
                 message: "Event fetched",
                 slots: event.slots,
             });
+        } catch (error) {
+            console.error(error);
+            return res.status(500).json({
+                error: error instanceof Error ? error.message : error,
+                message: "Internal error occurred",
+            });
+        }
+    },
+);
+
+organiserRouter.get(
+    "/:eventId/:slotId",
+    organiserMiddleware,
+    async (req: Request, res: Response) => {
+        try {
+            const organiserId = req.organiserId;
+            const { eventId, slotId } = req.params;
+            const event = await db.event.findUnique({
+                include: {
+                    organiser: {
+                        select: {
+                            email: true,
+                            first_name: true,
+                            last_name: true,
+                        },
+                    },
+                },
+                where: {
+                    id: eventId,
+                },
+            });
+
+            if (!event) {
+                return res.status(404).json({
+                    message: "Invalid event id",
+                });
+            }
+
+            if (event.organiserId !== organiserId) {
+                return res.status(401).json({
+                    message: "Unauthorized to download this sheet",
+                });
+            }
+
+            const slot = await db.eventSlot.findUnique({
+                where: {
+                    id: slotId,
+                },
+            });
+
+            if (!slot) {
+                return res.status(404).json({
+                    message: "Invalid slot id",
+                });
+            }
+
+            const tickets = await db.ticket.findMany({
+                include: {
+                    transactions: true,
+                    user: true,
+                    verifications: {
+                        include: {
+                            verifier: true,
+                        },
+                    },
+                },
+                where: {
+                    eventSlotId: slotId,
+                },
+            });
+
+            const workbook = new excel.Workbook();
+            const exportTimestamp = new Date().toLocaleString();
+            const sheet1 = workbook.addWorksheet("Ticket List");
+
+            sheet1.addRow([
+                "Event Title:",
+                event.title,
+                "",
+                "Organiser:",
+                `${event.organiser.first_name} ${event.organiser.last_name}`,
+            ]);
+
+            sheet1.addRow([
+                "Exported At:",
+                exportTimestamp,
+            ]);
+
+            sheet1.addRow([]);
+            sheet1.addRow([]);
+
+            sheet1.columns = [
+                {
+                    header: "Ticket ID",
+                    key: "ticketId",
+                    width: 36,
+                },
+                {
+                    header: "Full Name",
+                    key: "name",
+                    width: 25,
+                },
+                {
+                    header: "Email",
+                    key: "email",
+                    width: 28,
+                },
+                {
+                    header: "Phone",
+                    key: "phone",
+                    width: 15,
+                },
+                {
+                    header: "City",
+                    key: "city",
+                    width: 15,
+                },
+                {
+                    header: "Status",
+                    key: "status",
+                    width: 15,
+                },
+                {
+                    header: "Valid",
+                    key: "valid",
+                    width: 10,
+                },
+                {
+                    header: "Verified",
+                    key: "verified",
+                    width: 10,
+                },
+                {
+                    header: "Issued At",
+                    key: "issuedAt",
+                    width: 22,
+                },
+                {
+                    header: "Verified By",
+                    key: "verifiedBy",
+                    width: 25,
+                },
+                {
+                    header: "Verification Time",
+                    key: "verificationTime",
+                    width: 25,
+                },
+            ];
+
+            sheet1.getRow(5).font = {
+                bold: true,
+            };
+
+            tickets.forEach((ticket) => {
+                sheet1.addRow({
+                    city: ticket.user.city ?? "N/A",
+                    email: ticket.user.email,
+                    issuedAt: ticket.issued_at,
+                    name: `${ticket.user.first_name} ${ticket.user.last_name}`,
+                    phone: ticket.user.phone_number ?? "N/A",
+                    status: ticket.status,
+                    ticketId: ticket.id,
+                    valid: ticket.is_valid ? "Yes" : "No",
+                    verificationTime: ticket.verifications[0]?.verification_time ?? "N/A",
+                    verified: ticket.is_verified ? "Yes" : "No",
+                    verifiedBy: ticket.verifications[0]
+                        ? `${ticket.verifications[0].verifier.first_name} ${ticket.verifications[0].verifier.last_name}`
+                        : "N/A",
+                });
+            });
+
+            sheet1.views = [
+                {
+                    state: "frozen",
+                    ySplit: 5,
+                },
+            ];
+
+            const sheet2 = workbook.addWorksheet("Revenue & Stats");
+
+            const totalTickets = tickets.length;
+            const verifiedTickets = tickets.filter((t) => t.is_verified).length;
+            const usedTickets = tickets.filter((t) => t.status === "USED").length;
+            const cancelledTickets = tickets.filter((t) => t.status === "CANCELLED").length;
+
+            let totalRevenue = 0;
+            tickets.forEach((t) => {
+                t.transactions.forEach((trx) => {
+                    if (trx.type === "PURCHASE") {
+                        totalRevenue += Number(trx.amount);
+                    }
+                });
+            });
+
+            const occupancy =
+                slot.capacity > 0 ? ((totalTickets / slot.capacity) * 100).toFixed(2) : 0;
+
+            sheet2.addRow([
+                "Event Metadata",
+            ]);
+            sheet2.getRow(1).font = {
+                bold: true,
+            };
+            sheet2.addRow([
+                "Title",
+                event.title,
+            ]);
+            sheet2.addRow([
+                "Category",
+                event.category,
+            ]);
+            sheet2.addRow([
+                "Status",
+                event.status,
+            ]);
+            sheet2.addRow([
+                "Slot Date",
+                slot.event_date,
+            ]);
+            sheet2.addRow([
+                "Location",
+                slot.location_name,
+            ]);
+            sheet2.addRow([]);
+
+            sheet2.addRow([
+                "Statistics",
+            ]);
+            sheet2.getRow(sheet2.lastRow?.number).font = {
+                bold: true,
+            };
+
+            sheet2.addRow([
+                "Total Tickets",
+                totalTickets,
+            ]);
+            sheet2.addRow([
+                "Verified Tickets",
+                verifiedTickets,
+            ]);
+            sheet2.addRow([
+                "Used Tickets",
+                usedTickets,
+            ]);
+            sheet2.addRow([
+                "Cancelled Tickets",
+                cancelledTickets,
+            ]);
+            sheet2.addRow([
+                "Capacity",
+                slot.capacity,
+            ]);
+            sheet2.addRow([
+                "Occupancy %",
+                `${occupancy}%`,
+            ]);
+            sheet2.addRow([
+                "Total Revenue",
+                totalRevenue,
+            ]);
+
+            const sheet3 = workbook.addWorksheet("Verifier Activity");
+
+            sheet3.columns = [
+                {
+                    header: "Ticket ID",
+                    key: "ticketId",
+                    width: 36,
+                },
+                {
+                    header: "Verifier Name",
+                    key: "verifier",
+                    width: 25,
+                },
+                {
+                    header: "Verification Time",
+                    key: "time",
+                    width: 25,
+                },
+                {
+                    header: "Success",
+                    key: "success",
+                    width: 15,
+                },
+                {
+                    header: "Remarks",
+                    key: "remarks",
+                    width: 30,
+                },
+            ];
+
+            sheet3.getRow(1).font = {
+                bold: true,
+            };
+
+            tickets.forEach((ticket) => {
+                ticket.verifications.forEach((v) => {
+                    sheet3.addRow({
+                        remarks: v.remarks ?? "N/A",
+                        success: v.is_successful ? "Yes" : "No",
+                        ticketId: ticket.id,
+                        time: v.verification_time,
+                        verifier: `${v.verifier.first_name} ${v.verifier.last_name}`,
+                    });
+                });
+            });
+
+            sheet3.views = [
+                {
+                    state: "frozen",
+                    ySplit: 1,
+                },
+            ];
+
+            res.setHeader(
+                "Content-Type",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            );
+
+            res.setHeader(
+                "Content-Disposition",
+                `attachment; filename=${event.title}-slot-report.xlsx`,
+            );
+
+            await workbook.xlsx.write(res);
+            res.end();
         } catch (error) {
             console.error(error);
             return res.status(500).json({
