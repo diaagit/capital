@@ -12,6 +12,10 @@ import getBackendUrl from "@/lib/config";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { generateTransactionsPDF, generateWalletPDF } from "@/lib/pdf/OrganizerWallet";
+import { Button } from "../ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import OrganizerWalletSkeleton from "./OrganizerWalletSkeleton";
 
 export interface WalletData {
   wallet: {
@@ -47,6 +51,7 @@ const WalletDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("ALL");
   const [page, setPage] = useState(1);
+  const [paymentSuccess, setpaymentSuccess] = useState<boolean>(false)
 
   useEffect(()=>{
     const token = localStorage.getItem("token");
@@ -92,18 +97,47 @@ const WalletDashboard = () => {
     fetchWallet();
   }, [page, filterType]);
 
+  useEffect(() => {
+    if (paymentSuccess) {
+      fetchWallet();   
+      setpaymentSuccess(false);
+    }
+  }, [paymentSuccess]);
+
   if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <p className="text-muted-foreground">Loading wallet...</p>
-      </div>
-    );
+    return <OrganizerWalletSkeleton />;
   }
 
   if (!data) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <p className="text-red-500">Failed to load wallet</p>
+      <div className="h-full bg-background flex items-center justify-center px-4">
+        <div className="w-full max-w-md text-center space-y-4 p-6 border rounded-xl bg-card shadow-sm">
+
+          <div className="flex justify-center">
+            <div className="p-3 rounded-full bg-destructive/10">
+              <Wallet className="h-6 w-6 text-destructive" />
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-semibold">
+              Unable to load wallet
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Something went wrong while fetching your wallet data.
+              Please try again.
+            </p>
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={fetchWallet}
+            className="w-full"
+          >
+            Retry
+          </Button>
+
+        </div>
       </div>
     );
   }
@@ -112,7 +146,6 @@ const WalletDashboard = () => {
     <div className="h-full bg-background">
       <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-        {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-accent">
@@ -128,14 +161,53 @@ const WalletDashboard = () => {
             </div>
           </div>
 
-          <PayoutDialog
-            balance={data.wallet.balance}
-            currency={data.wallet.currency}
-            cards={data.cards}
-          />
+          <TooltipProvider>
+          <div className="flex gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => generateWalletPDF(data)}
+                  className="h-8 px-3"
+                >
+                  Wallet PDF
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Download wallet summary as PDF
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => generateTransactionsPDF(data.transactions)}
+                  className="h-8 px-3"
+                >
+                  Transactions PDF
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Download transactions report as PDF
+              </TooltipContent>
+            </Tooltip>
+
+            <PayoutDialog
+              balance={data.wallet.balance}
+              currency={data.wallet.currency}
+              cards={data.cards}
+              walletId={data.wallet.id}
+              paymentSuccess={paymentSuccess}
+              setPaymentSuccess={setpaymentSuccess}
+            />
+          </div>
+          </TooltipProvider>
+
         </div>
 
-        {/* Summary */}
         <SummaryCards
           balance={data.wallet.balance}
           totalEarnings={data.summary.totalEarnings}
@@ -144,7 +216,6 @@ const WalletDashboard = () => {
           currency={data.wallet.currency}
         />
 
-        {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
             <IncomeChart data={data.charts.monthlyIncome} />
@@ -155,7 +226,6 @@ const WalletDashboard = () => {
           />
         </div>
 
-        {/* Cards + Transactions */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-1">
             <LinkedCards

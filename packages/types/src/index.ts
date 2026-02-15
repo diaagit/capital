@@ -397,6 +397,7 @@ export const InitiateSchema = z.object({
             "Card number must be in the format 1234-5678-9012-1234",
         ),
     token: z.string(),
+    walletId: z.string().optional(),
 });
 
 export type InitiateType = z.infer<typeof InitiateSchema>;

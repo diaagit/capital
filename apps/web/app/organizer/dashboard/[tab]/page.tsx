@@ -16,7 +16,7 @@ interface PageProps {
 }
 
 export default function Page({ params }: PageProps) {
-  const { tab } = use(params); // ✅ unwrap params
+  const { tab } = use(params);
 
   switch (tab) {
     case "events":
@@ -29,4 +29,3 @@ export default function Page({ params }: PageProps) {
       return notFound();
   }
 }
-

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,61 +9,106 @@ import { toast } from "sonner";
 import { WalletCard } from "./LinkedCard";
 import getBackendUrl from "@/lib/config";
 import axios from "axios";
+import { useRouter } from "next/navigation";
 
 interface PayoutDialogProps {
   balance: number;
   currency: string;
   cards: WalletCard[];
+  walletId: string;
+  paymentSuccess: boolean,
+  setPaymentSuccess: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const formatCurrency = (amount: number, currency: string) =>
+const formatCurrency = (amount: number, currency: string,) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency }).format(amount);
 
-export function PayoutDialog({ balance, currency, cards }: PayoutDialogProps) {
+export function PayoutDialog({ balance, currency, cards, walletId, paymentSuccess, setPaymentSuccess}: PayoutDialogProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [card_number, setCard_number] = useState("");
-  const [bank_name, setbank_name] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [paymentUrl, setPaymentUrl] = useState("");
+  const [iframeUrl, setIframeUrl] = useState<string | null>(null);
 
-  const handleSubmit = async () => {
-    const URL = getBackendUrl()
+  useEffect(()=>{
     const token = localStorage.getItem("token");
+    if(!token){
+        toast.warning("You are not logged in")
+        router.push("/organizer/login")
+    }
+  },[])
 
-    const num = parseFloat(amount);
-    if (!num || num <= 0) {
-      toast.error("Enter a valid amount");
-      return;
-    }
-    if (num > balance) {
-      toast.error("Amount exceeds wallet balance");
-      return;
-    }
-    if (!card_number) {
-      toast.error("Select a destination card");
-      return;
-    }
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data === "PAYMENT_SUCCESS") {
+        setIframeUrl(null);
+        toast.success("Payout completed successfully!");
+        setPaymentSuccess(!paymentSuccess)
+      }
+    };
 
-    const findBankName = cards.find((x) => {return x.card_number === card_number});
-    setbank_name(findBankName?.bank_name || "");
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+  
+  const handleSubmit = async () => {
+    try {
+      const URL = getBackendUrl();
+      const token = localStorage.getItem("token");
 
-    const getToken = await axios.get(`${URL}/transactions/token`);
-    let transactionToken = getToken.data.token 
-    const res = await axios.post(`${URL}/organiser/initiate`,{
-        bankName: bank_name,
-        cardNumber: card_number,
-        token: transactionToken,
-        amount: amount
-    },{headers:{
-        Authorization: `Bearer ${token}`
-    }})
-    toast.success("Transaction Processing has been started")
-    if(res.status === 200){
-        setPaymentUrl(`http://localhost:5173/bank/${bank_name}/deposit/${transactionToken}/${amount}`);
+      const num = parseFloat(amount);
+      if (!num || num <= 0) {
+        toast.error("Enter a valid amount");
+        return;
+      }
+      if (num > balance) {
+        toast.error("Amount exceeds wallet balance");
+        return;
+      }
+      if (!card_number) {
+        toast.error("Select a destination card");
+        return;
+      }
+
+      const findBankName = cards.find((x) => x.card_number === card_number);
+      if (!findBankName) {
+        toast.error("Invalid card selected");
+        return;
+      }
+
+      const bankName = findBankName.bank_name;
+
+      const { data } = await axios.get(`${URL}/transactions/token`);
+      const transactionToken = data.token;
+
+      const res = await axios.post(
+        `${URL}/organiser/initiate`,
+        {
+          bankName,
+          cardNumber: card_number,
+          token: transactionToken,
+          amount,
+          walletId: walletId
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (res.status === 200) {
+        const redirectUrl = `http://localhost:5173/bank/${bankName}/payout/${transactionToken}/${amount}`;
+
+        toast.success("Redirecting to bank...");
+        setOpen(false);
+        setTimeout(() => {
+          setIframeUrl(redirectUrl);
+        }, 800);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Something went wrong. Please try again.");
     }
-    setSubmitted(true);
-    toast.success(`Payout of ${formatCurrency(num, currency)} initiated`);
   };
 
   const handleClose = () => {
@@ -76,9 +121,30 @@ export function PayoutDialog({ balance, currency, cards }: PayoutDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : handleClose())}>
+    <>
+      {iframeUrl && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-white w-[420px] h-[600px] rounded-2xl shadow-2xl overflow-hidden relative">
+            
+            <button
+              onClick={() => setIframeUrl(null)}
+              className="absolute top-2 right-3 text-gray-500 hover:text-black"
+            >
+              ✕
+            </button>
+
+            <iframe
+              src={iframeUrl}
+              className="w-full h-full border-none"
+              title="Bank Payment"
+            />
+          </div>
+        </div>
+      )}
+      
+      <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : handleClose())}>
       <DialogTrigger asChild>
-        <Button className="gap-2">
+        <Button className="gap-2 h-8 px-3" size="sm">
           <ArrowUpRight className="h-4 w-4" />
           Request Payout
         </Button>
@@ -137,5 +203,6 @@ export function PayoutDialog({ balance, currency, cards }: PayoutDialogProps) {
         )}
       </DialogContent>
     </Dialog>
+    </>
   );
 }

@@ -98,7 +98,7 @@ export default function AuthCard({ type, usage }: AuthProps) {
       );
       localStorage.setItem("token", result.data.token);
       toast.success("You have successfully logged-In");
-      usage === "user" ? router.push("/") : router.push("/organiser/dashboard");
+      usage === "user" ? router.push("/") : router.push("/organizer/dashboard");
     } catch (error) {
       console.log(error);
       toast.error(error?.response?.data?.message || "Signin did fail due to some error");

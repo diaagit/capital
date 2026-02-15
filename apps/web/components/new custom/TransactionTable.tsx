@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { ArrowUpRight, ArrowDownLeft, Ban, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, Ban, ChevronLeft, ChevronRight, BanknoteArrowDown, BanknoteArrowUp, CircleX, TicketX, TicketCheck, CircleArrowOutUpRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ export interface TransactionCard {
   card_number: string;
 }
 
-export type TransactionType = "DEPOSIT" | "PURCHASE" | "REFUND" | "PAYOUT" | "WITHDRAWAL" | "CANCEL";
+export type TransactionType = "DEPOSIT" | "PURCHASE" | "REFUND" | "PAYOUT" | "WITHDRAWAL" | "CANCEL" | "Initiate";
 
 export interface Transaction {
   id: string;
@@ -43,13 +43,14 @@ interface TransactionTableProps {
 }
 
 const typeConfig: Record<TransactionType, { icon: typeof ArrowUpRight; color: string }> = {
-  DEPOSIT: { icon: ArrowDownLeft, color: "text-chart-1" },
-  PURCHASE: { icon: ArrowDownLeft, color: "text-chart-1" },
-  REFUND: { icon: ArrowDownLeft, color: "text-chart-4" },
-  PAYOUT: { icon: ArrowUpRight, color: "text-chart-2" },
-  WITHDRAWAL: { icon: ArrowUpRight, color: "text-chart-5" },
-  CANCEL: { icon: Ban, color: "text-chart-5" },
-};
+  DEPOSIT: { icon: ArrowDownLeft, color: "text-green-500" },
+  PURCHASE: { icon: TicketCheck, color: "text-blue-500" },
+  REFUND: { icon: TicketX, color: "text-yellow-500" },
+  PAYOUT: { icon: BanknoteArrowDown, color: "text-emerald-600" },
+  WITHDRAWAL: { icon: BanknoteArrowUp, color: "text-red-500" },
+  CANCEL: { icon: CircleX, color: "text-gray-500" },
+  Initiate: { icon: CircleArrowOutUpRight, color: "text-purple-500" },
+}
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(amount);
@@ -66,6 +67,7 @@ export function TransactionTable({ transactions, pagination, onPageChange, onFil
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Types</SelectItem>
+              <SelectItem value="Initiate">Initiate</SelectItem>
               <SelectItem value="DEPOSIT">Deposit</SelectItem>
               <SelectItem value="PURCHASE">Purchase</SelectItem>
               <SelectItem value="PAYOUT">Payout</SelectItem>

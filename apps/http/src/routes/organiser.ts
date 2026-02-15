@@ -671,7 +671,7 @@ organiserRouter.get("/wallet", organiserMiddleware, async (req: Request, res: Re
         const cardsWithMasked = organiserData.cards.map((card) => ({
             ...card,
             balance: Number(card.balance),
-            card_number: `XXXX-XXXX-${card.card_number.slice(-4)}`,
+            card_number: card.card_number,
         }));
 
         const formattedTransactions = paginatedTransactions.map((tx) => {
@@ -683,7 +683,7 @@ organiserRouter.get("/wallet", organiserMiddleware, async (req: Request, res: Re
                 card: hasCard
                     ? {
                           bank_name: (tx as any).card.bank_name,
-                          card_number: `XXXX-XXXX-${(tx as any).card.card_number.slice(-4)}`,
+                          card_number: (tx as any).card.card_number,
                           id: (tx as any).card.id,
                       }
                     : null,
@@ -823,7 +823,7 @@ organiserRouter.post("/initiate", organiserMiddleware, async (req: Request, res:
                 message: "Invalid data was provided",
             });
         }
-        const { token, amount, cardNumber } = parsedData.data;
+        const { token, amount, cardNumber, walletId } = parsedData.data;
         const Amount = new Decimal(amount);
 
         if (Amount.lte(0)) {
@@ -846,7 +846,7 @@ organiserRouter.post("/initiate", organiserMiddleware, async (req: Request, res:
 
             const walletDetail = await tx.wallet.findUnique({
                 where: {
-                    userId: organiserId,
+                    id: walletId,
                 },
             });
 
@@ -854,7 +854,7 @@ organiserRouter.post("/initiate", organiserMiddleware, async (req: Request, res:
                 throw new Error("Wallet not found");
             }
 
-            if (walletDetail.balance < Amount) {
+            if (walletDetail.balance.lt(Amount)) {
                 throw new Error("Wallet balance is insufficient");
             }
 

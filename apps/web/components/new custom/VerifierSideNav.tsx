@@ -7,16 +7,21 @@ import {
   ReceiptIndianRupee,
   Settings,
   LogOut,
+  Wallet,
 } from "lucide-react";
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+import getBackendUrl from "@/lib/config";
+import axios from "axios";
+import { Button } from "../ui/button";
 
 export default function VerifierSideNav() {
   const pathname = usePathname();
-
+  const router = useRouter();
   const linkBase =
     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors";
 
@@ -30,6 +35,30 @@ export default function VerifierSideNav() {
     `${linkBase} ${
       pathname === href ? linkActive : linkInactive
     }`;
+
+  const removeToken = async () => {
+        try {
+            const URL = getBackendUrl();
+            const token = localStorage.getItem("token");
+            if(!token){
+                toast.warning("You are not logged in")
+                router.push("/organizer/login");
+            }
+            router.push("/organizer/login");
+            
+            const res = await axios.get(`${URL}/organiser/logout`,{
+                headers:{
+                    Authorization: `Bearer ${token}`
+                }
+            })
+
+            if(res.status === 200){
+                localStorage.removeItem("token");
+            }
+        } catch (error) {
+            toast.error("Error took place ",error)
+        }
+    }
 
   return (
     <aside className="flex h-full w-full flex-col bg-background">
@@ -51,22 +80,22 @@ export default function VerifierSideNav() {
 
       <nav className="flex-1 px-3 py-6 space-y-1">
 
-        <Link href="/newverifierdashboard" className={link("/newverifierdashboard")}>
+        <Link href="/organizer/dashboard" className={link("/organizer/dashboard")}>
           <LayoutDashboard size={18} />
           Dashboard
         </Link>
 
-        <Link href="/newverifierdashboard/events" className={link("/newverifierdashboard/events")}>
+        <Link href="/organizer/dashboard/events" className={link("/organizer/dashboard/events")}>
           <Tickets size={18} />
           Events
         </Link>
 
-        <Link href="/newverifierdashboard/bookings" className={link("/newverifierdashboard/bookings")}>
-          <SquareCheckBig size={18} />
-          Bookings
+        <Link href="/organizer/dashboard/wallet" className={link("/organizer/dashboard/wallet")}>
+          <Wallet size={18} />
+          Wallet
         </Link>
 
-        <Link href="/newverifierdashboard/invoices" className={link("/newverifierdashboard/invoices")}>
+        <Link href="/organizer/dashboard/profile" className={link("/organizer/dashboard/profile")}>
           <ReceiptIndianRupee size={18} />
           Invoices
         </Link>
@@ -78,10 +107,10 @@ export default function VerifierSideNav() {
           Settings
         </Link>
 
-        <Link href="/logout" className={`${linkBase} text-red-500 hover:bg-red-50`}>
+        <Button onClick={removeToken} variant="ghost" className={`${linkBase} w-full flex justify-start items-center p-3 text-red-500 rounded-sm hover:bg-red-50`}>
           <LogOut size={18} />
           Logout
-        </Link>
+        </Button>
       </nav>
     </aside>
   );
