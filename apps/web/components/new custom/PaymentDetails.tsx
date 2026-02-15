@@ -150,7 +150,7 @@ const PaymentDetails = () => {
     try {
      const URL = getBackendUrl();
       const token = localStorage.getItem("token");
-      const getToken = await axios.get(`${URL}/transactions/token`,{headers:{Authorization: `Bearer ${token}`}});
+      const getToken = await axios.get(`${URL}/transactions/token`);
       let transactionToken = getToken.data.token 
       const res = await axios.post(`${URL}/transactions/initiate`,{
         bankName: selected.bank_name,

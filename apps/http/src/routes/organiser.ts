@@ -498,6 +498,317 @@ organiserRouter.get("/profile", organiserMiddleware, async (req: Request, res: R
     }
 });
 
+organiserRouter.get("/wallet", organiserMiddleware, async (req: Request, res: Response) => {
+    try {
+        const organiserId = req.organiserId;
+        const { startDate, endDate, type, eventId, page = 1, limit = 20 } = req.query;
+
+        const start = startDate ? new Date(String(startDate)) : new Date("2000-01-01");
+        const end = endDate ? new Date(String(endDate)) : new Date();
+
+        const organiserData = await db.user.findUnique({
+            select: {
+                cards: {
+                    select: {
+                        balance: true,
+                        bank_name: true,
+                        card_number: true,
+                        id: true,
+                        transactions: {
+                            select: {
+                                amount: true,
+                                canceled_at: true,
+                                created_at: true,
+                                description: true,
+                                id: true,
+                                ticket: {
+                                    select: {
+                                        eventSlot: {
+                                            select: {
+                                                event: {
+                                                    select: {
+                                                        id: true,
+                                                        title: true,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                        id: true,
+                                    },
+                                },
+                                token: true,
+                                type: true,
+                                wallet: {
+                                    select: {
+                                        id: true,
+                                    },
+                                },
+                            },
+                            where: {
+                                AND: [
+                                    {
+                                        created_at: {
+                                            gte: start,
+                                            lte: end,
+                                        },
+                                    },
+                                    type
+                                        ? {
+                                              type: {
+                                                  equals: type as any,
+                                              },
+                                          }
+                                        : {},
+                                    eventId
+                                        ? {
+                                              ticket: {
+                                                  eventSlot: {
+                                                      eventId: String(eventId),
+                                                  },
+                                              },
+                                          }
+                                        : {},
+                                ],
+                            },
+                        },
+                    },
+                },
+                wallet: {
+                    select: {
+                        balance: true,
+                        currency: true,
+                        id: true,
+                        lastPayoutAt: true,
+                        status: true,
+                        transactions: {
+                            select: {
+                                amount: true,
+                                canceled_at: true,
+                                card: {
+                                    select: {
+                                        bank_name: true,
+                                        card_number: true,
+                                        id: true,
+                                    },
+                                },
+                                created_at: true,
+                                description: true,
+                                id: true,
+                                ticket: {
+                                    select: {
+                                        eventSlot: {
+                                            select: {
+                                                event: {
+                                                    select: {
+                                                        id: true,
+                                                        title: true,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                        id: true,
+                                    },
+                                },
+                                token: true,
+                                type: true,
+                            },
+                            where: {
+                                AND: [
+                                    {
+                                        created_at: {
+                                            gte: start,
+                                            lte: end,
+                                        },
+                                    },
+                                    type
+                                        ? {
+                                              type: {
+                                                  equals: type as any,
+                                              },
+                                          }
+                                        : {},
+                                    eventId
+                                        ? {
+                                              ticket: {
+                                                  eventSlot: {
+                                                      eventId: String(eventId),
+                                                  },
+                                              },
+                                          }
+                                        : {},
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+            where: {
+                id: organiserId,
+            },
+        });
+
+        if (!organiserData) {
+            return res.status(404).json({
+                message: "Organizer not found",
+            });
+        }
+
+        const allTransactions = [
+            ...(organiserData.wallet?.transactions || []),
+            ...organiserData.cards.flatMap((c) => c.transactions || []),
+        ];
+
+        allTransactions.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+
+        const pageNumber = Number(page);
+        const pageSize = Number(limit);
+
+        const paginatedTransactions = allTransactions.slice(
+            (pageNumber - 1) * pageSize,
+            pageNumber * pageSize,
+        );
+
+        const cardsWithMasked = organiserData.cards.map((card) => ({
+            ...card,
+            balance: Number(card.balance),
+            card_number: `XXXX-XXXX-${card.card_number.slice(-4)}`,
+        }));
+
+        const formattedTransactions = paginatedTransactions.map((tx) => {
+            const hasCard = "card" in tx && tx.card !== undefined && tx.card !== null;
+
+            return {
+                amount: Number(tx.amount),
+                canceledAt: tx.canceled_at,
+                card: hasCard
+                    ? {
+                          bank_name: (tx as any).card.bank_name,
+                          card_number: `XXXX-XXXX-${(tx as any).card.card_number.slice(-4)}`,
+                          id: (tx as any).card.id,
+                      }
+                    : null,
+                createdAt: tx.created_at,
+                description: tx.description || "",
+                id: tx.id,
+                source: hasCard ? "Card" : "Wallet",
+                status: tx.canceled_at ? "CANCELED" : "COMPLETED",
+                ticket: tx.ticket
+                    ? {
+                          event: tx.ticket.eventSlot?.event
+                              ? {
+                                    id: tx.ticket.eventSlot.event.id,
+                                    title: tx.ticket.eventSlot.event.title,
+                                }
+                              : null,
+                          id: tx.ticket.id,
+                      }
+                    : null,
+                token: tx.token || null,
+                type: tx.type,
+            };
+        });
+
+        const totalEarnings = allTransactions
+            .filter((tx) =>
+                [
+                    "DEPOSIT",
+                    "PURCHASE",
+                    "REFUND",
+                    "PAYOUT",
+                ].includes(tx.type),
+            )
+            .reduce((acc, tx) => acc + Number(tx.amount), 0);
+
+        const totalWithdrawals = allTransactions
+            .filter((tx) =>
+                [
+                    "WITHDRAWAL",
+                    "CANCEL",
+                ].includes(tx.type),
+            )
+            .reduce((acc, tx) => acc + Number(tx.amount), 0);
+
+        const numberOfTransactions = allTransactions.length;
+
+        const totalTicketsSold = allTransactions.filter((tx) => tx.ticket).length;
+
+        const monthsToShow = 6;
+        const now = new Date();
+        const monthlyIncomeMap: Record<string, number> = {};
+
+        for (let i = monthsToShow - 1; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const monthKey = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}`;
+            monthlyIncomeMap[monthKey] = 0;
+        }
+
+        allTransactions.forEach((tx) => {
+            if (
+                ![
+                    "DEPOSIT",
+                    "PURCHASE",
+                    "REFUND",
+                    "PAYOUT",
+                ].includes(tx.type)
+            )
+                return;
+
+            const monthKey = `${tx.created_at.getFullYear()}-${(tx.created_at.getMonth() + 1)
+                .toString()
+                .padStart(2, "0")}`;
+
+            if (Object.hasOwn(monthlyIncomeMap, monthKey)) {
+                monthlyIncomeMap[monthKey] += Number(tx.amount);
+            }
+        });
+
+        const monthlyIncome = Object.entries(monthlyIncomeMap).map(([month, amount]) => ({
+            amount,
+            month,
+        }));
+
+        const walletBalance = Number(organiserData.wallet?.balance || 0);
+
+        const cardBalance = organiserData.cards.reduce((acc, c) => acc + Number(c.balance), 0);
+
+        return res.json({
+            cards: cardsWithMasked,
+            charts: {
+                balances: {
+                    cards: cardBalance,
+                    wallet: walletBalance,
+                },
+                monthlyIncome,
+            },
+            pagination: {
+                limit: pageSize,
+                page: pageNumber,
+                totalPages: Math.ceil(allTransactions.length / pageSize),
+                totalTransactions: allTransactions.length,
+            },
+            summary: {
+                numberOfTransactions,
+                totalEarnings,
+                totalTicketsSold,
+                totalWithdrawals,
+            },
+            transactions: formattedTransactions,
+            wallet: {
+                balance: walletBalance,
+                currency: organiserData.wallet?.currency || "INR",
+                id: organiserData.wallet?.id,
+                lastPayoutAt: organiserData.wallet?.lastPayoutAt,
+                status: organiserData.wallet?.status || "active",
+            },
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+});
+
 /**
  * Initiate a payment from wallet to cardNumber
  * @route POST /initiate

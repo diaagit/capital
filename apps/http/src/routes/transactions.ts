@@ -82,14 +82,8 @@ transactionRouter.get("/my", userMiddleware, async (req: Request, res: Response)
     }
 });
 
-transactionRouter.get("/token", userMiddleware, async (req: Request, res: Response) => {
+transactionRouter.get("/token", async (_req: Request, res: Response) => {
     try {
-        const user = req.userId;
-        if (!user) {
-            return res.status(401).json({
-                message: "Unauthorized user tried to access services",
-            });
-        }
         const token = AlphanumericOTP(6);
         return res.status(200).json({
             token,
