@@ -386,20 +386,20 @@ export default function EventForm({id}: Props) {
             <div className="w-48">
               <Label>Status</Label>
               <Select
-                defaultValue="DRAFT"
+                defaultValue={form.getValues("status")}
                 onValueChange={(v) => form.setValue("status", v as any)}
               >
-               <SelectTrigger className="mt-2 w-full bg-neutral-50 min-w-[490px]">
+                <SelectTrigger className="mt-2 w-full bg-neutral-50 min-w-[490px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="DRAFT">Draft</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
                   {meta.total > 0 ? (
-                    <SelectItem value="PUBLISHED">Published</SelectItem>
-                  ): null}
+                    <SelectItem value="published">Published</SelectItem>
+                  ) : null}
                   {meta.total > 0 ? (
-                    <SelectItem value="CANCELLED">CANCEL</SelectItem>
-                  ): null}
+                    <SelectItem value="cancelled">Cancel</SelectItem>
+                  ) : null}
                 </SelectContent>
               </Select>
             </div>
@@ -414,7 +414,7 @@ export default function EventForm({id}: Props) {
         </Card>
 
         <div className="sticky bottom-0 bg-muted/30 backdrop-blur supports-[backdrop-filter]:bg-muted/20 p-4 rounded-xl">
-          <Button size="lg" className="w-full h-12" disabled={loading}>
+          <Button size="lg"  type="submit" className="w-full h-12" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {loading
                 ? isEditMode

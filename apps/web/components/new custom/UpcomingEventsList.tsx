@@ -101,7 +101,7 @@ export default function OrganizerEventsPage() {
   const [filter, setFilter] = useState("All");
   const [sort, setSort] = useState("date-desc");
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState<number>(5);
+  const [limit, setLimit] = useState<number>(6);
   
   useEffect(() => {
     const timer = setTimeout(() => {

@@ -298,12 +298,56 @@ export const EventSlotType = z
         price: z.number().nonnegative(),
         start_time: z.string(),
     })
-    .refine((data) => new Date(data.end_time) > new Date(data.start_time), {
-        message: "End time must be after start time",
-        path: [
-            "end_time",
-        ],
-    });
+    .refine(
+        (data) => {
+            if (!data.start_time || !data.end_time || !data.event_date) return true;
+
+            const [year, month, day] = data.event_date.split("-").map(Number);
+            const [startHour, startMinute] = data.start_time.split(":").map(Number);
+            const [endHour, endMinute] = data.end_time.split(":").map(Number);
+
+            const start = new Date(year, month - 1, day, startHour, startMinute);
+            const end = new Date(year, month - 1, day, endHour, endMinute);
+
+            return end > start;
+        },
+        {
+            message: "End time must be after start time",
+            path: [
+                "end_time",
+            ],
+        },
+    );
+export const UpdateEventSlotSchema = z
+    .object({
+        capacity: z.number().int().positive().optional(),
+        end_time: z.string().optional(),
+        event_date: z.string().optional(),
+        location_name: z.string().min(2).optional(),
+        location_url: z.string().url().optional(),
+        price: z.number().nonnegative().optional(),
+        start_time: z.string().optional(),
+    })
+    .refine(
+        (data) => {
+            if (!data.start_time || !data.end_time || !data.event_date) return true;
+
+            const [year, month, day] = data.event_date.split("-").map(Number);
+            const [startHour, startMinute] = data.start_time.split(":").map(Number);
+            const [endHour, endMinute] = data.end_time.split(":").map(Number);
+
+            const start = new Date(year, month - 1, day, startHour, startMinute);
+            const end = new Date(year, month - 1, day, endHour, endMinute);
+
+            return end > start;
+        },
+        {
+            message: "End time must be after start time",
+            path: [
+                "end_time",
+            ],
+        },
+    );
 
 const BaseTransactionSchema = z.object({
     amount: z

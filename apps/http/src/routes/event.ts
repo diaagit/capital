@@ -6,7 +6,8 @@ import db, {
     type EventStatus,
     type Prisma,
 } from "@repo/db";
-import { EventSlotType, EventType, updateEventSchema } from "@repo/types";
+import { EventSlotType, EventType, UpdateEventSlotSchema, updateEventSchema } from "@repo/types";
+import Decimal from "decimal.js";
 import express, { type Request, type Response, type Router } from "express";
 import { formatDate, formatTime } from "../helper/date";
 import userMiddleware, { organiserMiddleware } from "../middleware";
@@ -402,6 +403,13 @@ eventRouter.delete("/:id", organiserMiddleware, async (req: Request, res: Respon
         const user = req.organiserId;
 
         const event = await db.event.findUnique({
+            include: {
+                slots: {
+                    include: {
+                        tickets: true,
+                    },
+                },
+            },
             where: {
                 id,
             },
@@ -416,6 +424,16 @@ eventRouter.delete("/:id", organiserMiddleware, async (req: Request, res: Respon
         if (event.organiserId !== user) {
             return res.status(401).json({
                 message: "You are unauthorized to delete this event, as it doesnt belong to you",
+            });
+        }
+
+        const hasPurchasedTickets = event.slots.some((slot) =>
+            slot.tickets.some((ticket) => ticket.status === "ISSUED"),
+        );
+
+        if (hasPurchasedTickets) {
+            return res.status(400).json({
+                message: "Cannot delete event because tickets have already been purchased",
             });
         }
 
@@ -446,9 +464,10 @@ eventRouter.delete("/:id", organiserMiddleware, async (req: Request, res: Respon
 /**
  * Create a slot for an event
  */
-eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
+eventRouter.post("/:eventId/slots", organiserMiddleware, async (req: Request, res: Response) => {
     try {
         const { eventId } = req.params;
+        const user = req.organiserId;
 
         const parsed = EventSlotType.safeParse(req.body);
         if (!parsed.success) {
@@ -460,6 +479,9 @@ eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
 
         const { location_name, location_url, event_date, start_time, end_time, capacity, price } =
             parsed.data;
+
+        const startDateTime = new Date(`${event_date}T${start_time}:00Z`);
+        const endDateTime = new Date(`${event_date}T${end_time}:00Z`);
 
         const event = await db.event.findUnique({
             where: {
@@ -473,16 +495,23 @@ eventRouter.post("/:eventId/slots", async (req: Request, res: Response) => {
             });
         }
 
+        if (event.organiserId !== user) {
+            return res.status(401).json({
+                message:
+                    "Your are unauthorized to create slots as this event doesn`t belong to you",
+            });
+        }
+
         const slot = await db.eventSlot.create({
             data: {
                 capacity,
-                end_time: new Date(end_time),
+                end_time: endDateTime,
                 event_date: new Date(event_date),
                 eventId: event.id,
                 location_name,
                 location_url,
                 price,
-                start_time: new Date(start_time),
+                start_time: startDateTime,
             },
         });
 
@@ -705,41 +734,252 @@ eventRouter.get("/:eventId/:slotId", userMiddleware, async (req: Request, res: R
     }
 });
 
+eventRouter.patch(
+    "/:eventId/slots/:slotId",
+    organiserMiddleware,
+    async (req: Request, res: Response) => {
+        try {
+            const user = req.organiserId;
+            const { eventId, slotId } = req.params;
+            const parsed = UpdateEventSlotSchema.safeParse(req.body);
+            if (!parsed.success) {
+                return res.status(400).json({
+                    message: parsed.error.flatten(),
+                });
+            }
+            const updatedData = parsed.data;
+            const startDateTime = new Date(
+                `${updatedData.event_date}T${updatedData.start_time}:00Z`,
+            );
+            const endDateTime = new Date(`${updatedData.event_date}T${updatedData.end_time}:00Z`);
+
+            const findEvent = await db.event.findUnique({
+                where: {
+                    id: eventId,
+                },
+            });
+
+            if (!findEvent) {
+                return res.status(404).json({
+                    message: "Invalid Event Id was provided",
+                });
+            }
+
+            if (findEvent.organiserId !== user) {
+                return res.status(401).json({
+                    message: "You are unauthorized to edit the slots that dont belong to you",
+                });
+            }
+            const findSlot = await db.eventSlot.findUnique({
+                where: {
+                    id: slotId,
+                },
+            });
+
+            if (!findSlot) {
+                return res.status(404).json({
+                    message: "Invalid Slot Id was provided",
+                });
+            }
+
+            await db.eventSlot.update({
+                data: {
+                    capacity: updatedData.capacity,
+                    end_time: endDateTime,
+                    event_date: new Date(updatedData.event_date),
+                    location_name: updatedData.location_name,
+                    location_url: updatedData.location_url,
+                    price: updatedData.price,
+                    start_time: startDateTime,
+                },
+                where: {
+                    id: slotId,
+                },
+            });
+            return res.status(200).json({
+                message: "Event Slot was successfully edited",
+            });
+        } catch (error) {
+            console.error("EVENT SLOT Couldnt be found ERROR:", error);
+            return res.status(500).json({
+                message: "Internal server error",
+            });
+        }
+    },
+);
+
 /**
  * Delete a specific slot
  */
-eventRouter.delete("/:eventId/slots/:slotId", async (req: Request, res: Response) => {
-    try {
-        const { eventId, slotId } = req.params;
+eventRouter.delete(
+    "/:eventId/slots/:slotId",
+    organiserMiddleware,
+    async (req: Request, res: Response) => {
+        try {
+            const user = req.organiserId;
+            const { eventId, slotId } = req.params;
 
-        const slot = await db.eventSlot.findFirst({
-            where: {
-                eventId,
-                id: slotId,
-            },
-        });
-        if (!slot) {
-            return res.status(404).json({
-                message: "Slot not found for this event",
+            const slot = await db.eventSlot.findFirst({
+                include: {
+                    event: true,
+                },
+                where: {
+                    eventId,
+                    id: slotId,
+                },
+            });
+
+            if (!slot) {
+                return res.status(404).json({
+                    message: "Slot not found for this event",
+                });
+            }
+
+            if (slot.event.organiserId !== user) {
+                return res.status(401).json({
+                    message:
+                        "You are unauthorized to delete this slot, as it doesn`t belong to you",
+                });
+            }
+
+            if (slot.start_time < new Date()) {
+                return res.status(400).json({
+                    message: "Cannot delete past slot",
+                });
+            }
+
+            await db.$transaction(async (tx) => {
+                const organiserWallet = await tx.wallet.findUnique({
+                    where: {
+                        userId: user,
+                    },
+                });
+
+                if (!organiserWallet) {
+                    throw new Error("Organiser wallet not found");
+                }
+
+                const paymentTransactions = await tx.transaction.findMany({
+                    select: {
+                        amount: true,
+                        cardId: true,
+                        id: true,
+                        ticketId: true,
+                        userId: true,
+                    },
+                    where: {
+                        canceled_at: null,
+                        ticket: {
+                            eventSlotId: slotId,
+                            status: "ISSUED",
+                        },
+                        type: "PURCHASE",
+                    },
+                });
+
+                if (paymentTransactions.length === 0) {
+                    await tx.eventSlot.delete({
+                        where: {
+                            id: slotId,
+                        },
+                    });
+                    return;
+                }
+
+                const totalRefundAmount = paymentTransactions.reduce(
+                    (acc, t) => acc.plus(t.amount),
+                    new Decimal(0),
+                );
+
+                if (organiserWallet.balance.lt(totalRefundAmount)) {
+                    throw new Error("Insufficient organiser wallet balance");
+                }
+
+                await tx.wallet.update({
+                    data: {
+                        balance: {
+                            decrement: totalRefundAmount,
+                        },
+                    },
+                    where: {
+                        id: organiserWallet.id,
+                    },
+                });
+
+                await tx.ticket.updateMany({
+                    data: {
+                        is_valid: false,
+                        status: "CANCELLED",
+                    },
+                    where: {
+                        eventSlotId: slotId,
+                        status: "ISSUED",
+                    },
+                });
+
+                await tx.transaction.updateMany({
+                    data: {
+                        canceled_at: new Date(),
+                    },
+                    where: {
+                        id: {
+                            in: paymentTransactions.map((t) => t.id),
+                        },
+                    },
+                });
+
+                const groupedByCard = paymentTransactions.reduce(
+                    (acc, t) => {
+                        acc[t.cardId] = acc[t.cardId]
+                            ? acc[t.cardId].plus(t.amount)
+                            : new Decimal(t.amount);
+                        return acc;
+                    },
+                    {} as Record<string, Prisma.Decimal>,
+                );
+
+                for (const cardId of Object.keys(groupedByCard)) {
+                    await tx.card.update({
+                        data: {
+                            balance: {
+                                increment: groupedByCard[cardId],
+                            },
+                        },
+                        where: {
+                            id: cardId,
+                        },
+                    });
+                }
+
+                await tx.transaction.createMany({
+                    data: paymentTransactions.map((t) => ({
+                        amount: t.amount,
+                        cardId: t.cardId,
+                        description: "Refund due to slot cancellation",
+                        ticketId: t.ticketId,
+                        type: "REFUND",
+                        userId: t.userId,
+                    })),
+                });
+
+                await tx.eventSlot.delete({
+                    where: {
+                        id: slotId,
+                    },
+                });
+            });
+
+            await deleteCache();
+
+            return res.status(200).json({
+                message: "Slot deleted successfully",
+            });
+        } catch (_error) {
+            return res.status(500).json({
+                message: "Internal server error",
             });
         }
-
-        await db.eventSlot.delete({
-            where: {
-                id: slotId,
-            },
-        });
-        await deleteCache();
-
-        return res.status(200).json({
-            message: "Slot deleted successfully",
-            slotId,
-        });
-    } catch (_error) {
-        return res.status(500).json({
-            message: "Internal server error",
-        });
-    }
-});
+    },
+);
 
 export default eventRouter;

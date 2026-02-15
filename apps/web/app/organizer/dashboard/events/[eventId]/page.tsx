@@ -1,11 +1,5 @@
 import EventSlotsPage from "@/components/new custom/OrganizerSlotPage";
 
-type Props = {
-  params: {
-    eventId: string;
-  };
-};
-
 const page = async({params}: { params: Promise<{ eventId: string }> }) => {
   const eventId = (await params).eventId
 
