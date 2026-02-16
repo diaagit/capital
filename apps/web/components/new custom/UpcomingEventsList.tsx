@@ -12,6 +12,7 @@ import {
   Ticket,
   Zap,
   Info,
+  ChartColumnBig
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -299,7 +300,8 @@ export default function OrganizerEventsPage() {
   );
 }
 
-const EventRow = ({ event, onClick, onEdit,onDelete }: any) => {
+const EventRow = ({ event, onClick, onEdit, onDelete }: any) => {
+  const router = useRouter();
   const firstSlot = event.slots?.[0];
 
   return (
@@ -356,30 +358,58 @@ const EventRow = ({ event, onClick, onEdit,onDelete }: any) => {
             <Button
               size="sm"
               variant="outline"
-              onClick={(e) => {e.stopPropagation(); onEdit()}}
+              className="transition-colors hover:bg-green-200 hover:border hover:border-green-600 hover:text-gray-900"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                router.push(
+                  `/organizer/dashboard/events/${event.id}/graph`
+                );
+              }}
             >
-              <Pencil size={12} />
+              <ChartColumnBig size={12} />
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-             <p>Edit Event</p>
+            <p>Graph</p>
           </TooltipContent>
         </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <div onClick={(e) => e.stopPropagation()}>
-              <DeleteModal
-                usage="event"
-                onConfirm={() => onDelete()}
-              >
-                <Button size="sm" variant="outline">
+            <Button
+              size="sm"
+              variant="outline"
+              className="transition-colors hover:bg-blue-200 hover:border hover:border-blue-600 hover:text-zinc-800"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onEdit();
+              }}
+            >
+              <Pencil size={12} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Edit Event</p>
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+            >
+              <DeleteModal usage="event" onConfirm={() => onDelete()}>
+                <Button size="sm" variant="outline" className="transition-colors hover:bg-red-200 hover:border hover:border-red-600 hover:text-gray-900">
                   <Trash2 size={12} />
                 </Button>
               </DeleteModal>
             </div>
           </TooltipTrigger>
-
           <TooltipContent>
             <p>Delete Event</p>
           </TooltipContent>

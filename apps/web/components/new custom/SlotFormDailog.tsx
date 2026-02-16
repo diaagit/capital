@@ -27,7 +27,7 @@ interface SlotFormDialogProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: SlotFormData) => void;
   initialData?: SlotFormData | null;
-  mode: "create" | "edit";
+  mode?: "create" | "edit";
 }
 
 const emptyForm: SlotFormData = {

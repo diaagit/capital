@@ -37,6 +37,7 @@ import getBackendUrl from "@/lib/config";
 import DeleteModal from "./DeletModal";
 import { toast } from "sonner";
 import { SlotFormDialog, SlotFormData } from "./SlotFormDailog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 export interface SlotType {
   id: string;
@@ -237,7 +238,7 @@ export default function EventSlotsPage({ eventId }: { eventId: string }) {
         <div>
           <button
             onClick={() => router.push("/organizer/dashboard/events")}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground  transition-colors hover:bg-red-100 hover:text-red-600 hover:underline p-2 rounded-lg mb-4"
           >
             <ArrowLeft size={14} />
             Back to Events
@@ -371,11 +372,54 @@ export function SlotCard({
       </div>
 
       <div className="flex gap-2 pt-2 border-t">
-        <Button size="sm" variant="outline" className="flex-1 gap-1 transition-colors hover:bg-gray-700 hover:text-white hover:border hover:border-gray-200" onClick={onEdit}><Pencil size={13} /> Edit</Button>
-        <Button size="sm" variant="outline" className="flex-1 gap-1 transition-colors hover:bg-green-700 hover:text-white hover:border hover:border-green-200" onClick={onDownload}><Download size={13} /> Export Excel</Button>
-        <DeleteModal usage="slot" onConfirm={onDelete}>
-          <Button size="sm" variant="destructive"><Trash2 size={12} /></Button>
-        </DeleteModal>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 gap-1 transition-colors hover:bg-gray-700 hover:text-white hover:border hover:border-gray-200"
+              onClick={onEdit}
+            >
+              <Pencil size={13} />
+              Edit
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Edit this Slot</p>
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 gap-1 transition-colors hover:bg-green-700 hover:text-white hover:border hover:border-green-200"
+              onClick={onDownload}
+            >
+              <Download size={13} />
+              Export Excel
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Export all Tickets sold in an Excel</p>
+          </TooltipContent>
+        </Tooltip>
+
+       <Tooltip>
+          <TooltipTrigger asChild>
+            <div onClick={(e) => e.stopPropagation()}>
+              <DeleteModal usage="slot" onConfirm={onDelete}>
+                <Button size="sm" variant="destructive">
+                  <Trash2 size={12} />
+                </Button>
+              </DeleteModal>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Delete this Slot</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

@@ -1,94 +1,136 @@
-// EventGraphXYFlowPage.tsx
-import React, { useEffect, useState } from "react";
-import { Node, Edge, ReactFlow } from "@xyflow/react";
+import React, { useMemo, useCallback, useState, useEffect, Dispatch, SetStateAction } from "react";
+import {
+  ReactFlow,
+  Controls,
+  Background,
+  type NodeMouseHandler,
+  useNodesState,
+  useEdgesState,
+} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { GraphData } from "./EventGraphPage";
+import SlotDetailDialog, { EventSlot } from "./Slotdetails";
+import { buildGraphFromData } from "@/lib/graphBuilder";
+import { SlotFormData, SlotFormDialog } from "./SlotFormDailog";
+import getBackendUrl from "@/lib/config";
 import axios from "axios";
+import { Button } from "../ui/button";
 
-interface EventSlot {
-  id: string;
-  title: string;
-  location_name: string;
+interface EventGraphProps {
+  data: GraphData;
+  eventId: string;
+  submit: boolean;
+  setSubmit: Dispatch<SetStateAction<boolean>>;
 }
 
-interface EventData {
+export interface EventData {
   id: string;
   title: string;
+  category: string;
+  genre: string;
+  status: string;
+  language: string;
   description: string;
 }
 
-interface SlotsByLocation {
-  [location: string]: EventSlot[];
-}
+const EventGraph: React.FC<EventGraphProps> = ({ data , eventId, submit, setSubmit}) => {
+  const graph = useMemo(() => buildGraphFromData(data), [data]);
+  const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(graph.edges);
+  const [slotDialogOpen, setSlotDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<EventSlot | null>(null);
+  const [selectedIsEvent, setSelectedIsEvent] = useState(false);
 
-interface GraphData {
-  event: EventData;
-  slotsByLocation: SlotsByLocation;
-}
-
-const EventGraphXYFlowPage: React.FC<{ eventId: string }> = ({ eventId }) => {
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
+  const allSlots = useMemo(
+    () => Object.values(data.slotsByLocation).flat(),
+    [data]
+  );
 
   useEffect(() => {
-    const fetchGraph = async () => {
-      try {
-        const res = await axios.get(`/organiser/${eventId}/graph`);
-        const data: GraphData = res.data.data;
+    setNodes(graph.nodes);
+    setEdges(graph.edges);
+  }, [graph, setNodes, setEdges]);
 
-        const eventNode: Node = {
-          id: data.event.id,
-          data: { label: data.event.title },
-          position: { x: 400, y: 100 },
-          width: 160,
-          height: 60,
-        };
-
-        const newNodes: Node[] = [eventNode];
-        const newEdges: Edge[] = [];
-
-        let xOffset = 0;
-        let yOffset = 200;
-
-        Object.keys(data.slotsByLocation).forEach((location) => {
-          const slots = data.slotsByLocation[location];
-
-          slots.forEach((slot, index) => {
-            const slotNode: Node = {
-              id: slot.id,
-              data: { label: `${slot.title} (${slot.location_name})` },
-              position: { x: 150 * index + xOffset, y: yOffset },
-              width: 140,
-              height: 50,
-            };
-
-            newNodes.push(slotNode);
-
-            newEdges.push({
-              id: `edge-${slot.id}`,
-              source: data.event.id,
-              target: slot.id,
-            });
-          });
-
-          yOffset += 150;
-          xOffset = 0;
-        });
-
-        setNodes(newNodes);
-        setEdges(newEdges);
-      } catch (error) {
-        console.error("Error fetching XYFlow graph:", error);
+  const onNodeClick: NodeMouseHandler = useCallback(
+    (_event, node) => {
+      if (node.id === "add-slot") {
+        setSlotDialogOpen(true);
+        return;
       }
-    };
 
-    fetchGraph();
-  }, [eventId]);
+      if (node.id === data.event.id) {
+        setSelectedSlot(null);
+        setSelectedIsEvent(true);
+      } else {
+        const slot = allSlots.find((s) => s.id === node.id) ?? null;
+        setSelectedSlot(slot);
+        setSelectedIsEvent(false);
+      }
+
+      setDialogOpen(true);
+    },
+    [data.event.id, allSlots]
+  );
+
+  async function handleSubmit(payload: SlotFormData) {
+    const URL = getBackendUrl();
+    const token = localStorage.getItem("token");
+
+    try {
+      await axios.post(
+        `${URL}/events/${eventId}/slots`,
+        payload,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setSlotDialogOpen(false);
+      setSubmit(prev => !prev);
+    } catch (error) {
+      console.error("Error creating slot:", error);
+    }
+  }
 
   return (
-    <div style={{ width: "100%", height: "100vh" }}>
-      <ReactFlow nodes={nodes} edges={edges} />
-    </div>
+    <>
+      <SlotFormDialog
+        open={slotDialogOpen}
+        onOpenChange={setSlotDialogOpen}
+        onSubmit={handleSubmit}
+        mode="create"
+      />
+
+      <div className="w-full h-[600px] rounded-lg border border-border bg-card overflow-hidden shadow-md">
+          <div className="absolute top-4 right-4 z-10">
+            <Button onClick={() => setSlotDialogOpen(true)}>
+              Create New Slot
+            </Button>
+          </div>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            fitView
+            onNodeClick={onNodeClick}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            attributionPosition="bottom-center"
+            proOptions={{ hideAttribution: true }}
+          >
+          <Background />
+          <Controls />
+        </ReactFlow>
+      </div>
+
+      <SlotDetailDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        slot={selectedSlot}
+        event={selectedIsEvent ? (data.event as EventData) : null}
+      />
+    </>
   );
 };
 
-export default EventGraphXYFlowPage;
+export default EventGraph;

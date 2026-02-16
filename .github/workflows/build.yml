@@ -65,6 +65,9 @@ jobs:
       # 8. Verify Biome installation
       - name: Verify Biome
         run: npx @biomejs/biome --version
+      
+      - name: Auto-fix package.json key order
+        run: npx @biomejs/biome check --write
 
       # 9. Run lint checks
       - name: Lint code
