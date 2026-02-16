@@ -1535,6 +1535,64 @@ organiserRouter.get("/:eventId/slots", organiserMiddleware, async (req: Request,
     }
 });
 
+organiserRouter.get("/:eventId/graph", organiserMiddleware, async (req: Request, res: Response) => {
+    try {
+        const user = req.organiserId;
+        const { eventId } = req.params;
+        if (!eventId) {
+            return res.status(422).json({
+                message: "No EventId was provided",
+            });
+        }
+        const findEvent = await db.event.findUnique({
+            where: {
+                id: eventId,
+            },
+        });
+
+        if (!findEvent) {
+            return res.status(404).json({
+                message: "Invalid EventId was provided",
+            });
+        }
+
+        if (findEvent.organiserId !== user) {
+            return res.status(401).json({
+                message: "You are unauthorized to access this event as it doesnt belong to you",
+            });
+        }
+
+        const eventSlots = await db.eventSlot.findMany({
+            where: {
+                eventId: eventId,
+            },
+        });
+
+        const groupedByLocation: Record<string, typeof eventSlots> = eventSlots.reduce(
+            (acc, slot) => {
+                const location = slot.location_name || "Unknown";
+                if (!acc[location]) acc[location] = [];
+                acc[location].push(slot);
+                return acc;
+            },
+            {} as Record<string, typeof eventSlots>,
+        );
+
+        return res.status(200).json({
+            data: {
+                event: findEvent,
+                slotsByLocation: groupedByLocation,
+            },
+            message: "Event slots grouped by location",
+        });
+    } catch (error) {
+        console.error("EVENT SLOT GRAPH:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+});
+
 /**
  * @route GET /events/:eventId/tickets
  * @desc Number of tickets sold for a specific event (only PURCHASE transactions)
