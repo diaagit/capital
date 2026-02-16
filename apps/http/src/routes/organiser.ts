@@ -1049,22 +1049,25 @@ organiserRouter.get("/events/summary", organiserMiddleware, async (req: Request,
                 message: "Unauthenticated",
             });
 
-        const eventSummary = (await db.$queryRawUnsafe(`
-  SELECT 
-    e.id AS "eventId",
-    e.title AS "eventName",
-    COALESCE(SUM(t."ticket_count"), 0) AS "ticketsSold",
-    COALESCE(SUM(t.amount), 0) AS "totalRevenue",
-    COUNT(DISTINCT t."userId") AS "attendees"
-  FROM "Transaction" t
-  INNER JOIN "Ticket" tk ON t."ticketId" = tk.id
-  INNER JOIN "EventSlot" es ON tk."eventSlotId" = es.id
-  INNER JOIN "Event" e ON es."eventId" = e.id
-  WHERE e."organiserId" = $1
-    AND t.type = 'PURCHASE'
-  GROUP BY e.id, e.title
-  ORDER BY e.title ASC;
-`)) as unknown as {
+        const eventSummary = (await db.$queryRawUnsafe(
+            `
+            SELECT 
+                e.id AS "eventId",
+                e.title AS "eventName",
+                COALESCE(SUM(t."ticket_count"), 0) AS "ticketsSold",
+                COALESCE(SUM(t.amount), 0) AS "totalRevenue",
+                COUNT(DISTINCT t."userId") AS "attendees"
+            FROM "Transaction" t
+            INNER JOIN "Ticket" tk ON t."ticketId" = tk.id
+            INNER JOIN "EventSlot" es ON tk."eventSlotId" = es.id
+            INNER JOIN "Event" e ON es."eventId" = e.id
+            WHERE e."organiserId" = $1
+                AND t.type = 'PURCHASE'
+            GROUP BY e.id, e.title
+            ORDER BY e.title ASC;
+            `,
+            organiserId,
+        )) as unknown as {
             eventId: string;
             eventName: string;
             ticketsSold: number;
@@ -1100,41 +1103,49 @@ organiserRouter.get(
                     message: "Unauthenticated",
                 });
 
-            const [totalEvents, totalTicketsSold, totalRevenueAgg] = await Promise.all([
-                db.event.count({
-                    where: {
-                        organiserId,
-                    },
-                }),
-                db.ticket.count({
-                    where: {
-                        eventSlot: {
-                            event: {
-                                organiserId,
-                            },
+            const [totalEvents, totalPublished, totalTicketsSold, totalRevenueAgg] =
+                await Promise.all([
+                    db.event.count({
+                        where: {
+                            organiserId,
                         },
-                    },
-                }),
-                db.transaction.aggregate({
-                    _sum: {
-                        amount: true,
-                    },
-                    where: {
-                        ticket: {
+                    }),
+                    db.event.count({
+                        where: {
+                            organiserId: organiserId,
+                            status: "published",
+                        },
+                    }),
+                    db.ticket.count({
+                        where: {
                             eventSlot: {
                                 event: {
                                     organiserId,
                                 },
                             },
                         },
-                        type: "PURCHASE",
-                    },
-                }),
-            ]);
+                    }),
+                    db.transaction.aggregate({
+                        _sum: {
+                            amount: true,
+                        },
+                        where: {
+                            ticket: {
+                                eventSlot: {
+                                    event: {
+                                        organiserId,
+                                    },
+                                },
+                            },
+                            type: "PURCHASE",
+                        },
+                    }),
+                ]);
 
             return res.status(200).json({
                 data: {
                     totalEvents,
+                    totalPublished,
                     totalRevenue: (totalRevenueAgg._sum.amount as any) || 0,
                     totalTicketsSold,
                 },
@@ -1166,7 +1177,7 @@ organiserRouter.get("/events/top", organiserMiddleware, async (req: Request, res
 
         const limit = Math.max(1, parseInt((req.query.limit as string) || "5", 10));
         const sortBy = (req.query.sortBy as string) || "revenue";
-        const orderByCol = sortBy === "tickets" ? "ticketsSold" : "totalRevenue";
+        const orderByCol = sortBy === "tickets" ? `"ticketsSold"` : `"totalRevenue"`;
 
         const topEvents = (await db.$queryRawUnsafe(
             `
