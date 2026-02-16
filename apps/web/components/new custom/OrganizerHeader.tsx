@@ -1,36 +1,24 @@
 "use client";
 
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@/components/ui/popover";
-
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-
-import { Search, Plus, CalendarDays } from "lucide-react";
+import { Plus,Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import getBackendUrl from "@/lib/config";
 import axios from "axios";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 interface BackendProps {
   firstName: string;
   proficPic: string;
 }
 
-export default function OrganizerHeader() {
+interface Props {
+  setClick: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+export default function OrganizerHeader({ setClick }:Props){
   const router = useRouter();
 
   const [userData, setUserData] = useState<BackendProps>({
@@ -72,59 +60,36 @@ export default function OrganizerHeader() {
 
   return (
     <div className="w-full space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <h1 className="text-3xl font-bold tracking-tight">
           Welcome back, {userData.firstName || "Organiser"} 👋
         </h1>
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-
-          <Input
-            placeholder="Search events..."
-            className="pl-9 h-10 rounded-xl bg-white border shadow-sm"
-          />
-        </div>
-      </div>
-
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <Button
-          className="h-10 rounded-xl px-5 shadow-sm"
-          onClick={() =>
-            router.push("/organizer/dashboard/events/new-event")
-          }
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          New Event
-        </Button>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Select>
-            <SelectTrigger className="h-10 w-[140px] rounded-xl bg-white border shadow-sm">
-              <SelectValue placeholder="Sort By" />
-            </SelectTrigger>
-
-            <SelectContent>
-              <SelectItem value="upcoming">Upcoming</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="live">Live</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="h-10 rounded-xl bg-white flex items-center gap-2 shadow-sm"
+        <div>
+          <div className="w-full flex justify-end items-center gap-3 md:w-96">
+            <Button
+              className="h-10 rounded-md px-5 shadow-sm transition-colors hover:shadow-inner hover:bg-gray-200 hover:text-black hover:border hover:border-neutral-200"
+              onClick={() =>
+                router.push("/organizer/dashboard/events/new-event")
+              }
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              New Event
+            </Button>
+            {/* <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                className="h-10 rounded-md px-5 shadow-sm bg-green-700 text-white transition-colors hover:shadow-inner hover:bg-gray-200 hover:text-black hover:border hover:border-neutral-200"
+                onClick={() => setClick(true)}
               >
-                <CalendarDays className="h-4 w-4" />
-                {date ? format(date, "PPP") : "Pick Date"}
+                <Download className="mr-2 h-4 w-4" />
+                Download PDF
               </Button>
-            </PopoverTrigger>
-
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar mode="single" selected={date} onSelect={setDate} />
-            </PopoverContent>
-          </Popover>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Download Complete Dashboard</p>
+              </TooltipContent>
+            </Tooltip> */}
+        </div>
         </div>
       </div>
     </div>

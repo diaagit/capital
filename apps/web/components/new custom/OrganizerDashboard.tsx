@@ -24,7 +24,8 @@ import {
   LineChart,
   Line,
 } from "recharts";
-
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -72,6 +73,7 @@ export default function DashboardPage() {
   const [revenueTrend, setRevenueTrend] = useState<RevenueData[]>([]);
   const [sortBy, setSortBy] = useState<"revenue" | "tickets">("revenue");
   const [loading, setLoading] = useState(true);
+  const [downloadPdf, setDownloadPdf] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -141,21 +143,78 @@ export default function DashboardPage() {
   const isRevenueZero =
     revenueTrend.length > 0 &&
     revenueTrend.every((d) => d.amount === 0);
+  
+  useEffect(() => {
+    if (!downloadPdf) return;
+
+    const generatePdf = async () => {
+      const element = document.getElementById("dashboard-root");
+      if (!element) return;
+
+      const clonedElement = element.cloneNode(true) as HTMLElement;
+      clonedElement.style.backgroundColor = "#ffffff";
+
+      const replaceUnsupportedColors = (el: HTMLElement) => {
+        const style = window.getComputedStyle(el);
+
+        const unsupported = ["oklab", "lab", "lch"];
+        unsupported.forEach((fn) => {
+          if (style.backgroundColor.includes(fn)) el.style.backgroundColor = "#f0f0f0";
+          if (style.color.includes(fn)) el.style.color = "#000000";
+        });
+
+        el.childNodes.forEach((child) => {
+          if (child instanceof HTMLElement) replaceUnsupportedColors(child);
+        });
+      };
+
+      replaceUnsupportedColors(clonedElement);
+
+      clonedElement.style.position = "absolute";
+      clonedElement.style.top = "-9999px";
+      document.body.appendChild(clonedElement);
+
+      const canvas = await html2canvas(clonedElement, { scale: 2 });
+      const imgData = canvas.toDataURL("image/png");
+
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save("dashboard.pdf");
+
+      document.body.removeChild(clonedElement);
+    };
+
+    generatePdf().finally(() => setDownloadPdf(false));
+  }, [downloadPdf]);
 
   return (
-    <div className="min-h-screen bg-muted/40 p-6">
-      <OrganizerHeader />
+    <div id="dashboard-root" className="min-h-screen bg-muted/40 p-6">
+      <OrganizerHeader setClick={setDownloadPdf} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
-        <StatCard title="Total Events" value={meta?.totalEvents ?? 0}  bgColor="bg-green-50"/>
-        <StatCard title="Published Events" value={meta?.totalPublished ?? 0} bgColor="bg-blue-50" />
-        <StatCard title="Tickets Sold" value={meta?.totalTicketsSold ?? 0} bgColor="bg-orange-50" />
-        <StatCard
-          title="Total Revenue"
-          value={meta?.totalRevenue ?? 0}
-          prefix="₹ "
-          bgColor="bg-red-50"
-        />
+        {loading ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : (
+          <>
+            <StatCard title="Total Events" value={meta?.totalEvents ?? 0} bgColor="bg-green-50" />
+            <StatCard title="Published Events" value={meta?.totalPublished ?? 0} bgColor="bg-blue-50" />
+            <StatCard title="Tickets Sold" value={meta?.totalTicketsSold ?? 0} bgColor="bg-orange-50" />
+            <StatCard
+              title="Total Revenue"
+              value={meta?.totalRevenue ?? 0}
+              prefix="₹ "
+              bgColor="bg-red-50"
+            />
+          </>
+        )}
       </div>
 
       <Card className="mt-10 shadow-sm">
@@ -182,75 +241,116 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div>
-              <h3 className="text-sm font-medium mb-4">
-                Top Performing Events
-              </h3>
+            {loading ? (
+              <>
+                <SkeletonChart />
+                <SkeletonChart />
+              </>
+            ) : (
+              <>
+                <div>
+                  <h3 className="text-sm font-medium mb-4">
+                    Top Performing Events
+                  </h3>
 
-              {!loading && topEvents.length === 0 && (
-                <div className="h-64 flex items-center justify-center text-muted-foreground bg-neutral-50 border border-gray-200 shadow-xs rounded-lg text-sm">
-                  No top performing events yet.
+                  {topEvents.length === 0 ? (
+                    <div className="h-64 flex items-center justify-center text-muted-foreground bg-neutral-50 border border-gray-200 shadow-xs rounded-lg text-sm">
+                      No top performing events yet.
+                    </div>
+                  ) : (
+                    <ChartContainer config={{}}>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={topEvents}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="eventName" />
+                          <YAxis />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Bar
+                            dataKey={
+                              sortBy === "revenue"
+                                ? "totalRevenue"
+                                : "ticketsSold"
+                            }
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
+                  )}
                 </div>
-              )}
 
-              {!loading && topEvents.length > 0 && (
-                <ChartContainer config={{}}>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={topEvents}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="eventName" />
-                      <YAxis />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar
-                        dataKey={
-                          sortBy === "revenue"
-                            ? "totalRevenue"
-                            : "ticketsSold"
-                        }
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              )}
-            </div>
+                <div>
+                  <h3 className="text-sm font-medium mb-4">
+                    Revenue (Last 7 Days)
+                  </h3>
 
-            <div>
-              <h3 className="text-sm font-medium mb-4">
-                Revenue (Last 7 Days)
-              </h3>
-
-              {!loading && revenueTrend.length === 0 && (
-                <div className="h-64 flex items-center justify-center text-muted-foreground bg-neutral-50 border border-gray-200 shadow-xs rounded-lg text-sm">
-                  Revenue data unavailable.
+                  {revenueTrend.length === 0 ? (
+                    <div className="h-64 flex items-center justify-center text-muted-foreground bg-neutral-50 border border-gray-200 shadow-xs rounded-lg text-sm">
+                      Revenue data unavailable.
+                    </div>
+                  ) : isRevenueZero ? (
+                    <div className="h-64 flex items-center justify-center text-muted-foreground bg-neutral-50 border border-gray-200 shadow-xs rounded-lg text-sm">
+                      No revenue generated in the last 7 days.
+                    </div>
+                  ) : (
+                    <ChartContainer config={{}}>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={revenueTrend}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="date" />
+                          <YAxis />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Line type="monotone" dataKey="amount" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
+                  )}
                 </div>
-              )}
-
-              {!loading && isRevenueZero && (
-                <div className="h-64 flex items-center justify-center text-muted-foreground bg-neutral-50 border border-gray-200 shadow-xs rounded-lg text-sm ">
-                  No revenue generated in the last 7 days.
-                </div>
-              )}
-
-              {!loading &&
-                revenueTrend.length > 0 &&
-                !isRevenueZero && (
-                  <ChartContainer config={{}}>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={revenueTrend}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Line
-                          type="monotone"
-                          dataKey="amount"
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                )}
-            </div>
+              </>
+            )}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-10 shadow-sm">
+        <CardContent className="p-6">
+          <CardTitle className="mb-6">Event Summary</CardTitle>
+
+          {loading ? (
+            <div className="space-y-4">
+              <SkeletonSummary />
+              <SkeletonSummary />
+              <SkeletonSummary />
+            </div>
+          ) : summary.length === 0 ? (
+            <div className="h-40 flex items-center justify-center text-muted-foreground bg-neutral-50 border border-gray-200 rounded-lg text-sm">
+              No event summary data available.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {summary.map((event) => (
+                <div
+                  key={event.eventId}
+                  className="flex justify-between items-center p-4 border rounded-lg bg-white shadow-sm"
+                >
+                  <div>
+                    <p className="font-medium">{event.eventName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Attendees: {event.attendees}
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="font-semibold">
+                      ₹ {event.totalRevenue.toLocaleString()}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {event.ticketsSold} Tickets
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -280,5 +380,23 @@ function StatCard({
         </CardDescription>
       </CardContent>
     </Card>
+  );
+}
+
+function SkeletonCard() {
+  return (
+    <div className="border shadow-sm bg-gray-100 animate-pulse h-24 rounded-lg" />
+  );
+}
+
+function SkeletonChart() {
+  return (
+    <div className="h-64 bg-gray-100 animate-pulse rounded-lg" />
+  );
+}
+
+function SkeletonSummary() {
+  return (
+    <div className="flex justify-between items-center p-4 border rounded-lg bg-gray-100 animate-pulse h-20" />
   );
 }
