@@ -1,5 +1,5 @@
 import redisCache from "@repo/cache";
-import db, { Role, type Prisma } from "@repo/db";
+import db, { type Prisma } from "@repo/db";
 import { decryptPayload, verifySignedTicket } from "@repo/keygen";
 import { AlphabeticOTP, NumericOTP } from "@repo/notifications";
 import { otpLimits, resetPasswordLimits } from "@repo/ratelimit";
@@ -13,12 +13,12 @@ import {
     VerificationType,
 } from "@repo/types";
 import bcrypt from "bcrypt";
+import { addDays, endOfDay, startOfDay } from "date-fns";
 import dotenv from "dotenv";
+import excel from "exceljs";
 import express, { type Request, type Response, type Router } from "express";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import validatorMiddleware, { unVerifiedValidatorMiddleware } from "../middleware";
-import { addDays, startOfDay, endOfDay } from "date-fns";
-import excel from "exceljs";
 
 dotenv.config();
 const validatorRouter: Router = express.Router();
@@ -78,13 +78,13 @@ validatorRouter.post(
             let user: any;
 
             if (existingUser) {
-                if(existingUser.is_verified){
+                if (existingUser.is_verified) {
                     return res.status(409).json({
                         message: "Account already exists. Please login.",
                     });
                 }
                 user = existingUser;
-            }else{
+            } else {
                 const hashedPassword = await bcrypt.hash(password, saltRounds);
 
                 user = await db.user.create({
@@ -188,7 +188,7 @@ validatorRouter.post(
                 });
             }
 
-            if(existingUser.role !== "verifier"){
+            if (existingUser.role !== "verifier") {
                 return res.status(403).json({
                     message: "Access denied",
                 });
@@ -243,80 +243,85 @@ validatorRouter.post(
  * @param {Express.Response} res - The HTTP response object used to return data.
  * @returns {Promise<void>} - Responds with a JSON object containing user info and JWT token.
  */
-validatorRouter.post("/verify", unVerifiedValidatorMiddleware, otpLimits, async (req: Request, res: Response) => {
-    try {
-        const userId = req.userId;
-        const parsed = VerificationType.safeParse(req.body);
-        if (!userId || !parsed.success) {
-            return res.status(400).json({
-                message: "Invalid request",
+validatorRouter.post(
+    "/verify",
+    unVerifiedValidatorMiddleware,
+    otpLimits,
+    async (req: Request, res: Response) => {
+        try {
+            const userId = req.userId;
+            const parsed = VerificationType.safeParse(req.body);
+            if (!userId || !parsed.success) {
+                return res.status(400).json({
+                    message: "Invalid request",
+                });
+            }
+
+            const { otp } = parsed.data;
+            const otpRecord = await db.otp.findFirst({
+                where: {
+                    expires_at: {
+                        gt: new Date(),
+                    },
+                    is_used: false,
+                    otp_code: otp,
+                    userId,
+                },
+            });
+
+            if (!otpRecord) {
+                return res.status(400).json({
+                    message: "Invalid or expired OTP",
+                });
+            }
+
+            await db.$transaction(async (tx: Prisma.TransactionClient) => {
+                await tx.otp.update({
+                    data: {
+                        is_used: true,
+                    },
+                    where: {
+                        id: otpRecord.id,
+                    },
+                });
+                await tx.user.update({
+                    data: {
+                        is_verified: true,
+                    },
+                    where: {
+                        id: userId,
+                    },
+                });
+            });
+
+            const token = generateToken(userId, "1d");
+            await db.$transaction(async (tx: Prisma.TransactionClient) => {
+                await tx.jwtToken.deleteMany({
+                    where: {
+                        userId: userId,
+                    },
+                }),
+                    await tx.jwtToken.create({
+                        data: {
+                            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+                            issued_at: new Date(),
+                            token,
+                            userId: userId,
+                        },
+                    });
+            });
+
+            return res.status(200).json({
+                message: "Validator verified successfully",
+                token: token,
+            });
+        } catch (_err) {
+            return res.status(500).json({
+                message: "Internal server error",
             });
         }
-
-        const { otp } = parsed.data;
-        const otpRecord = await db.otp.findFirst({
-            where: {
-                expires_at: {
-                    gt: new Date(),
-                },
-                is_used: false,
-                otp_code: otp,
-                userId,
-            },
-        });
-
-        if (!otpRecord) {
-            return res.status(400).json({
-                message: "Invalid or expired OTP",
-            });
-        }
-
-        await db.$transaction(async (tx: Prisma.TransactionClient) => {
-            await tx.otp.update({
-                data: {
-                    is_used: true,
-                },
-                where: {
-                    id: otpRecord.id,
-                },
-            });
-            await tx.user.update({
-                data: {
-                    is_verified: true,
-                },
-                where: {
-                    id: userId,
-                },
-            });
-        });
-
-        const token = generateToken(userId,"1d")
-        await db.$transaction(async(tx: Prisma.TransactionClient) => {
-            await tx.jwtToken.deleteMany({
-                where: {
-                    userId: userId
-                }
-            }),
-            await tx.jwtToken.create({
-                data:{
-                    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
-                    issued_at: new Date(),
-                    token,
-                    userId: userId
-                }
-            })
-        })
-
-        return res.status(200).json({
-            message: "Validator verified successfully",
-            token: token
-        });
-    } catch (_err) {
-        return res.status(500).json({
-            message: "Internal server error",
-        });
-    }
-});
+    },
+);
 
 /**
  * Logout the User after signup/signin
@@ -405,85 +410,89 @@ validatorRouter.post("/otp", otpLimits, async (req: Request, res: Response) => {
  * @param {Express.Response} res - The HTTP response object used to return data.
  * @returns {Promise<void>} - Responds with a JSON object containing user info and JWT token.
  */
-validatorRouter.post("/forget-password", resetPasswordLimits, async (req: Request, res: Response) => {
-    try {
-        const parsed = ForgetType.safeParse(req.body);
-        if (!parsed.success) {
-            const error = parsed.error.format();
-            return res.status(422).json({
-                error: error,
-                message: "Invalid Data format was provided",
-            });
-        }
-        const { email, otp, newpassword } = parsed.data;
-        const findEmail = await db.user.findUnique({
-            where: {
-                email,
-                is_verified: true,
-            },
-        });
-
-        if (!findEmail) {
-            return res.status(404).json({
-                message: `Invalid email ${email} was provided`,
-            });
-        }
-
-        const otpRecord = await db.otp.findFirst({
-            where: {
-                otp_code: otp,
-                userId: findEmail.id,
-            },
-        });
-
-        if (!otpRecord) {
-            return res.status(404).json({
-                message: "OTP record not found",
-            });
-        }
-
-        if (otpRecord.is_used) {
-            return res.status(400).json({
-                message: "OTP already used",
-            });
-        }
-
-        if (otpRecord.expires_at < new Date(Date.now())) {
-            return res.status(400).json({
-                message: "OTP was already expired",
-            });
-        }
-
-        const hashedPassword = await bcrypt.hash(newpassword, saltRounds);
-
-        await db.$transaction(async (tx: Prisma.TransactionClient) => {
-            await tx.otp.update({
-                data: {
-                    is_used: true,
-                },
+validatorRouter.post(
+    "/forget-password",
+    resetPasswordLimits,
+    async (req: Request, res: Response) => {
+        try {
+            const parsed = ForgetType.safeParse(req.body);
+            if (!parsed.success) {
+                const error = parsed.error.format();
+                return res.status(422).json({
+                    error: error,
+                    message: "Invalid Data format was provided",
+                });
+            }
+            const { email, otp, newpassword } = parsed.data;
+            const findEmail = await db.user.findUnique({
                 where: {
-                    id: otpRecord.id,
+                    email,
+                    is_verified: true,
                 },
             });
 
-            await tx.user.update({
-                data: {
-                    password: hashedPassword,
-                },
+            if (!findEmail) {
+                return res.status(404).json({
+                    message: `Invalid email ${email} was provided`,
+                });
+            }
+
+            const otpRecord = await db.otp.findFirst({
                 where: {
-                    id: findEmail.id,
+                    otp_code: otp,
+                    userId: findEmail.id,
                 },
             });
-        });
-        return res.status(200).json({
-            message: "Password reset successfully",
-        });
-    } catch (_error) {
-        return res.status(500).json({
-            message: "Internal server error",
-        });
-    }
-});
+
+            if (!otpRecord) {
+                return res.status(404).json({
+                    message: "OTP record not found",
+                });
+            }
+
+            if (otpRecord.is_used) {
+                return res.status(400).json({
+                    message: "OTP already used",
+                });
+            }
+
+            if (otpRecord.expires_at < new Date(Date.now())) {
+                return res.status(400).json({
+                    message: "OTP was already expired",
+                });
+            }
+
+            const hashedPassword = await bcrypt.hash(newpassword, saltRounds);
+
+            await db.$transaction(async (tx: Prisma.TransactionClient) => {
+                await tx.otp.update({
+                    data: {
+                        is_used: true,
+                    },
+                    where: {
+                        id: otpRecord.id,
+                    },
+                });
+
+                await tx.user.update({
+                    data: {
+                        password: hashedPassword,
+                    },
+                    where: {
+                        id: findEmail.id,
+                    },
+                });
+            });
+            return res.status(200).json({
+                message: "Password reset successfully",
+            });
+        } catch (_error) {
+            return res.status(500).json({
+                message: "Internal server error",
+            });
+        }
+    },
+);
 
 /**
  * Resets the User after signup/signin
@@ -545,90 +554,89 @@ validatorRouter.post(
 
 validatorRouter.get("/events", validatorMiddleware, async (req: Request, res: Response) => {
     try {
-        const {search, location_name} = req.query;
+        const { search, location_name } = req.query;
 
         const today = startOfDay(new Date());
         const next7Days = endOfDay(addDays(today, 7));
 
-        const whereClause: Record<string,any> = {
-            status: "published",
+        const whereClause: Record<string, any> = {
             slots: {
                 some: {
                     event_date: {
                         gte: today,
-                        lte: next7Days
-                    }
-                }
-            }
-        }
+                        lte: next7Days,
+                    },
+                },
+            },
+            status: "published",
+        };
 
-        if(typeof search === "string" && search.trim() !== ""){
+        if (typeof search === "string" && search.trim() !== "") {
             whereClause.title = {
                 contains: search.trim(),
-                mode: "insensitive"
-            }
+                mode: "insensitive",
+            };
         }
 
-        if(typeof location_name === "string" && location_name.trim() !== ""){
+        if (typeof location_name === "string" && location_name.trim() !== "") {
             whereClause.slots = {
                 some: {
                     ...whereClause.slots.some,
                     location_name: {
                         contains: location_name.trim(),
-                        mode: "insensitive"
-                    }
-                }
-            }
+                        mode: "insensitive",
+                    },
+                },
+            };
         }
-    
+
         const getEvents = await db.event.findMany({
-            where: whereClause,
             include: {
-                slots: true
+                slots: true,
             },
             orderBy: {
-                created_at: "desc"
-            }
-        })
-       
+                created_at: "desc",
+            },
+            where: whereClause,
+        });
+
         return res.status(200).json({
-            message: "Next 7 days events were fetched",
             data: {
-                events: getEvents
-            }
-        })
-    } catch (error) {
-        console.log(error)
+                events: getEvents,
+            },
+            message: "Next 7 days events were fetched",
+        });
+    } catch (_error) {
         return res.status(500).json({
             message: "Internal server error",
         });
     }
-})
+});
 
 validatorRouter.get("/download", validatorMiddleware, async (req: Request, res: Response) => {
     try {
         const user = req.userId;
-        
+
         const findUser = await db.user.findUnique({
             where: {
-                id: user
-            }
-        })
+                id: user,
+            },
+        });
 
-        if(!findUser){
+        if (!findUser) {
             return res.status(401).json({
-                message: "Unauthorized User tried to access the service"
-            })
+                message: "Unauthorized User tried to access the service",
+            });
         }
 
-        const {eventId,slotId} = req.query;
-        const whereClause: Record<string,any> = {
+        const { eventId, slotId } = req.query;
+        const whereClause: Record<string, any> = {
             is_verified: true,
-        }
+        };
 
-        if(typeof eventId === "string" && eventId.trim() !== ""){
+        if (typeof eventId === "string" && eventId.trim() !== "") {
             whereClause.eventSlot = {
-                eventId: eventId.trim()
+                eventId: eventId.trim(),
             };
         }
 
@@ -639,131 +647,194 @@ validatorRouter.get("/download", validatorMiddleware, async (req: Request, res: 
                 some: {
                     //verifierId: user,
                     //is_successful: true
-                }
+                },
             };
         }
 
-        
-    const getTickets = await db.ticket.findMany({
-        where: whereClause,
-        include: {
-          eventSlot: {
+        const getTickets = await db.ticket.findMany({
             include: {
-              event: true
-            }
-          },
-          user: true,
-          verifications: {
-            include: {
-              verifier: true
-            }
-          }
-        },
-        orderBy: {
-          issued_at: "desc"
-        }
-    });
-
-    const workbook = new excel.Workbook();
-    const exportTimestamp = new Date().toLocaleString();
-    const sheet = workbook.addWorksheet("Ticket List");
-
-    sheet.mergeCells("A1:L1");
-    const titleCell = sheet.getCell("A1");
-    titleCell.value = "Tickets List";
-    titleCell.font = { bold: true, size: 16 };
-    titleCell.alignment = { horizontal: "center" };
-
-    sheet.addRow([]);
-
-    const infoRow = sheet.addRow([
-        "Validator:",
-        `${findUser.first_name} ${findUser.last_name}`,
-        "Exported At:",
-        exportTimestamp,
-    ]);
-
-    infoRow.eachCell((cell) => {
-        cell.font = { bold: true };
-    });
-
-    sheet.addRow([]);
-    sheet.addRow([]);
-
-    sheet.columns = [
-        { header: "Sr No.", key: "index", width: 8 },
-        { header: "Ticket ID", key: "ticket_id", width: 36 },
-        { header: "Full Name", key: "full_name", width: 20 },
-        { header: "Email", key: "email", width: 25 },
-        { header: "Event", key: "event", width: 25 },
-        { header: "Slot Date", key: "slot_date", width: 20 },
-        { header: "Location", key: "location", width: 20 },
-        { header: "Verifier", key: "verifier", width: 20 },
-        { header: "Verified", key: "verified", width: 15 },
-        { header: "Verified At", key: "verified_at", width: 22 },
-        { header: "Remarks", key: "remarks", width: 25 },
-    ];
-
-    const headerRow = sheet.getRow(6)
-    headerRow.font = {bold: true, color: {argb: "000000"}},
-    headerRow.fill = {
-        type: "pattern",
-        pattern:"solid",
-        fgColor: {argb: "FFD9EAD3"}
-    }
-    headerRow.alignment = {vertical: "middle", horizontal: "center"},
-    headerRow.height = 20;
-
-    headerRow.eachCell((x) => {
-        x.border = {
-            top: {style: "thin"},
-            left: {style: "thin"},
-            bottom: {style: "thin"},
-            right: {style: "thin"}
-        }
-    })
-
-    getTickets.forEach((ticket, index) => {
-        const latestVerification = ticket.verifications[0];
-        sheet.addRow({
-          index: index + 1,
-          ticket_id: ticket.id,
-          full_name: `${ticket.user.first_name} ${ticket.user.last_name}`,
-          email: ticket.user.email,
-          event: ticket.eventSlot.event.title,
-          slot_date: ticket.eventSlot.event_date.toLocaleString(),
-          location: ticket.eventSlot.location_name,
-          verifier: latestVerification?.verifier
-            ? `${latestVerification.verifier.first_name} ${latestVerification.verifier.last_name}`
-            : "-",
-          verified: latestVerification?.is_successful ? "Yes" : "No",
-          verified_at: latestVerification?.verification_time
-            ? new Date(latestVerification.verification_time).toLocaleString()
-            : "-",
-          remarks: latestVerification?.remarks || "-"
+                eventSlot: {
+                    include: {
+                        event: true,
+                    },
+                },
+                user: true,
+                verifications: {
+                    include: {
+                        verifier: true,
+                    },
+                },
+            },
+            orderBy: {
+                issued_at: "desc",
+            },
+            where: whereClause,
         });
-    });
 
-    res.setHeader(
-        "Content-Type",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
+        const workbook = new excel.Workbook();
+        const exportTimestamp = new Date().toLocaleString();
+        const sheet = workbook.addWorksheet("Ticket List");
 
-    res.setHeader(
-        "Content-Disposition",
-        `attachment; filename=tickets_${Date.now()}.xlsx`
-    );
+        sheet.mergeCells("A1:L1");
+        const titleCell = sheet.getCell("A1");
+        titleCell.value = "Tickets List";
+        titleCell.font = {
+            bold: true,
+            size: 16,
+        };
+        titleCell.alignment = {
+            horizontal: "center",
+        };
 
-    await workbook.xlsx.write(res);
-    res.end();
+        sheet.addRow([]);
 
-    } catch (error) {
-        console.log(error)
+        const infoRow = sheet.addRow([
+            "Validator:",
+            `${findUser.first_name} ${findUser.last_name}`,
+            "Exported At:",
+            exportTimestamp,
+        ]);
+
+        infoRow.eachCell((cell) => {
+            cell.font = {
+                bold: true,
+            };
+        });
+
+        sheet.addRow([]);
+        sheet.addRow([]);
+
+        sheet.columns = [
+            {
+                header: "Sr No.",
+                key: "index",
+                width: 8,
+            },
+            {
+                header: "Ticket ID",
+                key: "ticket_id",
+                width: 36,
+            },
+            {
+                header: "Full Name",
+                key: "full_name",
+                width: 20,
+            },
+            {
+                header: "Email",
+                key: "email",
+                width: 25,
+            },
+            {
+                header: "Event",
+                key: "event",
+                width: 25,
+            },
+            {
+                header: "Slot Date",
+                key: "slot_date",
+                width: 20,
+            },
+            {
+                header: "Location",
+                key: "location",
+                width: 20,
+            },
+            {
+                header: "Verifier",
+                key: "verifier",
+                width: 20,
+            },
+            {
+                header: "Verified",
+                key: "verified",
+                width: 15,
+            },
+            {
+                header: "Verified At",
+                key: "verified_at",
+                width: 22,
+            },
+            {
+                header: "Remarks",
+                key: "remarks",
+                width: 25,
+            },
+        ];
+
+        const headerRow = sheet.getRow(6);
+        (headerRow.font = {
+            bold: true,
+            color: {
+                argb: "000000",
+            },
+        }),
+            (headerRow.fill = {
+                fgColor: {
+                    argb: "FFD9EAD3",
+                },
+                pattern: "solid",
+                type: "pattern",
+            });
+        (headerRow.alignment = {
+            horizontal: "center",
+            vertical: "middle",
+        }),
+            (headerRow.height = 20);
+
+        headerRow.eachCell((x) => {
+            x.border = {
+                bottom: {
+                    style: "thin",
+                },
+                left: {
+                    style: "thin",
+                },
+                right: {
+                    style: "thin",
+                },
+                top: {
+                    style: "thin",
+                },
+            };
+        });
+
+        getTickets.forEach((ticket, index) => {
+            const latestVerification = ticket.verifications[0];
+            sheet.addRow({
+                email: ticket.user.email,
+                event: ticket.eventSlot.event.title,
+                full_name: `${ticket.user.first_name} ${ticket.user.last_name}`,
+                index: index + 1,
+                location: ticket.eventSlot.location_name,
+                remarks: latestVerification?.remarks || "-",
+                slot_date: ticket.eventSlot.event_date.toLocaleString(),
+                ticket_id: ticket.id,
+                verified: latestVerification?.is_successful ? "Yes" : "No",
+                verified_at: latestVerification?.verification_time
+                    ? new Date(latestVerification.verification_time).toLocaleString()
+                    : "-",
+                verifier: latestVerification?.verifier
+                    ? `${latestVerification.verifier.first_name} ${latestVerification.verifier.last_name}`
+                    : "-",
+            });
+        });
+
+        res.setHeader(
+            "Content-Type",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        );
+
+        res.setHeader("Content-Disposition", `attachment; filename=tickets_${Date.now()}.xlsx`);
+
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (_error) {
         return res.status(500).json({
             message: "Internal server error",
         });
     }
-})
+});
 
 /**
  * POST /validator/validate

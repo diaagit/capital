@@ -20,7 +20,11 @@ if (!jwtSecret) {
     throw new Error("JWT_SECRET is not defined in environment variables");
 }
 
-export async function unVerifiedValidatorMiddleware(req: Request, res: Response, next: NextFunction) {
+export async function unVerifiedValidatorMiddleware(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+) {
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -99,16 +103,15 @@ export default async function validatorMiddleware(req: Request, res: Response, n
             });
         }
 
-
         const dbToken = await db.jwtToken.findFirst({
+            include: {
+                user: true,
+            },
             where: {
                 is_revoked: false,
                 token,
                 userId,
             },
-            include:{
-                user: true,
-            }
         });
 
         if (!dbToken) {
@@ -117,7 +120,7 @@ export default async function validatorMiddleware(req: Request, res: Response, n
             });
         }
 
-        if(!dbToken.user.is_verified){
+        if (!dbToken.user.is_verified) {
             return res.status(403).json({
                 message: "Unverified User tried to access services",
             });
