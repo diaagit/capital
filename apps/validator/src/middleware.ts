@@ -20,7 +20,7 @@ if (!jwtSecret) {
     throw new Error("JWT_SECRET is not defined in environment variables");
 }
 
-export default async function validatorMiddleware(req: Request, res: Response, next: NextFunction) {
+export async function unVerifiedValidatorMiddleware(req: Request, res: Response, next: NextFunction) {
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -59,6 +59,70 @@ export default async function validatorMiddleware(req: Request, res: Response, n
                 message: "Token not found or revoked",
             });
         }
+        if (new Date() > dbToken.expires_at) {
+            return res.status(403).json({
+                message: "Token expired",
+            });
+        }
+        req.userId = userId;
+        next();
+    } catch (_error) {
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+}
+
+export default async function validatorMiddleware(req: Request, res: Response, next: NextFunction) {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            return res.status(403).json({
+                message: "You are not logged in",
+            });
+        }
+
+        const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : undefined;
+        let decoded: JwtPayload;
+        try {
+            decoded = jwt.verify(token, jwtSecret) as JwtPayload;
+        } catch (_err) {
+            return res.status(403).json({
+                message: "Invalid or expired token",
+            });
+        }
+
+        const userId = decoded.userId as string | undefined;
+        if (!userId) {
+            return res.status(403).json({
+                message: "Invalid token payload",
+            });
+        }
+
+
+        const dbToken = await db.jwtToken.findFirst({
+            where: {
+                is_revoked: false,
+                token,
+                userId,
+            },
+            include:{
+                user: true,
+            }
+        });
+
+        if (!dbToken) {
+            return res.status(403).json({
+                message: "Token not found or revoked",
+            });
+        }
+
+        if(!dbToken.user.is_verified){
+            return res.status(403).json({
+                message: "Unverified User tried to access services",
+            });
+        }
+
         if (new Date() > dbToken.expires_at) {
             return res.status(403).json({
                 message: "Token expired",

@@ -1,8 +1,11 @@
 import redisCache from "@repo/cache";
-import db, { type Prisma } from "@repo/db";
+import db, { Role, type Prisma } from "@repo/db";
 import { decryptPayload, verifySignedTicket } from "@repo/keygen";
 import { AlphabeticOTP, NumericOTP } from "@repo/notifications";
+import { otpLimits, resetPasswordLimits } from "@repo/ratelimit";
 import {
+    ForgetType,
+    OtpType,
     ResetPasswordSchema,
     SigninType,
     type SignupResponse,
@@ -13,7 +16,9 @@ import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import express, { type Request, type Response, type Router } from "express";
 import jwt, { type SignOptions } from "jsonwebtoken";
-import validatorMiddleware from "../middleware";
+import validatorMiddleware, { unVerifiedValidatorMiddleware } from "../middleware";
+import { addDays, startOfDay, endOfDay } from "date-fns";
+import excel from "exceljs";
 
 dotenv.config();
 const validatorRouter: Router = express.Router();
@@ -70,39 +75,45 @@ validatorRouter.post(
                 },
             });
 
+            let user: any;
+
             if (existingUser) {
-                return res.status(400).json({
-                    message: "Validator already registered",
+                if(existingUser.is_verified){
+                    return res.status(409).json({
+                        message: "Account already exists. Please login.",
+                    });
+                }
+                user = existingUser;
+            }else{
+                const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+                user = await db.user.create({
+                    data: {
+                        email,
+                        first_name: firstName,
+                        is_verified: false,
+                        last_name: lastName,
+                        password: hashedPassword,
+                        role: "verifier",
+                    },
                 });
             }
 
-            const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-            const newUser = await db.user.create({
-                data: {
-                    email,
-                    first_name: firstName,
-                    is_verified: false,
-                    last_name: lastName,
-                    password: hashedPassword,
-                    role: "verifier",
-                },
-            });
-
             const otp = AlphabeticOTP(6);
+
             await db.otp.create({
                 data: {
                     expires_at: new Date(Date.now() + 10 * 60 * 1000),
                     otp_code: otp,
                     purpose: "signup",
-                    userId: newUser.id,
+                    userId: user.id,
                 },
             });
 
             await client.rPush(
                 Queue_name,
                 JSON.stringify({
-                    email: newUser.email,
+                    email: user.email,
                     otp: otp,
                     type: "email",
                 }),
@@ -110,13 +121,13 @@ validatorRouter.post(
 
             // await sendEmailOtp(newUser.email, otp);
 
-            const token = generateToken(newUser.id, "10m");
+            const token = generateToken(user.id, "10m");
             await db.jwtToken.create({
                 data: {
                     expires_at: new Date(Date.now() + 10 * 60 * 1000),
                     issued_at: new Date(),
                     token,
-                    userId: newUser.id,
+                    userId: user.id,
                 },
             });
 
@@ -124,10 +135,10 @@ validatorRouter.post(
                 message: "Verifier successfully registered",
                 token: token,
                 user: {
-                    email: newUser.email,
-                    firstName: newUser.first_name,
-                    id: newUser.id,
-                    lastName: newUser.last_name,
+                    email: user.email,
+                    firstName: user.first_name,
+                    id: user.id,
+                    lastName: user.last_name,
                 },
             });
         } catch (error) {
@@ -164,9 +175,22 @@ validatorRouter.post(
                     email,
                 },
             });
+
             if (!existingUser) {
                 return res.status(400).json({
                     message: "Invalid email or password",
+                });
+            }
+
+            if (!existingUser.is_verified) {
+                return res.status(403).json({
+                    message: "Email not verified, Please signup",
+                });
+            }
+
+            if(existingUser.role !== "verifier"){
+                return res.status(403).json({
+                    message: "Access denied",
                 });
             }
 
@@ -219,7 +243,7 @@ validatorRouter.post(
  * @param {Express.Response} res - The HTTP response object used to return data.
  * @returns {Promise<void>} - Responds with a JSON object containing user info and JWT token.
  */
-validatorRouter.post("/verify", validatorMiddleware, async (req: Request, res: Response) => {
+validatorRouter.post("/verify", unVerifiedValidatorMiddleware, otpLimits, async (req: Request, res: Response) => {
     try {
         const userId = req.userId;
         const parsed = VerificationType.safeParse(req.body);
@@ -266,8 +290,26 @@ validatorRouter.post("/verify", validatorMiddleware, async (req: Request, res: R
             });
         });
 
+        const token = generateToken(userId,"1d")
+        await db.$transaction(async(tx: Prisma.TransactionClient) => {
+            await tx.jwtToken.deleteMany({
+                where: {
+                    userId: userId
+                }
+            }),
+            await tx.jwtToken.create({
+                data:{
+                    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+                    issued_at: new Date(),
+                    token,
+                    userId: userId
+                }
+            })
+        })
+
         return res.status(200).json({
-            message: "User verified successfully",
+            message: "Validator verified successfully",
+            token: token
         });
     } catch (_err) {
         return res.status(500).json({
@@ -304,6 +346,145 @@ validatorRouter.post("/logout", validatorMiddleware, async (req: Request, res: R
     }
 });
 
+validatorRouter.post("/otp", otpLimits, async (req: Request, res: Response) => {
+    try {
+        const parsed = OtpType.safeParse(req.body);
+        if (!parsed.success) {
+            return res.status(401).json({
+                message: "No Email was provided",
+            });
+        }
+        const { email } = parsed.data;
+
+        const findEmail = await db.user.findUnique({
+            where: {
+                email,
+                is_verified: true,
+            },
+        });
+
+        if (!findEmail) {
+            return res.status(404).json({
+                message: `The given ${email} is not registered with our services`,
+            });
+        }
+
+        const otp = AlphabeticOTP(6);
+        const _createOtp = await db.otp.create({
+            data: {
+                expires_at: new Date(Date.now() + 15 * 60 * 1000),
+                otp_code: otp,
+                purpose: "forgot_password",
+                userId: findEmail.id,
+            },
+        });
+
+        await client.rPush(
+            Queue_name,
+            JSON.stringify({
+                email: findEmail.email,
+                otp: otp,
+                reason: "forget-password",
+                type: "email",
+            }),
+        );
+
+        return res.status(200).json({
+            message: `If your ${email} exists, a reset link will be sent`,
+        });
+    } catch (_error) {
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+});
+
+/**
+ * Complete Process for Forget_PASSWORDs
+ * @param {Express.Request} req - The HTTP request object containing user details.
+ * @param {Express.Response} res - The HTTP response object used to return data.
+ * @returns {Promise<void>} - Responds with a JSON object containing user info and JWT token.
+ */
+validatorRouter.post("/forget-password", resetPasswordLimits, async (req: Request, res: Response) => {
+    try {
+        const parsed = ForgetType.safeParse(req.body);
+        if (!parsed.success) {
+            const error = parsed.error.format();
+            return res.status(422).json({
+                error: error,
+                message: "Invalid Data format was provided",
+            });
+        }
+        const { email, otp, newpassword } = parsed.data;
+        const findEmail = await db.user.findUnique({
+            where: {
+                email,
+                is_verified: true,
+            },
+        });
+
+        if (!findEmail) {
+            return res.status(404).json({
+                message: `Invalid email ${email} was provided`,
+            });
+        }
+
+        const otpRecord = await db.otp.findFirst({
+            where: {
+                otp_code: otp,
+                userId: findEmail.id,
+            },
+        });
+
+        if (!otpRecord) {
+            return res.status(404).json({
+                message: "OTP record not found",
+            });
+        }
+
+        if (otpRecord.is_used) {
+            return res.status(400).json({
+                message: "OTP already used",
+            });
+        }
+
+        if (otpRecord.expires_at < new Date(Date.now())) {
+            return res.status(400).json({
+                message: "OTP was already expired",
+            });
+        }
+
+        const hashedPassword = await bcrypt.hash(newpassword, saltRounds);
+
+        await db.$transaction(async (tx: Prisma.TransactionClient) => {
+            await tx.otp.update({
+                data: {
+                    is_used: true,
+                },
+                where: {
+                    id: otpRecord.id,
+                },
+            });
+
+            await tx.user.update({
+                data: {
+                    password: hashedPassword,
+                },
+                where: {
+                    id: findEmail.id,
+                },
+            });
+        });
+        return res.status(200).json({
+            message: "Password reset successfully",
+        });
+    } catch (_error) {
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+});
+
 /**
  * Resets the User after signup/signin
  * @param {Express.Request} req - The HTTP request object containing user details.
@@ -312,6 +493,7 @@ validatorRouter.post("/logout", validatorMiddleware, async (req: Request, res: R
  */
 validatorRouter.post(
     "/reset-password",
+    resetPasswordLimits,
     validatorMiddleware,
     async (
         req: Request,
@@ -360,6 +542,228 @@ validatorRouter.post(
         }
     },
 );
+
+validatorRouter.get("/events", validatorMiddleware, async (req: Request, res: Response) => {
+    try {
+        const {search, location_name} = req.query;
+
+        const today = startOfDay(new Date());
+        const next7Days = endOfDay(addDays(today, 7));
+
+        const whereClause: Record<string,any> = {
+            status: "published",
+            slots: {
+                some: {
+                    event_date: {
+                        gte: today,
+                        lte: next7Days
+                    }
+                }
+            }
+        }
+
+        if(typeof search === "string" && search.trim() !== ""){
+            whereClause.title = {
+                contains: search.trim(),
+                mode: "insensitive"
+            }
+        }
+
+        if(typeof location_name === "string" && location_name.trim() !== ""){
+            whereClause.slots = {
+                some: {
+                    ...whereClause.slots.some,
+                    location_name: {
+                        contains: location_name.trim(),
+                        mode: "insensitive"
+                    }
+                }
+            }
+        }
+    
+        const getEvents = await db.event.findMany({
+            where: whereClause,
+            include: {
+                slots: true
+            },
+            orderBy: {
+                created_at: "desc"
+            }
+        })
+       
+        return res.status(200).json({
+            message: "Next 7 days events were fetched",
+            data: {
+                events: getEvents
+            }
+        })
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+})
+
+validatorRouter.get("/download", validatorMiddleware, async (req: Request, res: Response) => {
+    try {
+        const user = req.userId;
+        
+        const findUser = await db.user.findUnique({
+            where: {
+                id: user
+            }
+        })
+
+        if(!findUser){
+            return res.status(401).json({
+                message: "Unauthorized User tried to access the service"
+            })
+        }
+
+        const {eventId,slotId} = req.query;
+        const whereClause: Record<string,any> = {
+            is_verified: true,
+        }
+
+        if(typeof eventId === "string" && eventId.trim() !== ""){
+            whereClause.eventSlot = {
+                eventId: eventId.trim()
+            };
+        }
+
+        if (typeof slotId === "string" && slotId.trim() !== "") {
+            whereClause.eventSlotId = slotId.trim();
+
+            whereClause.verifications = {
+                some: {
+                    //verifierId: user,
+                    //is_successful: true
+                }
+            };
+        }
+
+        
+    const getTickets = await db.ticket.findMany({
+        where: whereClause,
+        include: {
+          eventSlot: {
+            include: {
+              event: true
+            }
+          },
+          user: true,
+          verifications: {
+            include: {
+              verifier: true
+            }
+          }
+        },
+        orderBy: {
+          issued_at: "desc"
+        }
+    });
+
+    const workbook = new excel.Workbook();
+    const exportTimestamp = new Date().toLocaleString();
+    const sheet = workbook.addWorksheet("Ticket List");
+
+    sheet.mergeCells("A1:L1");
+    const titleCell = sheet.getCell("A1");
+    titleCell.value = "Tickets List";
+    titleCell.font = { bold: true, size: 16 };
+    titleCell.alignment = { horizontal: "center" };
+
+    sheet.addRow([]);
+
+    const infoRow = sheet.addRow([
+        "Validator:",
+        `${findUser.first_name} ${findUser.last_name}`,
+        "Exported At:",
+        exportTimestamp,
+    ]);
+
+    infoRow.eachCell((cell) => {
+        cell.font = { bold: true };
+    });
+
+    sheet.addRow([]);
+    sheet.addRow([]);
+
+    sheet.columns = [
+        { header: "Sr No.", key: "index", width: 8 },
+        { header: "Ticket ID", key: "ticket_id", width: 36 },
+        { header: "Full Name", key: "full_name", width: 20 },
+        { header: "Email", key: "email", width: 25 },
+        { header: "Event", key: "event", width: 25 },
+        { header: "Slot Date", key: "slot_date", width: 20 },
+        { header: "Location", key: "location", width: 20 },
+        { header: "Verifier", key: "verifier", width: 20 },
+        { header: "Verified", key: "verified", width: 15 },
+        { header: "Verified At", key: "verified_at", width: 22 },
+        { header: "Remarks", key: "remarks", width: 25 },
+    ];
+
+    const headerRow = sheet.getRow(6)
+    headerRow.font = {bold: true, color: {argb: "000000"}},
+    headerRow.fill = {
+        type: "pattern",
+        pattern:"solid",
+        fgColor: {argb: "FFD9EAD3"}
+    }
+    headerRow.alignment = {vertical: "middle", horizontal: "center"},
+    headerRow.height = 20;
+
+    headerRow.eachCell((x) => {
+        x.border = {
+            top: {style: "thin"},
+            left: {style: "thin"},
+            bottom: {style: "thin"},
+            right: {style: "thin"}
+        }
+    })
+
+    getTickets.forEach((ticket, index) => {
+        const latestVerification = ticket.verifications[0];
+        sheet.addRow({
+          index: index + 1,
+          ticket_id: ticket.id,
+          full_name: `${ticket.user.first_name} ${ticket.user.last_name}`,
+          email: ticket.user.email,
+          event: ticket.eventSlot.event.title,
+          slot_date: ticket.eventSlot.event_date.toLocaleString(),
+          location: ticket.eventSlot.location_name,
+          verifier: latestVerification?.verifier
+            ? `${latestVerification.verifier.first_name} ${latestVerification.verifier.last_name}`
+            : "-",
+          verified: latestVerification?.is_successful ? "Yes" : "No",
+          verified_at: latestVerification?.verification_time
+            ? new Date(latestVerification.verification_time).toLocaleString()
+            : "-",
+          remarks: latestVerification?.remarks || "-"
+        });
+    });
+
+    res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=tickets_${Date.now()}.xlsx`
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+})
 
 /**
  * POST /validator/validate
