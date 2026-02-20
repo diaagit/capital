@@ -13,7 +13,7 @@ import {
     VerificationType,
 } from "@repo/types";
 import bcrypt from "bcrypt";
-import { addDays, endOfDay, startOfDay } from "date-fns";
+import { addDays, endOfDay, format, formatDate, startOfDay } from "date-fns";
 import dotenv from "dotenv";
 import excel from "exceljs";
 import express, { type Request, type Response, type Router } from "express";
@@ -607,6 +607,84 @@ validatorRouter.get("/events", validatorMiddleware, async (req: Request, res: Re
             message: "Next 7 days events were fetched",
         });
     } catch (_error) {
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+});
+
+validatorRouter.get("/scanned/events", validatorMiddleware, async (req: Request, res: Response) => {
+    try {
+        const user = req.userId;
+
+        const verifications = await db.ticketVerification.findMany({
+            select: {
+                ticket: {
+                    select: {
+                        eventSlot: {
+                            select: {
+                                capacity: true,
+                                end_time: true,
+                                event: {
+                                    select: {
+                                        banner_url: true,
+                                        category: true,
+                                        created_at: true,
+                                        description: true,
+                                        genre: true,
+                                        hero_image_url: true,
+                                        id: true,
+                                        is_online: true,
+                                        language: true,
+                                        organiser: {
+                                            select: {
+                                                first_name: true,
+                                                last_name: true,
+                                            },
+                                        },
+                                        status: true,
+                                        title: true,
+                                    },
+                                },
+                                event_date: true,
+                                id: true,
+                                location_name: true,
+                                location_url: true,
+                                price: true,
+                                start_time: true,
+                            },
+                        },
+                    },
+                },
+            },
+            where: {
+                verifierId: user,
+            },
+        });
+
+        const events = verifications.map((v) => {
+            const slot = v.ticket.eventSlot;
+            return {
+                ...slot.event,
+                eventSlot: {
+                    capacity: slot.capacity,
+                    end_time: format(new Date(slot.end_time), "h:mm a"),
+                    event_date: formatDate(slot.event_date, "MMM d, yyyy"),
+                    id: slot.id,
+                    location_name: slot.location_name,
+                    location_url: slot.location_url,
+                    price: slot.price,
+                    start_time: format(new Date(slot.start_time), "h:mm a"),
+                },
+            };
+        });
+
+        return res.status(200).json({
+            data: events,
+            message: "Events were fetched successfully",
+        });
+    } catch (error) {
+        console.error(error);
         return res.status(500).json({
             message: "Internal server error",
         });
