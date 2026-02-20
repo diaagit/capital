@@ -43,7 +43,7 @@ export default function Page() {
 
   const resetPassword = async () => {
     const URL = getBackendUrl();
-    const response = await axios.post(`${URL}/user/reset-password`, { email, otp, password });
+    const response = await axios.post(`${URL}/user/forget-password`, { email, otp, newpassword:password });
     if(response.status === 200){
         toast.success("Your password was successfully reset");
         router.push("/login");

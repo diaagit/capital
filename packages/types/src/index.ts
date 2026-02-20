@@ -34,15 +34,10 @@ export const OtpType = z.object({
 
 export const ForgetType = z.object({
     email: emailSchema,
-    newpassword: z
-        .string({
-            error: "Wrong Password format",
-        })
-        .nonempty("Password is required")
-        .min(6, "Password must be at least 6 characters long"),
-    otp: z.string().nonempty("OTP is Required").min(6, {
-        error: "Invalid OTP format was provided",
-    }),
+
+    newpassword: z.string().min(6, "Password must be at least 6 characters long"),
+
+    otp: z.string().length(6, "OTP must be exactly 6 characters"),
 });
 
 export const ResetType = z.object({
