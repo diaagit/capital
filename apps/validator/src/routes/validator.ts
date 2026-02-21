@@ -554,7 +554,7 @@ validatorRouter.post(
 
 validatorRouter.get("/events", validatorMiddleware, async (req: Request, res: Response) => {
     try {
-        const { search, location_name } = req.query;
+        const { search, location_name, category } = req.query;
 
         const today = startOfDay(new Date());
         const next7Days = endOfDay(addDays(today, 7));
@@ -590,12 +590,56 @@ validatorRouter.get("/events", validatorMiddleware, async (req: Request, res: Re
             };
         }
 
-        const getEvents = await db.event.findMany({
-            include: {
-                slots: true,
+        if (typeof category === "string" && category.trim() !== "") {
+            whereClause.category = {
+                contains: category.trim(),
+                mode: "insensitive",
+            };
+        }
+
+        const metaLocations = await db.eventSlot.findMany({
+            distinct: [
+                "location_name",
+            ],
+            select: {
+                location_name: true,
             },
+            where: {
+                event: {
+                    status: "published",
+                },
+                event_date: {
+                    gte: today,
+                    lt: next7Days,
+                },
+            },
+        });
+
+        const formattedMeta = metaLocations.map((x) => {
+            return x.location_name;
+        });
+
+        const getEvents = await db.event.findMany({
             orderBy: {
                 created_at: "desc",
+            },
+            select: {
+                banner_url: true,
+                category: true,
+                description: true,
+                genre: true,
+                hero_image_url: true,
+                id: true,
+                language: true,
+                slots: {
+                    select: {
+                        event_date: true,
+                        id: true,
+                        location_name: true,
+                    },
+                },
+                status: true,
+                title: true,
             },
             where: whereClause,
         });
@@ -603,6 +647,7 @@ validatorRouter.get("/events", validatorMiddleware, async (req: Request, res: Re
         return res.status(200).json({
             data: {
                 events: getEvents,
+                meta: formattedMeta,
             },
             message: "Next 7 days events were fetched",
         });

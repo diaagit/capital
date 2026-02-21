@@ -29,7 +29,7 @@
     "name": "validator",
     "scripts": {
         "build": "tsc -b",
-        "dev": "tsc -b && node ./dist/server.js",
+        "dev": "tsc -b && node ./dist/app.js",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "type": "commonjs",

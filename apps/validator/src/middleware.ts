@@ -131,6 +131,13 @@ export default async function validatorMiddleware(req: Request, res: Response, n
                 message: "Token expired",
             });
         }
+
+        if (dbToken.user.role !== "verifier") {
+            return res.status(401).json({
+                message: "Only Validators can access these services",
+            });
+        }
+
         req.userId = userId;
         next();
     } catch (_error) {

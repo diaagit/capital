@@ -1,5 +1,3 @@
-"use client";
-
 import {
   LayoutDashboard,
   Tickets,
@@ -8,19 +6,17 @@ import {
   LogOut,
   Wallet,
 } from "lucide-react";
-
-import Image from "next/image";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import getBackendUrl from "@/lib/config";
 import axios from "axios";
 import { Button } from "../ui/button";
+import { useNavigate } from "react-router-dom";
 
 export default function VerifierSideNav() {
   const pathname = usePathname();
-  const router = useRouter();
+  const router = useNavigate();
   const linkBase =
     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors";
 
@@ -41,11 +37,11 @@ export default function VerifierSideNav() {
             const token = localStorage.getItem("token");
             if(!token){
                 toast.warning("You are not logged in")
-                router.push("/organizer/login");
+                router("/signin");
             }
-            router.push("/organizer/login");
+            router("/signin");
             
-            const res = await axios.get(`${URL}/organiser/logout`,{
+            const res = await axios.get(`${URL}/verifier/logout`,{
                 headers:{
                     Authorization: `Bearer ${token}`
                 }
@@ -63,9 +59,9 @@ export default function VerifierSideNav() {
     <aside className="flex h-full w-full flex-col bg-background">
 
       <div className="h-16 flex items-center px-6 border-b">
-        <Link href="/home" className="flex items-center gap-2">
-          <Image
-            src="/assets/forget-password/Capital-White.svg"
+        <a href="/dashboard" className="flex items-center gap-2">
+          <img
+            src="/forget-password/Capital-White.svg"
             alt="Capital"
             width={26}
             height={26}
@@ -74,37 +70,37 @@ export default function VerifierSideNav() {
           <span className="text-base font-semibold tracking-tight">
             Capital
           </span>
-        </Link>
+        </a>
       </div>
 
       <nav className="flex-1 px-3 py-6 space-y-1">
 
-        <Link href="/organizer/dashboard" className={link("/organizer/dashboard")}>
+        <a href="/dashboard" className={link("/dashboard")}>
           <LayoutDashboard size={18} />
           Dashboard
-        </Link>
+        </a>
 
-        <Link href="/organizer/dashboard/events" className={link("/organizer/dashboard/events")}>
+        <a href="/dashboard/events" className={link("/dashboard/events")}>
           <Tickets size={18} />
           Events
-        </Link>
+        </a>
 
-        <Link href="/organizer/dashboard/wallet" className={link("/organizer/dashboard/wallet")}>
+        <a href="/dashboard/wallet" className={link("/dashboard/wallet")}>
           <Wallet size={18} />
           Wallet
-        </Link>
+        </a>
 
-        <Link href="/organizer/dashboard/profile" className={link("/organizer/dashboard/profile")}>
+        <a href="/dashboard/profile" className={link("/dashboard/profile")}>
           <ReceiptIndianRupee size={18} />
           Invoices
-        </Link>
+        </a>
 
         <Separator className="my-4" />
 
-        <Link href="/newdashboard/settings" className={link("/newdashboard/settings")}>
+        <a href="/newdashboard/settings" className={link("/newdashboard/settings")}>
           <Settings size={18} />
-          Settings
-        </Link>
+          Profile
+        </a>
 
         <Button onClick={removeToken} variant="ghost" className={`${linkBase} w-full flex justify-start items-center p-3 text-red-500 rounded-sm hover:bg-red-50`}>
           <LogOut size={18} />
