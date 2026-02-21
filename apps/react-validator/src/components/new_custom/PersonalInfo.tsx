@@ -1,19 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import getBackendUrl from "@/lib/config";
-
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { ProfileSkeleton } from "./ProfileSkeleton";
 import { DragDropAvatar } from "./DragDropAvatar";
-import { toast } from "sonner";
-import { Router } from "next/router";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 
 interface UserData {
   email: string;
@@ -33,7 +29,7 @@ interface UserResponse {
 }
 
 const PersonalInfo = () => {
-  const router = useRouter();
+  const router = useNavigate();
   const [loading, setLoading] = useState(true);
   const [editable, setEditable] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
@@ -49,7 +45,7 @@ const PersonalInfo = () => {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if(!token){
-      router.push("/login");
+      router("/login");
     }
     axios
       .get<UserResponse>(`${getBackendUrl()}/user/me`, {
@@ -85,7 +81,7 @@ const PersonalInfo = () => {
       }
     } catch (error) {
       console.log("Error took place:",error);
-      toast.error("Error took place:",error)
+      toast.error("Error took place:");
     }
   }
 

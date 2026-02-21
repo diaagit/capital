@@ -6,6 +6,8 @@ import VerifyPage from './pages/VerifyPage'
 import Forget_Password_Page from './pages/Forget_Password'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import EventPage from './pages/Events'
+import ScannerPage from './pages/Scanner'
+import NotFoundPage from './pages/NotFoundPage'
 
 function App() {
   //Scanner, Upcoming Events, Logout, Profile, Scanned Tickets
@@ -20,13 +22,14 @@ function App() {
             <Route element={<ProtectedRoute />}>
               <Route path='/verify' element={<VerifyPage />} />
               <Route path="/dashboard">
-                {/* <Route index element={<Dashboard />} /> */}
+                <Route index element={<ScannerPage />} />
                 <Route path="events" element={<EventPage />} />
                 {/* <Route path="wallet" element={<Wallet />} />
                 <Route path="invoices" element={<Invoices />} />
                 <Route path="settings" element={<Settings />} /> */}
               </Route>
             </Route>
+            <Route path='*' element={<NotFoundPage />} />
           </Routes>
         </BrowserRouter>
       </div>

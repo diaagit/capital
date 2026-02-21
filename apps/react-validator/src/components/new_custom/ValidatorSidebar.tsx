@@ -1,10 +1,10 @@
 import {
-  LayoutDashboard,
   Tickets,
-  ReceiptIndianRupee,
   Settings,
   LogOut,
-  Wallet,
+  ScanLine,
+  UserRoundPen,
+  CalendarFold,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
@@ -76,30 +76,30 @@ export default function VerifierSideNav() {
       <nav className="flex-1 px-3 py-6 space-y-1">
 
         <a href="/dashboard" className={link("/dashboard")}>
-          <LayoutDashboard size={18} />
-          Dashboard
+          <ScanLine size={18} />
+          Scanner
         </a>
 
         <a href="/dashboard/events" className={link("/dashboard/events")}>
-          <Tickets size={18} />
+          <CalendarFold size={18} />
           Events
         </a>
 
-        <a href="/dashboard/wallet" className={link("/dashboard/wallet")}>
-          <Wallet size={18} />
-          Wallet
+        <a href="/dashboard/scanned" className={link("/dashboard/wallet")}>
+          <Tickets size={18} />
+          Scanned Tickets
         </a>
 
         <a href="/dashboard/profile" className={link("/dashboard/profile")}>
-          <ReceiptIndianRupee size={18} />
-          Invoices
+          <UserRoundPen size={18} />
+          Profile
         </a>
 
         <Separator className="my-4" />
 
         <a href="/newdashboard/settings" className={link("/newdashboard/settings")}>
           <Settings size={18} />
-          Profile
+          Settings
         </a>
 
         <Button onClick={removeToken} variant="ghost" className={`${linkBase} w-full flex justify-start items-center p-3 text-red-500 rounded-sm hover:bg-red-50`}>
