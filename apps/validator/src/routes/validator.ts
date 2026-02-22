@@ -1,3 +1,7 @@
+import dotenv from "dotenv";
+
+dotenv.config();
+
 import redisCache from "@repo/cache";
 import db, { type Prisma } from "@repo/db";
 import { decryptPayload, verifySignedTicket } from "@repo/keygen";
@@ -10,17 +14,18 @@ import {
     SigninType,
     type SignupResponse,
     SignupType,
+    UserDetailsType,
     VerificationType,
 } from "@repo/types";
+import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcrypt";
 import { addDays, endOfDay, format, formatDate, startOfDay } from "date-fns";
-import dotenv from "dotenv";
 import excel from "exceljs";
 import express, { type Request, type Response, type Router } from "express";
 import jwt, { type SignOptions } from "jsonwebtoken";
+import multer from "multer";
 import validatorMiddleware, { unVerifiedValidatorMiddleware } from "../middleware";
 
-dotenv.config();
 const validatorRouter: Router = express.Router();
 
 const jwtSecret = process.env.JWT_SECRET as string;
@@ -30,6 +35,14 @@ if (!jwtSecret) {
     throw new Error("JWT_SECRET is not defined in environment variables");
 }
 
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+if (!supabaseUrl || !supabaseKey) {
+    throw new Error("Supabase keys are not defined in environment variables");
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+const upload = multer();
 const client = redisCache;
 const Queue_name = "notification:initiate";
 
@@ -545,6 +558,136 @@ validatorRouter.post(
                 message: "Password was successfully updated",
             });
         } catch (_error) {
+            return res.status(500).json({
+                message: "Internal server error",
+            });
+        }
+    },
+);
+
+validatorRouter.get("/me", validatorMiddleware, async (req: Request, res: Response) => {
+    try {
+        const userId = req.userId;
+        const result = await db.user.findUnique({
+            where: {
+                id: userId,
+                is_verified: true,
+            },
+        });
+
+        if (!result) {
+            return res.status(404).json({
+                message: "Invalid UserId was provided",
+            });
+        }
+
+        // let _decryptPrivateKey: string | undefined;
+        // if (typeof result.encrypted_private_key === "string") {
+        //     _decryptPrivateKey = decrypt(result.encrypted_private_key);
+        // }
+        return res.status(200).json({
+            data: {
+                city: result.city,
+                date: result.DOB,
+                email: result.email,
+                firstName: result.first_name,
+                lastName: result.last_name,
+                //privateKey: decryptPrivateKey,
+                profilePic: result.profile_image_url,
+                //publicKey: result.public_key,
+                state: result.state,
+                zip_code: result.zip_code,
+            },
+            message: "User was successfully retrived",
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: "Internal server error",
+        });
+    }
+});
+
+validatorRouter.put(
+    "/me",
+    validatorMiddleware,
+    upload.single("file"),
+    async (req: Request, res: Response) => {
+        try {
+            const userId = req.userId;
+            const file = req.file as Express.Multer.File;
+            const parsed = UserDetailsType.safeParse(req.body);
+            if (!parsed.success) {
+                const err = parsed.error.format();
+                return res.status(401).json({
+                    error: err,
+                    message: "Invalid data was provided",
+                });
+            }
+            const { firstName, lastName, zipCode, state, city, date } = parsed.data;
+            let publicUrl = "";
+            if (file) {
+                const key = `avatar/${userId}-${Date.now()}.png`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from("uploads")
+                    .upload(key, file.buffer, {
+                        contentType: file.mimetype,
+                        upsert: true,
+                    });
+
+                if (uploadError) throw uploadError;
+
+                const { data } = supabase.storage.from("uploads").getPublicUrl(key);
+                publicUrl = data.publicUrl;
+            }
+
+            const updatedUser = await db.user.update({
+                data: {
+                    ...(firstName && {
+                        first_name: firstName,
+                    }),
+                    ...(lastName && {
+                        last_name: lastName,
+                    }),
+                    ...(file && {
+                        profile_image_url: publicUrl,
+                    }),
+                    ...(zipCode && {
+                        zip_code: zipCode,
+                    }),
+                    ...(state && {
+                        state: state,
+                    }),
+                    ...(city && {
+                        city: city,
+                    }),
+                    ...(date && {
+                        DOB: date,
+                    }),
+                },
+                where: {
+                    id: userId,
+                    is_verified: true,
+                },
+            });
+
+            return res.status(200).json({
+                message: "User updated successfully",
+                user: {
+                    city: updatedUser.city,
+                    date: updatedUser.DOB,
+                    email: updatedUser.email,
+                    firstName: updatedUser.first_name,
+                    id: updatedUser.id,
+                    lastName: updatedUser.last_name,
+                    profileImageUrl: updatedUser.profile_image_url,
+                    state: updatedUser.state,
+                    zipCode: updatedUser.zip_code,
+                },
+            });
+        } catch (error) {
+            console.error(error);
             return res.status(500).json({
                 message: "Internal server error",
             });

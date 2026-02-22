@@ -1,8 +1,11 @@
+import dotenv from "dotenv";
+
+dotenv.config();
+
 import fs from "node:fs";
 import path from "node:path";
 import db from "@repo/db";
 import cors from "cors";
-import dotenv from "dotenv";
 import express, { type Express, type Request, type Response } from "express";
 import morgan from "morgan";
 import client from "prom-client";
@@ -12,7 +15,6 @@ import redisCache, { initRedis } from "../../../packages/cache/dist";
 import { metricsMiddleware } from "./middleware";
 import router from "./routes";
 
-dotenv.config();
 export const app: Express = express();
 export const port = process.env.PORT || 3003;
 

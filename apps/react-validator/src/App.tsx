@@ -8,6 +8,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute'
 import EventPage from './pages/Events'
 import ScannerPage from './pages/Scanner'
 import NotFoundPage from './pages/NotFoundPage'
+import Personal_Info_Page from './pages/Personal_Info_Page'
 
 function App() {
   //Scanner, Upcoming Events, Logout, Profile, Scanned Tickets
@@ -24,9 +25,9 @@ function App() {
               <Route path="/dashboard">
                 <Route index element={<ScannerPage />} />
                 <Route path="events" element={<EventPage />} />
-                {/* <Route path="wallet" element={<Wallet />} />
-                <Route path="invoices" element={<Invoices />} />
-                <Route path="settings" element={<Settings />} /> */}
+                <Route path="profile" element={<Personal_Info_Page />} />
+                {/* <Route path="wallet" element={<Wallet />} /> */}
+                {/* <Route path="settings" element={<Settings />} /> */}
               </Route>
             </Route>
             <Route path='*' element={<NotFoundPage />} />

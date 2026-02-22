@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import axios from "axios";
 import getBackendUrl from "@/lib/config";
@@ -16,7 +14,7 @@ interface UserData {
   firstName: string;
   lastName: string;
   profilePic: string | null;
-  publicKey: string;
+  //publicKey: string;
   city: string | null;
   state: string | null;
   date: string | null;
@@ -48,7 +46,7 @@ const PersonalInfo = () => {
       router("/login");
     }
     axios
-      .get<UserResponse>(`${getBackendUrl()}/user/me`, {
+      .get<UserResponse>(`${getBackendUrl()}/validator/me`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => setUser(res.data.data))
@@ -69,7 +67,7 @@ const PersonalInfo = () => {
       if (date) formData.append("date", date);
       if (avatarFile) formData.append("file", avatarFile);
 
-      const res = await axios.put(`${URL}/user/me`,formData,{
+      const res = await axios.put(`${URL}/validator/me`,formData,{
         headers:{
           Authorization: `Bearer ${token}`,
         }
@@ -108,7 +106,7 @@ const PersonalInfo = () => {
 
   return (
     <div className="bg-white rounded-2xl p-10 min-h-full">
-      <div className="max-w-4xl mx-auto space-y-10">
+      <div className="w-full mx-auto space-y-10">
         <div className="flex justify-between items-center">
           <div className="flex gap-6 items-center">
             <DragDropAvatar
@@ -130,8 +128,8 @@ const PersonalInfo = () => {
           </div>
 
           <Button
-            variant="outline"
-            className="border-gray-300 text-gray-700 hover:bg-red-50 hover:border-red-500 hover:text-red-600"
+            variant="default"
+            className="border-gray-300 text-zinc-100 hover:bg-red-50 hover:border-red-500 hover:text-red-600"
             onClick={() => setEditable(!editable)}
           >
             {editable ? "Cancel" : "Edit"}
@@ -184,10 +182,10 @@ const PersonalInfo = () => {
             />
           </div>
 
-          <div className="space-y-2 col-span-2">
+          {/* <div className="space-y-2 col-span-2">
             <Label>Public Key</Label>
             <Input value={user.publicKey} readOnly />
-          </div>
+          </div> */}
         </div>
 
         {editable && (
