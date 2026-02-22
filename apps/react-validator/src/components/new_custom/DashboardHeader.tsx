@@ -14,8 +14,8 @@ const DashboardHeader = ({
   rightContent,
 }: DashboardHeaderProps) => {
   return (
-    <header className="border-b border-border bg-background sticky top-0 z-10">
-      <div className="h-16 px-6 flex items-center justify-between">
+    <header className="border-b w-full border-border bg-background sticky top-0 z-10">
+      <div className="h-16  px-6 flex items-center justify-between">
         
         <div className="flex items-center gap-3">
           

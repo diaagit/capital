@@ -357,7 +357,8 @@ validatorRouter.post("/logout", validatorMiddleware, async (req: Request, res: R
         return res.status(200).json({
             message: "Successfully logged out",
         });
-    } catch (_error) {
+    } catch (error) {
+        console.error(error);
         return res.status(500).json({
             message: "Internal server error",
         });

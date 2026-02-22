@@ -32,28 +32,36 @@ export default function VerifierSideNav() {
     }`;
 
   const removeToken = async () => {
-        try {
-            const URL = getBackendUrl();
-            const token = localStorage.getItem("token");
-            if(!token){
-                toast.warning("You are not logged in")
-                router("/signin");
-            }
-            router("/signin");
-            
-            const res = await axios.get(`${URL}/verifier/logout`,{
-                headers:{
-                    Authorization: `Bearer ${token}`
-                }
-            })
+    try {
+      const URL = getBackendUrl()
+      const token = localStorage.getItem("token")
 
-            if(res.status === 200){
-                localStorage.removeItem("token");
-            }
-        } catch (error) {
-            toast.error("Error logging out")
+      if (!token) {
+        toast.warning("You are not logged in")
+        router("/signin")
+        return
+      }
+
+      await axios.post(
+        `${URL}/validator/logout`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
+      )
+
+      localStorage.removeItem("token")
+
+      toast.success("Logged out successfully")
+
+      router("/signin")
+    } catch (error) {
+      console.error(error)
+      toast.error("Error logging out")
     }
+  }
 
   return (
     <aside className="flex h-full w-full flex-col bg-background">
