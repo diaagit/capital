@@ -6,7 +6,7 @@ import {
   UserRoundPen,
   CalendarFold,
 } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { useLocation } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import getBackendUrl from "@/lib/config";
@@ -15,7 +15,7 @@ import { Button } from "../ui/button";
 import { useNavigate } from "react-router-dom";
 
 export default function VerifierSideNav() {
-  const pathname = usePathname();
+  const { pathname } = useLocation();
   const router = useNavigate();
   const linkBase =
     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors";

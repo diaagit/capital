@@ -1,9 +1,12 @@
-import TicketDetails from "@/components/new custom/TicketDetails"
+import TicketDetails from "@/components/new custom/TicketDetails";
 
-const page = () => {
-  return (
-     <TicketDetails />
-  )
+interface PageProps {
+    params: Promise<{ ticketId: string }>;
 }
 
-export default page
+const Page = async ({ params }: PageProps) => {
+    const { ticketId } = await params;
+    return <TicketDetails ticketId={ticketId} />;
+};
+
+export default Page;

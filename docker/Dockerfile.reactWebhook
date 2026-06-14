@@ -11,7 +11,7 @@ COPY packages/db ./packages/db/
 COPY apps/react-webhook/package*.json apps/react-webhook/
 COPY apps/react-webhook/tsconfig*.json apps/react-webhook/
 
-RUN npm install
+RUN npm ci
 
 COPY apps/react-webhook ./apps/react-webhook/
 

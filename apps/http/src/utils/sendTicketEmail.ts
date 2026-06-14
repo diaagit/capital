@@ -605,7 +605,7 @@ export async function generatePDFwithPupeet(data: any): Promise<Buffer> {
     const page = await browser.newPage();
 
     await page.setContent(GeneratePDF(data), {
-        waitUntil: "networkidle0",
+        waitUntil: "load",
     });
 
     const pdfBuffer = await page.pdf({

@@ -238,7 +238,7 @@ ticketRouter.post(
                 },
             });
 
-            await sendTicketEmail({
+            const result = await sendTicketEmail({
                 attendeeName: `${user.first_name} ${user.last_name}`,
                 baseAmount: totalAmount.toNumber(),
                 bookingDateTime: new Date().toISOString(),
@@ -258,6 +258,8 @@ ticketRouter.post(
                 totalPaid: totalAmount.toNumber(),
                 transactionId: `TXN${token}`,
             });
+
+            console.log("This is result:", result);
 
             return res.status(200).json({
                 message: "Tickets purchased successfully",

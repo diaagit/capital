@@ -197,7 +197,7 @@ const TicketList = () => {
                   </div>
 
                   <div className="flex items-end justify-end col-span-2">
-                    <Link href={`/tickets/${ticket.id}`}>
+                    <Link href={`/dashboard/tickets/${ticket.id}`}>
                       <Button variant="ghost" size="sm">
                         Ticket Details
                         <ChevronRight className="ml-1 h-4 w-4" />

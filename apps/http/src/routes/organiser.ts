@@ -563,7 +563,7 @@ organiserRouter.get("/wallet", organiserMiddleware, async (req: Request, res: Re
                                         ? {
                                               ticket: {
                                                   eventSlot: {
-                                                      eventId: String(eventId),
+                                                      eventId: String(Array.isArray(eventId) ? eventId[0] : eventId),
                                                   },
                                               },
                                           }
@@ -631,7 +631,7 @@ organiserRouter.get("/wallet", organiserMiddleware, async (req: Request, res: Re
                                         ? {
                                               ticket: {
                                                   eventSlot: {
-                                                      eventId: String(eventId),
+                                                      eventId: String(Array.isArray(eventId) ? eventId[0] : eventId),
                                                   },
                                               },
                                           }
@@ -1387,8 +1387,10 @@ organiserRouter.get("/:eventId/slots", organiserMiddleware, async (req: Request,
             });
         }
 
+        const eventIdString = Array.isArray(eventId) ? eventId[0] : eventId;
+
         const slotWhere: Prisma.EventSlotWhereInput = {
-            eventId,
+            eventId: eventIdString,
 
             ...(location && {
                 location_name: {

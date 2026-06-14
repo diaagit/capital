@@ -8,7 +8,7 @@ COPY ./packages ./packages
 COPY ./swagger ./swagger
 COPY ./apps/http ./apps/http
 
-RUN npm install 
+RUN npm ci
 
 # COPY docker/entrypoint.sh /usr/src/app/entrypoint.sh
 # RUN chmod +x /usr/src/app/entrypoint.sh

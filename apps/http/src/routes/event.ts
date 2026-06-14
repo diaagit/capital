@@ -586,7 +586,7 @@ eventRouter.get("/:eventId/slots", async (req: Request, res: Response) => {
         ]);
 
         const slotWhere: Prisma.EventSlotWhereInput = {
-            eventId,
+            eventId: Array.isArray(eventId) ? eventId[0] : eventId,
 
             ...(location && {
                 location_name: {

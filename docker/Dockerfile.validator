@@ -1,17 +1,21 @@
 FROM node:20-alpine
+
 WORKDIR /usr/src/app
 
-COPY ./package.json ./
-COPY ./package-lock.json ./
-COPY ./turbo.json ./
-COPY ./packages ./packages
-COPY ./swagger ./swagger
-COPY ./apps/validator ./apps/validator
+COPY package*.json ./
+COPY turbo.json ./
+COPY tsconfig*.json ./
 
-RUN npm install 
+COPY packages ./packages
+COPY swagger ./swagger
+COPY apps/validator ./apps/validator
+
+RUN npm ci
 
 RUN npm run generate:db
-RUN npx turbo build --filter=validator...
+
+RUN cd apps/validator && npm run build
 
 EXPOSE 3003
-CMD [ "npm","run","start:validator"]
+
+CMD ["npm", "run", "start:validator"]

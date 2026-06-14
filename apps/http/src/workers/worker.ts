@@ -32,7 +32,8 @@ async function startWorker() {
 
             if (payload.type === "email") {
                 if (!payload.email) throw new Error("Email missing");
-                await sendEmailOtp(payload.email, payload.otp);
+                const email = await sendEmailOtp(payload.email, payload.otp);
+                console.log(email);
             }
 
             await redisCache.lRem(Process_Queue, 1, job);

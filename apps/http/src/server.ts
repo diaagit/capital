@@ -6,7 +6,7 @@ const totalCpus = os.cpus().length;
 
 // NOTE: Ask Ronak Each time you touch this code
 
-if (cluster.isPrimary) {
+if ((cluster as any).isPrimary) {
     for (let i = 0; i < totalCpus; i++) {
         cluster.fork();
     }
